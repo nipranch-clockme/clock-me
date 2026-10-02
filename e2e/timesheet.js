@@ -121,7 +121,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   // copy last week brings last week's rows
   await p.click('button:has-text("Copy last week")');await p.waitForURL(/copied=/);
   const notice=await p.textContent('p[role=status]');
-  ok('copy last week copies the empty row',/Copied 1 project row/.test(notice)&&(await p.isVisible(`tr:has-text("${pub[1][1]}")`)),notice.trim());
+  ok('copy last week copies the empty row',/Copied 1 project from last week/.test(notice)&&(await p.isVisible(`tr:has-text("${pub[1][1]}")`)),notice.trim());
 
   // once submitted, everything is read-only
   await p.click('button:has-text("Submit for approval")');await p.waitForLoadState('networkidle');await p.waitForTimeout(500);

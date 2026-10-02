@@ -10,7 +10,7 @@ import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
 import { copyLastWeek, submitWeek } from "./actions";
 import Link from "next/link";
 
-export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; rows?: string; skipped?: string }> }) {
+export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; last?: string; skipped?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
@@ -40,7 +40,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
   const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
   const back = `/timesheet${offset ? `?w=${offset}` : ""}`;
-  const copiedEntries = Number(sp.copied ?? 0), copiedRows = Number(sp.rows ?? 0);
+  const copied = Number(sp.copied ?? 0), lastCount = Number(sp.last ?? 0), skipped = Number(sp.skipped ?? 0);
 
   return (
     <section className="panel">
@@ -59,11 +59,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
       {sp.copied != null && (
-        <p className={Number(sp.skipped) ? "alert warn" : "alert info"} role="status">
-          {copiedEntries ? `Copied ${copiedEntries} ${copiedEntries === 1 ? "entry" : "entries"} from last week.`
-            : copiedRows ? `Copied ${copiedRows} project ${copiedRows === 1 ? "row" : "rows"} from last week.`
-            : "There was nothing new to copy from last week."}
-          {Number(sp.skipped) ? ` ${sp.skipped} ${sp.skipped === "1" ? "entry was" : "entries were"} left out because the project is archived, you no longer have access, or the phase was removed.` : ""}
+        <p className={skipped ? "alert warn" : "alert info"} role="status">
+          {copied ? `Copied ${copied} ${copied === 1 ? "project" : "projects"} from last week. Click a day to add your hours.`
+            : !lastCount ? "You didn't have any projects last week, so there was nothing to copy."
+            : skipped === lastCount ? ""
+            : "Last week's projects are already on this week."}
+          {skipped ? ` ${skipped} ${skipped === 1 ? "project was" : "projects were"} left out because ${skipped === 1 ? "it's" : "they're"} archived or you no longer have access.` : ""}
         </p>
       )}
       {status === "REJECTED" && sheet?.comment && <p className="alert bad">Sent back: {sheet.comment}</p>}

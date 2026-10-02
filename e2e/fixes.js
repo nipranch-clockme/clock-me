@@ -31,20 +31,24 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await q.goto(BASE+'/invite/expired-'+uid);h=await q.textContent('h2');ok('live reset link opens',/Reset your password/.test(h),h);
   sql(`update "User" set "inviteToken"=null, "inviteExpires"=null where email='priya@example.com'`);
 
-  // 3. Copy last week leaves out time on removed phases and says so.
+  // 3. Copy last week brings last week's projects as empty rows, not their hours, and leaves out closed projects.
   sql(`insert into "User"(id,email,name,"passwordHash",role,"locationId","teamId","weeklyTarget","createdAt") values('${uid}','${email}','Copy Test','${priya[2]}','MEMBER','${priya[0]}','${priya[1]}',40, now()-interval '30 days')`);
   sql(`insert into "ProjectUserAccess"("projectId","userId") values('${proj}','${uid}')`);
-  sql(`insert into "Phase"(id,"projectId",name,sort) values('${retired}','${proj}','Old phase',999)`);
+  const client=sql(`select "clientId" from "Project" where id='${proj}'`);
+  sql(`insert into "Project"(id,name,"clientId",archived) values('${retired}','Old work ${uid}','${client}',true)`);
   const todayStr=sql(`select to_char(now() at time zone 'UTC','YYYY-MM-DD')`);
   const ws=mondayOf(todayStr), prevTue=addDays(ws,-6), wed=addDays(ws,2);
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values
    ('${uid}a','${uid}','${proj}','${build}','${tag}','${prevTue}',540,120,'kept'),
-   ('${uid}b','${uid}','${proj}','${retired}','${tag}','${prevTue}',660,60,'left out')`);
+   ('${uid}b','${uid}','${retired}',null,'${tag}','${prevTue}',660,60,'left out')`);
   const m=await login(b,email);await m.goto(BASE+'/timesheet');await m.waitForLoadState('networkidle');
   await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=/);
   const notice=await m.textContent('p[role=status]');
-  ok('copy last week copies 1 and reports 1 left out',/Copied 1 entry/.test(notice)&&/1 entry was left out/.test(notice),notice.trim());
-  ok('copied entry is on this week',sql(`select count(*) from "TimeEntry" where "userId"='${uid}' and date='${addDays(prevTue,7)}' and description='kept'`)==='1');
+  ok('copy last week copies 1 project and reports 1 left out',/Copied 1 project from last week/.test(notice)&&/1 project was left out/.test(notice),notice.trim());
+  ok('no hours were copied',sql(`select count(*) from "TimeEntry" where "userId"='${uid}' and date>='${ws}'`)==='0');
+  ok('the project shows as a row',await m.isVisible('tr:has-text("Patient portal")'));
+  await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=0/);
+  ok('copying again says the projects are already there',/already on this week/.test(await m.textContent('p[role=status]')));
 
   // 4. Overlapping entries sit side by side in the calendar.
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values
@@ -67,7 +71,8 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
  }finally{
   sql(`delete from "AuditLog" where "userId"='${uid}' or "targetUserId"='${uid}'`);
   sql(`delete from "User" where id='${uid}'`);
-  sql(`delete from "Phase" where id='${retired}'`);
+  sql(`delete from "TimeEntry" where "projectId"='${retired}'`);
+  sql(`delete from "Project" where id='${retired}'`);
   await b.close();
  }
 })();

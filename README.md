@@ -11,8 +11,8 @@ It covers time tracking and performance only. There is no billing.
 | Tab | Who sees it | What it does |
 |---|---|---|
 | Dashboard | Leaders, project managers, location managers, admins | Productivity (hours ÷ target) per office, a 12-month trend, and the top 5 performers per office and across all offices |
-| Timesheet | Everyone | Week view by project and phase. Time is added through "Add entry with details". Copy last week, submit for approval |
-| Calendar | Everyone | Week view by time of day. Click a slot to add time. Managers can view their people's calendars |
+| Timesheet | Everyone | Week view with one row per project. Add a project row, then click a day to add time with its phase, tag and description. Hover over an entry to see its details. "Copy last week" brings last week's projects (not their hours). Submit for approval |
+| Calendar | Everyone | Week view by time of day. Click a slot to add an hour, or drag down a day to add exactly the time spent. Managers can view their people's calendars |
 | Approvals | Leaders, location managers, admins | Approve or send back submitted weeks, and remind people who haven't submitted |
 | Reports | Everyone (limited to what they can see) | Filters for date range (including all time), person, team, client, project, tag, phase, description and office. Includes a chart, a breakdown table and CSV export |
 | Projects | Everyone (team members see only their own projects, read only) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people |

@@ -137,32 +137,26 @@ export async function submitWeek(form: FormData) {
 
 export async function copyLastWeek(form: FormData) {
   const me = await requireUser();
-  const settings = await getSettings();
   const ws = monday(String(form.get("week")));
   const back = String(form.get("back") ?? "/timesheet");
   if (await weekClosed(me.id, ws)) redirect(back);
   const prev = addDays(ws, -7);
-  const [src, srcRows, existing, allowed] = await Promise.all([
-    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(prev), lt: toDate(ws) } }, include: { phase: true } }),
-    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(prev) } }),
-    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } }),
+  const week = (from: string) => ({ gte: toDate(from), lte: toDate(addDays(from, 6)) });
+  // Only last week's projects come across, as empty rows. The person adds this week's hours themselves.
+  const [lastEntries, lastRows, thisEntries, thisRows, allowed] = await Promise.all([
+    db.timeEntry.findMany({ where: { userId: me.id, date: week(prev) }, select: { projectId: true }, distinct: ["projectId"] }),
+    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(prev) }, select: { projectId: true } }),
+    db.timeEntry.findMany({ where: { userId: me.id, date: week(ws) }, select: { projectId: true }, distinct: ["projectId"] }),
+    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(ws) }, select: { projectId: true } }),
     db.project.findMany({ where: trackableProjectsWhere(me), select: { id: true } }),
   ]);
   const canLog = new Set(allowed.map((p) => p.id));
-  let n = 0, skipped = 0;
-  for (const e of src) {
-    const nd = addDays(toStr(e.date), 7);
-    if (await isDayLocked(me.id, nd, settings)) continue;
-    if (existing.some((x) => toStr(x.date) === nd && x.projectId === e.projectId && x.phaseId === e.phaseId)) continue;
-    // Skip time on projects they can no longer log on (archived or access removed) and phases that were removed.
-    if (!canLog.has(e.projectId) || (e.phase && e.phase.sort >= 999)) { skipped++; continue; }
-    await db.timeEntry.create({ data: { userId: me.id, projectId: e.projectId, phaseId: e.phaseId, tagId: e.tagId, description: e.description, custom: e.custom ?? {}, date: toDate(nd), startMin: e.startMin, minutes: e.minutes } });
-    n++;
-  }
-  if (n) await logAction(me.id, `Copied ${n} entries from the week of ${shortDate(prev)}`, me.id);
-  // Project rows added last week come along too, as long as the person can still log time on them.
-  const rows = srcRows.filter((r) => canLog.has(r.projectId)).map((r) => ({ userId: me.id, weekStart: toDate(ws), projectId: r.projectId }));
-  const newRows = rows.length ? (await db.timesheetRow.createMany({ data: rows, skipDuplicates: true })).count : 0;
+  const shown = new Set([...thisEntries, ...thisRows].map((x) => x.projectId));
+  const last = [...new Set([...lastEntries, ...lastRows].map((x) => x.projectId))];
+  // Projects they can no longer log on (archived or access removed) are left out.
+  const keep = last.filter((id) => canLog.has(id));
+  if (keep.length) await db.timesheetRow.createMany({ data: keep.map((projectId) => ({ userId: me.id, weekStart: toDate(ws), projectId })), skipDuplicates: true });
+  const copied = keep.filter((id) => !shown.has(id)).length;
   revalidatePath("/timesheet");
-  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${n}&rows=${newRows}&skipped=${skipped}`);
+  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${copied}&last=${last.length}&skipped=${last.length - keep.length}`);
 }
