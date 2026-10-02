@@ -7,10 +7,10 @@ import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/da
 import { fmtHours } from "@/lib/format";
 import { Pill, statusTone } from "@/components/ui";
 import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
-import { copyLastWeek, submitWeek } from "./actions";
+import { cancelSubmission, copyLastWeek, submitWeek } from "./actions";
 import Link from "next/link";
 
-export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; last?: string; skipped?: string }> }) {
+export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; cancelled?: string; copied?: string; last?: string; skipped?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
@@ -67,6 +67,10 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           {skipped ? ` ${skipped} ${skipped === 1 ? "project was" : "projects were"} left out because ${skipped === 1 ? "it's" : "they're"} archived or you no longer have access.` : ""}
         </p>
       )}
+      {sp.cancelled === "1" && status === "DRAFT" && <p className="alert info" role="status">Submission cancelled. You can change this week and submit it again.</p>}
+      {sp.cancelled === "0" && status !== "DRAFT" && status !== "SUBMITTED" && (
+        <p className="alert warn" role="status">{status === "APPROVED" ? "This week was approved before you cancelled, so it can't be changed now. Ask your approver if something needs changing." : "This week was sent back before you cancelled. You can change it and submit it again."}</p>
+      )}
       {status === "REJECTED" && sheet?.comment && <p className="alert bad">Sent back: {sheet.comment}</p>}
       {dates.some(adminLocked) && <p className="alert info">Days on or before {settings.lockBeforeStr} are locked by an admin and can&apos;t be changed.</p>}
       {missingList.length > 0 && (
@@ -75,16 +79,21 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? `This week is ${status.toLowerCase()}.` : null))} footerLeft={statusLocked ? <span className="note">This week is {status.toLowerCase()}. Ask your approver if something needs changing.</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission if you need to change something." : "This week is approved. Ask your approver if something needs changing."}</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
-        )} footerRight={(
+        )} footerRight={status === "SUBMITTED" ? (
+          <form action={cancelSubmission}>
+            <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
+            <button className="btn">Cancel submission</button>
+          </form>
+        ) : (
           <form action={submitWeek}>
             <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
             <button className="btn ok" disabled={statusLocked || !rows.length}>Submit for approval</button>
           </form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
-        {statusLocked ? "This week can't be changed. Click an entry to see its details, or hover over it to see its phase, tag and description."
+        {statusLocked ? `This week can't be changed${status === "SUBMITTED" ? " while it waits for approval" : ""}. Click an entry to see its details, or hover over it to see its phase, tag and description.`
           : `Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}
       </p>
     </section>

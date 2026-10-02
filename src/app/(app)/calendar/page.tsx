@@ -23,7 +23,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     entryOptions(me),
   ]);
   const statusLocked = sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED";
-  const locked = dates.map((d) => (settings.lockBeforeStr && d <= settings.lockBeforeStr ? "This date is locked by an admin." : statusLocked ? `This week is ${sheet!.status.toLowerCase()}.` : null));
+  const locked = dates.map((d) => (settings.lockBeforeStr && d <= settings.lockBeforeStr ? "This date is locked by an admin." : statusLocked ? (sheet!.status === "SUBMITTED" ? "This week is waiting for approval. To change it, cancel the submission on the Timesheet." : "This week is approved.") : null));
   const clients = await db.client.findMany({ orderBy: { name: "asc" } });
   const q = (o: number) => `/calendar?w=${o}${who !== me.id ? `&u=${who}` : ""}`;
   return (

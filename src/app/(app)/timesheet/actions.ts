@@ -135,6 +135,18 @@ export async function submitWeek(form: FormData) {
   redirect(back);
 }
 
+/** Takes back a submitted week that hasn't been approved yet, so it can be changed and submitted again. */
+export async function cancelSubmission(form: FormData) {
+  const me = await requireUser();
+  const ws = monday(String(form.get("week")));
+  const back = String(form.get("back") ?? "/timesheet");
+  // Only a week still waiting for approval can be taken back. If it was approved or sent back in the meantime, it stays that way.
+  const r = await db.timesheet.updateMany({ where: { userId: me.id, weekStart: toDate(ws), status: "SUBMITTED" }, data: { status: "DRAFT", comment: "" } });
+  if (r.count) await logAction(me.id, `Cancelled the submission of their timesheet for ${weekLabel(ws)}`, me.id);
+  revalidatePath("/timesheet");
+  redirect(back + (back.includes("?") ? "&" : "?") + `cancelled=${r.count ? 1 : 0}`);
+}
+
 export async function copyLastWeek(form: FormData) {
   const me = await requireUser();
   const ws = monday(String(form.get("week")));
