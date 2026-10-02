@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canCreateProject, canEditProject, trackableProjectsWhere, visibleProjectsWhere } from "@/lib/scope";
+import { addedProjectsWhere, canCreateProject, canEditProject, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
 import { Pill } from "@/components/ui";
 import ProjectsClient from "./ProjectsClient";
@@ -13,18 +13,19 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const me = await requireUser();
   const creator = canCreateProject(me);
   // Restricted projects only show to the people, teams and offices they are shared with (and their managers).
-  const where = creator ? visibleProjectsWhere(me) : trackableProjectsWhere(me);
+  // Team members see just the projects they've been added to, without the clients and phase templates lists.
+  const where = creator ? visibleProjectsWhere(me) : addedProjectsWhere(me);
   const [projects, clients, templates, locations, teams, users, usage] = await Promise.all([
     db.project.findMany({
-      where: { ...where, ...(sp.client ? { clientId: sp.client } : {}) },
+      where: { ...where, ...(creator && sp.client ? { clientId: sp.client } : {}) },
       include: { client: true, phases: { orderBy: { sort: "asc" } }, managers: { include: { user: true } }, locations: { include: { location: true } }, teams: { include: { team: { include: { location: true } } } }, users: { include: { user: true } } },
       orderBy: [{ archived: "asc" }, { client: { name: "asc" } }, { name: "asc" }],
     }),
-    db.client.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { projects: true } } } }),
-    db.phaseTemplate.findMany({ orderBy: { name: "asc" } }),
-    db.location.findMany({ orderBy: { name: "asc" } }),
-    db.team.findMany({ include: { location: true }, orderBy: [{ name: "asc" }] }),
-    db.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, role: true } }),
+    creator ? db.client.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { projects: true } } } }) : [],
+    creator ? db.phaseTemplate.findMany({ orderBy: { name: "asc" } }) : [],
+    creator ? db.location.findMany({ orderBy: { name: "asc" } }) : [],
+    creator ? db.team.findMany({ include: { location: true }, orderBy: [{ name: "asc" }] }) : [],
+    creator ? db.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, role: true } }) : [],
     db.timeEntry.groupBy({ by: ["projectId"], _sum: { minutes: true } }),
   ]);
   const used = Object.fromEntries(usage.map((u) => [u.projectId, (u._sum.minutes ?? 0) / 60]));
@@ -47,12 +48,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     <div className="grid g2">
       <section className="panel full">
         <Suspense><ProjectsClient creator={creator} canImport={canTab("import-export", me.role)} form={formData} editable={editable} count={projects.length} admin={me.role === "ADMIN"} /></Suspense>
-        <div className="row" style={{ margin: "4px 0 12px" }}>
-          <div className="chips">
-            <Link className="chip" href="/projects" aria-current={!sp.client ? "true" : undefined}>All clients</Link>
-            {clients.map((c) => <Link key={c.id} className="chip" href={`/projects?client=${c.id}`} aria-current={sp.client === c.id ? "true" : undefined}>{c.name}</Link>)}
+        {creator && (
+          <div className="row" style={{ margin: "4px 0 12px" }}>
+            <div className="chips">
+              <Link className="chip" href="/projects" aria-current={!sp.client ? "true" : undefined}>All clients</Link>
+              {clients.map((c) => <Link key={c.id} className="chip" href={`/projects?client=${c.id}`} aria-current={sp.client === c.id ? "true" : undefined}>{c.name}</Link>)}
+            </div>
           </div>
-        </div>
+        )}
         <div className="tablebox">
           <table>
             <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
@@ -70,21 +73,23 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   </tr>
                 );
               })}
-              {!projects.length && <tr><td colSpan={6} className="empty">No projects yet.</td></tr>}
+              {!projects.length && <tr><td colSpan={6} className="empty">{creator ? "No projects yet." : "You haven't been added to any projects yet."}</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
-      <section className="panel">
-        <h3>Clients</h3>
-        <div className="list">{clients.map((c) => <div className="item" key={c.id}><div><span className="dot" style={{ background: `var(--${c.color})` }} />{c.name}</div><span className="note">{c._count.projects} project{c._count.projects === 1 ? "" : "s"}</span></div>)}</div>
-        {me.role === "ADMIN" ? <ClientForm /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
-      </section>
-      <section className="panel">
-        <h3>Phase templates</h3>
-        <div className="list">{templates.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.phases.join(" → ")}</div></div></div>)}</div>
-        <p className="note" style={{ margin: "10px 0 0" }}>{creator ? "Pick a template when you create a project to fill in its phases." : ""}{me.role === "ADMIN" ? " Add or remove templates in Settings." : ""}</p>
-      </section>
+      {creator && <>
+        <section className="panel">
+          <h3>Clients</h3>
+          <div className="list">{clients.map((c) => <div className="item" key={c.id}><div><span className="dot" style={{ background: `var(--${c.color})` }} />{c.name}</div><span className="note">{c._count.projects} project{c._count.projects === 1 ? "" : "s"}</span></div>)}</div>
+          {me.role === "ADMIN" ? <ClientForm /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
+        </section>
+        <section className="panel">
+          <h3>Phase templates</h3>
+          <div className="list">{templates.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.phases.join(" → ")}</div></div></div>)}</div>
+          <p className="note" style={{ margin: "10px 0 0" }}>Pick a template when you create a project to fill in its phases.{me.role === "ADMIN" ? " Add or remove templates in Settings." : ""}</p>
+        </section>
+      </>}
     </div>
   );
 }

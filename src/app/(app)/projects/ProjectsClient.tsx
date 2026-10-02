@@ -39,7 +39,7 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
       <div className="row between" style={{ marginBottom: 6 }}>
         <div>
           <h3 style={{ margin: 0 }}>Projects</h3>
-          <p className="note" style={{ margin: "2px 0 0" }}>{count} project{count === 1 ? "" : "s"}{creator ? "" : " you can log time on"}</p>
+          <p className="note" style={{ margin: "2px 0 0" }}>{count} project{count === 1 ? "" : "s"}{creator ? "" : " you've been added to. Projects open to everyone aren't listed, but you can still log time on them."}</p>
         </div>
         {creator && <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>}
       </div>
