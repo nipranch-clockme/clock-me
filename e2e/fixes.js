@@ -20,7 +20,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   // 1. Sign-in limit: the 11th wrong password in 15 minutes is refused.
   const ctx=await b.newContext();const p=await ctx.newPage();await p.goto(BASE+'/login');await p.waitForLoadState('networkidle');
   let msg='';
-  for(let i=0;i<11;i++){await p.fill('#email','nobody-throttle@example.com');await p.fill('#password','wrong'+i);await p.click('button:has-text("Sign in")');await p.waitForSelector('.err-text');msg=await p.textContent('.err-text');await p.waitForTimeout(150);}
+  for(let i=0;i<11;i++){await p.fill('#email','nobody-throttle@example.com');await p.fill('#password','wrong'+i);await Promise.all([p.waitForResponse(r=>r.request().method()==='POST'),p.click('button:has-text("Sign in")')]);await p.waitForSelector('button:has-text("Sign in"):enabled');msg=await p.textContent('.err-text');}
   ok('11th wrong sign-in is refused',/Too many/.test(msg),msg);
   sql(`delete from "AuthAttempt" where key like 'login%'`);
 

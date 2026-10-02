@@ -6,7 +6,7 @@ import { createSession } from "@/lib/session";
 import { ensureDefaults } from "@/lib/defaults";
 import { matchesDatabasePassword } from "@/lib/ownerCheck";
 import { isTimeZone } from "@/lib/dates";
-import { clientIp, overLimit, recordAttempt } from "@/lib/throttle";
+import { clientIp, releaseAttempts, takeAttempt } from "@/lib/throttle";
 
 export type SetupState = { error: string } | null;
 
@@ -16,11 +16,12 @@ export async function setupAdmin(_: SetupState, form: FormData): Promise<SetupSt
   const office = String(form.get("office") ?? "").trim();
   const password = String(form.get("password") ?? "");
   const ip = await clientIp();
-  if (await overLimit([[`setup-ip:${ip}`, 10]])) return { error: "Too many attempts. Wait 15 minutes and try again." };
+  const attempt = await takeAttempt([[`setup-ip:${ip}`, 10]]);
+  if (!attempt.allowed) return { error: "Too many attempts. Wait 15 minutes and try again." };
   if (!matchesDatabasePassword(String(form.get("proof") ?? ""))) {
-    await recordAttempt(`setup-ip:${ip}`);
     return { error: "That isn't this site's database connection string. Copy it from Neon (Connect) or from Vercel (Settings > Environment Variables)." };
   }
+  await releaseAttempts(attempt.ids);
   const tzIn = String(form.get("timeZone") ?? "");
   const timeZone = isTimeZone(tzIn) ? tzIn : "UTC";
   if (!name) return { error: "Add your name." };
