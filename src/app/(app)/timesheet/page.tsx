@@ -6,21 +6,22 @@ import { missingFields } from "@/lib/entries";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
 import { Pill, statusTone } from "@/components/ui";
-import TimesheetGrid, { type SheetEntry } from "./TimesheetGrid";
+import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
 import { copyLastWeek, submitWeek } from "./actions";
 import Link from "next/link";
 
-export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; skipped?: string }> }) {
+export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; rows?: string; skipped?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
   const offset = Math.min(0, parseInt(sp.w ?? "0") || 0);
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
-  const [rows, sheet, opts] = await Promise.all([
+  const [rows, sheet, opts, savedRows] = await Promise.all([
     db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true, tag: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } } }),
     entryOptions(me),
+    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
   ]);
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
@@ -32,7 +33,13 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     phaseId: e.phaseId, phaseName: e.phase?.name ?? "No phase", tagId: e.tagId, tagName: e.tag?.name ?? "", description: e.description,
     custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes,
   }));
+  // One row per project: the ones added for this week plus any with time this week.
+  const sheetRows = new Map<string, SheetRow>();
+  for (const r of savedRows) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
+  for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
+  const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
   const back = `/timesheet${offset ? `?w=${offset}` : ""}`;
+  const copiedEntries = Number(sp.copied ?? 0), copiedRows = Number(sp.rows ?? 0);
 
   return (
     <section className="panel">
@@ -52,7 +59,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       </div>
       {sp.copied != null && (
         <p className={Number(sp.skipped) ? "alert warn" : "alert info"} role="status">
-          Copied {sp.copied} {sp.copied === "1" ? "entry" : "entries"} from last week.
+          {copiedEntries ? `Copied ${copiedEntries} ${copiedEntries === 1 ? "entry" : "entries"} from last week.`
+            : copiedRows ? `Copied ${copiedRows} project ${copiedRows === 1 ? "row" : "rows"} from last week.`
+            : "There was nothing new to copy from last week."}
           {Number(sp.skipped) ? ` ${sp.skipped} ${sp.skipped === "1" ? "entry was" : "entries were"} left out because the project is archived, you no longer have access, or the phase was removed.` : ""}
         </p>
       )}
@@ -64,17 +73,15 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? `This week is ${status.toLowerCase()}.` : null))} today={today()} />
-      <div className="row between" style={{ marginTop: 14 }}>
-        {statusLocked ? <span className="note">This week is {status.toLowerCase()}. Ask your approver if something needs changing.</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? `This week is ${status.toLowerCase()}.` : null))} footerLeft={statusLocked ? <span className="note">This week is {status.toLowerCase()}. Ask your approver if something needs changing.</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
-        )}
-        <form action={submitWeek}>
-          <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
-          <button className="btn ok" disabled={statusLocked || !rows.length}>Submit for approval</button>
-        </form>
-      </div>
-      <p className="note" style={{ margin: "12px 0 0" }}>Click a number to see, edit or delete those entries. Every entry needs a project and phase{settings.requireTag ? ", tag" : ""}{settings.requireDescription ? " and description" : ""}.</p>
+        )} footerRight={(
+          <form action={submitWeek}>
+            <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
+            <button className="btn ok" disabled={statusLocked || !rows.length}>Submit for approval</button>
+          </form>
+        )} />
+      <p className="note" style={{ margin: "12px 0 0" }}>Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase{settings.requireTag ? ", tag" : ""}{settings.requireDescription ? " and description" : ""}.</p>
     </section>
   );
 }

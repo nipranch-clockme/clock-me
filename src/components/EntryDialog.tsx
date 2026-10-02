@@ -34,66 +34,93 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
   useEffect(() => { if (state?.ok) { onDone(); router.refresh(); } }, [state, onDone, router]);
   const clients = [...new Set(opts.projects.map((p) => p.client))];
 
+  const fixed = !!value.fixed;
+  const phaseField = (
+    <div>
+      <label htmlFor="e-phase">Phase<span className="req"> *</span></label>
+      <select id="e-phase" name="phaseId" key={projectId} autoFocus={fixed && !value.id && !ro} defaultValue={project?.phases.some((p) => p.id === value.phaseId) || (keepOldPhase && projectId === value.projectId) ? value.phaseId ?? "" : ""} className={bad("Phase")}>
+        <option value="">Choose a phase</option>
+        {keepOldPhase && projectId === value.projectId && <option value={value.phaseId!}>{value.phaseName} (removed from project)</option>}
+        {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+    </div>
+  );
+  const tagField = (
+    <div>
+      <label htmlFor="e-tag">Tag{opts.requireTag && <span className="req"> *</span>}</label>
+      <select id="e-tag" name="tagId" defaultValue={value.tagId ?? ""} className={bad("Tag")}>
+        <option value="">No tag</option>
+        {opts.tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
+    </div>
+  );
+  const customFields = opts.fields.map((f) => (
+    <div key={f.id}>
+      <label htmlFor={"e-cf-" + f.id}>{f.name}{f.required && <span className="req"> *</span>}</label>
+      {f.type === "select" ? (
+        <select id={"e-cf-" + f.id} name={"cf_" + f.id} defaultValue={value.custom?.[f.id] ?? ""} className={bad(f.name)}>
+          <option value="">Choose</option>
+          {f.options.map((o) => <option key={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input id={"e-cf-" + f.id} name={"cf_" + f.id} defaultValue={value.custom?.[f.id] ?? ""} className={bad(f.name)} />
+      )}
+    </div>
+  ));
+  const descField = (
+    <div style={{ flexBasis: "100%" }}>
+      <label htmlFor="e-desc">Description{opts.requireDescription && <span className="req"> *</span>}</label>
+      <input id="e-desc" name="description" defaultValue={value.description ?? ""} placeholder="What did you work on?" className={bad("Description")} />
+    </div>
+  );
+  const durField = <div><label htmlFor="e-dur">{fixed ? "Time" : "Duration"}</label><input id="e-dur" name="duration" defaultValue={dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" className={bad("duration")} /></div>;
+
   return (
     <div className="panel">
       <div className="row between" style={{ marginBottom: 8 }}>
         <h2 id="entry-title">{value.id ? (ro ? "Time entry" : "Edit time") : "Add time"}</h2>
         <button type="button" className="btn sm" onClick={onDone}>Close</button>
       </div>
+      {value.context && <p className="sub" style={{ marginBottom: 6 }}>{value.context}</p>}
       {value.ownerName && <p className="sub">{value.ownerName}</p>}
       {value.lockedReason && <p className="alert info">{value.lockedReason}</p>}
       {!ro && <p className="sub">Required fields are marked *</p>}
       <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }}>
         <fieldset disabled={ro} style={{ border: 0, padding: 0, margin: 0 }}>
           <input type="hidden" name="id" value={value.id ?? ""} />
-          <div className="row">
-            <div style={{ flexBasis: "100%" }}>
-              <label htmlFor="e-project">Project<span className="req"> *</span></label>
-              <select id="e-project" name="projectId" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={bad("projectId")}>
-                {value.projectId && !opts.projects.some((p) => p.id === value.projectId) && <option value={value.projectId}>{value.projectName ?? "Other project"}</option>}
-                {clients.map((c) => (
-                  <optgroup key={c} label={c}>
-                    {opts.projects.filter((p) => p.client === c).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+          {fixed ? (
+            <div className="row">
+              <input type="hidden" name="projectId" value={projectId} />
+              <input type="hidden" name="date" value={value.date} />
+              <input type="hidden" name="start" value={hhmm(value.startMin ?? 540)} />
+              {phaseField}
+              {tagField}
+              {durField}
+              {customFields}
+              {descField}
             </div>
-            <div>
-              <label htmlFor="e-phase">Phase<span className="req"> *</span></label>
-              <select id="e-phase" name="phaseId" key={projectId} defaultValue={project?.phases.some((p) => p.id === value.phaseId) || (keepOldPhase && projectId === value.projectId) ? value.phaseId ?? "" : ""} className={bad("Phase")}>
-                <option value="">Choose a phase</option>
-                {keepOldPhase && projectId === value.projectId && <option value={value.phaseId!}>{value.phaseName} (removed from project)</option>}
-                {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="e-tag">Tag{opts.requireTag && <span className="req"> *</span>}</label>
-              <select id="e-tag" name="tagId" defaultValue={value.tagId ?? ""} className={bad("Tag")}>
-                <option value="">No tag</option>
-                {opts.tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-            {opts.fields.map((f) => (
-              <div key={f.id}>
-                <label htmlFor={"e-cf-" + f.id}>{f.name}{f.required && <span className="req"> *</span>}</label>
-                {f.type === "select" ? (
-                  <select id={"e-cf-" + f.id} name={"cf_" + f.id} defaultValue={value.custom?.[f.id] ?? ""} className={bad(f.name)}>
-                    <option value="">Choose</option>
-                    {f.options.map((o) => <option key={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input id={"e-cf-" + f.id} name={"cf_" + f.id} defaultValue={value.custom?.[f.id] ?? ""} className={bad(f.name)} />
-                )}
+          ) : (
+            <div className="row">
+              <div style={{ flexBasis: "100%" }}>
+                <label htmlFor="e-project">Project<span className="req"> *</span></label>
+                <select id="e-project" name="projectId" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={bad("projectId")}>
+                  {value.projectId && !opts.projects.some((p) => p.id === value.projectId) && <option value={value.projectId}>{value.projectName ?? "Other project"}</option>}
+                  {clients.map((c) => (
+                    <optgroup key={c} label={c}>
+                      {opts.projects.filter((p) => p.client === c).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
               </div>
-            ))}
-            <div style={{ flexBasis: "100%" }}>
-              <label htmlFor="e-desc">Description{opts.requireDescription && <span className="req"> *</span>}</label>
-              <input id="e-desc" name="description" defaultValue={value.description ?? ""} placeholder="What did you work on?" className={bad("Description")} />
+              {phaseField}
+              {tagField}
+              {customFields}
+              {descField}
+              <div><label htmlFor="e-date">Date</label><input id="e-date" type="date" name="date" defaultValue={value.date} required /></div>
+              <div><label htmlFor="e-start">Start</label><input id="e-start" type="time" name="start" defaultValue={hhmm(value.startMin ?? 540)} /></div>
+              {durField}
             </div>
-            <div><label htmlFor="e-date">Date</label><input id="e-date" type="date" name="date" defaultValue={value.date} required /></div>
-            <div><label htmlFor="e-start">Start</label><input id="e-start" type="time" name="start" defaultValue={hhmm(value.startMin ?? 540)} /></div>
-            <div><label htmlFor="e-dur">Duration</label><input id="e-dur" name="duration" defaultValue={dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" className={bad("duration")} /></div>
-          </div>
+          )}
         </fieldset>
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}
         {!ro && (

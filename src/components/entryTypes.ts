@@ -23,4 +23,8 @@ export type EntryValue = {
   readOnly?: boolean;
   lockedReason?: string | null;
   ownerName?: string;
+  /** Timesheet cells: project and date come from the cell, so the form doesn't ask for them or for a start time. */
+  fixed?: boolean;
+  /** Shown under the title, e.g. "Patient portal · Bluebird Health · Wed, Sep 30". */
+  context?: string;
 };

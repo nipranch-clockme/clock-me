@@ -70,6 +70,44 @@ export async function deleteEntry(form: FormData) {
   revalidatePath("/calendar");
 }
 
+export type RowResult = { ok: boolean; error?: string };
+
+/** The week's own status lock (submitted or approved). Admin lock dates only stop changes to time, not rows. */
+async function weekClosed(userId: string, ws: string) {
+  const sheet = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(ws) } } });
+  return sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED" ? `This week is ${sheet.status.toLowerCase()}.` : null;
+}
+
+export async function addRow(form: FormData): Promise<RowResult> {
+  const me = await requireUser();
+  const week = String(form.get("week") ?? "");
+  const projectId = String(form.get("projectId") ?? "");
+  if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
+  const ws = monday(week);
+  const closed = await weekClosed(me.id, ws);
+  if (closed) return { ok: false, error: closed };
+  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(me) }, select: { id: true } });
+  if (!project) return { ok: false, error: "Choose a project you can log time on." };
+  await db.timesheetRow.createMany({ data: [{ userId: me.id, weekStart: toDate(ws), projectId }], skipDuplicates: true });
+  revalidatePath("/timesheet");
+  return { ok: true };
+}
+
+export async function removeRow(form: FormData): Promise<RowResult> {
+  const me = await requireUser();
+  const week = String(form.get("week") ?? "");
+  const projectId = String(form.get("projectId") ?? "");
+  if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
+  const ws = monday(week);
+  const closed = await weekClosed(me.id, ws);
+  if (closed) return { ok: false, error: closed };
+  const hasTime = await db.timeEntry.count({ where: { userId: me.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  if (hasTime) return { ok: false, error: "This row has time on it. Delete its entries first." };
+  await db.timesheetRow.deleteMany({ where: { userId: me.id, weekStart: toDate(ws), projectId } });
+  revalidatePath("/timesheet");
+  return { ok: true };
+}
+
 export async function submitWeek(form: FormData) {
   const me = await requireUser();
   const settings = await getSettings();
@@ -96,9 +134,11 @@ export async function copyLastWeek(form: FormData) {
   const settings = await getSettings();
   const ws = monday(String(form.get("week")));
   const back = String(form.get("back") ?? "/timesheet");
+  if (await weekClosed(me.id, ws)) redirect(back);
   const prev = addDays(ws, -7);
-  const [src, existing, allowed] = await Promise.all([
+  const [src, srcRows, existing, allowed] = await Promise.all([
     db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(prev), lt: toDate(ws) } }, include: { phase: true } }),
+    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(prev) } }),
     db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } }),
     db.project.findMany({ where: trackableProjectsWhere(me), select: { id: true } }),
   ]);
@@ -114,6 +154,9 @@ export async function copyLastWeek(form: FormData) {
     n++;
   }
   if (n) await logAction(me.id, `Copied ${n} entries from the week of ${shortDate(prev)}`, me.id);
+  // Project rows added last week come along too, as long as the person can still log time on them.
+  const rows = srcRows.filter((r) => canLog.has(r.projectId)).map((r) => ({ userId: me.id, weekStart: toDate(ws), projectId: r.projectId }));
+  const newRows = rows.length ? (await db.timesheetRow.createMany({ data: rows, skipDuplicates: true })).count : 0;
   revalidatePath("/timesheet");
-  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${n}&skipped=${skipped}`);
+  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${n}&rows=${newRows}&skipped=${skipped}`);
 }

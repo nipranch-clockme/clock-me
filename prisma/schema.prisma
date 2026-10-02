@@ -67,6 +67,7 @@ model User {
   createdAt      DateTime            @default(now())
   entries        TimeEntry[]
   timesheets     Timesheet[]
+  timesheetRows  TimesheetRow[]
   managing       ProjectManager[]
   access         ProjectUserAccess[]
   audit          AuditLog[]
@@ -94,6 +95,7 @@ model Project {
   teams       ProjectTeamAccess[]
   users       ProjectUserAccess[]
   entries     TimeEntry[]
+  sheetRows   TimesheetRow[]
 
   @@unique([clientId, name])
 }
@@ -196,6 +198,18 @@ model Timesheet {
   updatedAt DateTime    @updatedAt
 
   @@unique([userId, weekStart])
+}
+
+/// A project someone added as a row on their timesheet for one week, so it shows before any time is logged on it.
+model TimesheetRow {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime @db.Date
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, weekStart, projectId])
 }
 
 model Settings {
