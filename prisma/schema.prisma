@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MEMBER
+  LEADER
+  PM
+  LOCATION
+  ADMIN
+}
+
+enum Access {
+  PUBLIC
+  RESTRICTED
+}
+
+enum SheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  managerId String?
+  teams     Team[]
+  users     User[]
+  access    ProjectLocationAccess[]
+}
+
+model Team {
+  id         String   @id @default(cuid())
+  name       String
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+  users      User[]
+  access     ProjectTeamAccess[]
+
+  @@unique([name, locationId])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  title        String    @default("")
+  passwordHash String?
+  inviteToken  String?   @unique
+  role         Role      @default(MEMBER)
+  locationId   String
+  location     Location  @relation(fields: [locationId], references: [id])
+  teamId       String?
+  team         Team?     @relation(fields: [teamId], references: [id])
+  weeklyTarget Float     @default(40)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  entries      TimeEntry[]
+  timesheets   Timesheet[]
+  managing     ProjectManager[]
+  access       ProjectUserAccess[]
+  audit        AuditLog[]
+}
+
+model Client {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  color    String    @default("s1")
+  projects Project[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  budgetHours Float?
+  access      Access   @default(PUBLIC)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  phases      Phase[]
+  managers    ProjectManager[]
+  locations   ProjectLocationAccess[]
+  teams       ProjectTeamAccess[]
+  users       ProjectUserAccess[]
+  entries     TimeEntry[]
+
+  @@unique([clientId, name])
+}
+
+model Phase {
+  id        String      @id @default(cuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  sort      Int         @default(0)
+  entries   TimeEntry[]
+}
+
+model ProjectManager {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model ProjectLocationAccess {
+  projectId  String
+  locationId String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, locationId])
+}
+
+model ProjectTeamAccess {
+  projectId String
+  teamId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team      Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, teamId])
+}
+
+model ProjectUserAccess {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model PhaseTemplate {
+  id     String   @id @default(cuid())
+  name   String   @unique
+  phases String[]
+}
+
+model Tag {
+  id      String      @id @default(cuid())
+  name    String      @unique
+  entries TimeEntry[]
+}
+
+model CustomField {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  type     String   @default("text") // "text" | "select"
+  options  String[]
+  required Boolean  @default(false)
+  sort     Int      @default(0)
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  phaseId     String?
+  phase       Phase?   @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  tagId       String?
+  tag         Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  date        DateTime @db.Date
+  startMin    Int      @default(540)
+  minutes     Int
+  description String   @default("")
+  custom      Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([projectId, date])
+  @@index([date])
+}
+
+model Timesheet {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime    @db.Date
+  status    SheetStatus @default(DRAFT)
+  comment   String      @default("")
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, weekStart])
+}
+
+model Settings {
+  id                 Int       @id @default(1)
+  timeFormat         String    @default("decimal") // "decimal" | "hhmm"
+  requireTag         Boolean   @default(true)
+  requireDescription Boolean   @default(true)
+  lockBefore         DateTime? @db.Date
+  dailyMinimum       Float     @default(6)
+  remindSubmit       Boolean   @default(true)
+  remindSubmitDay    Int       @default(5) // 1 = Monday
+  remindSubmitTime   String    @default("16:00")
+  remindDaily        Boolean   @default(true)
+  remindApprovers    Boolean   @default(true)
+}
+
+model AuditLog {
+  id     String   @id @default(cuid())
+  at     DateTime @default(now())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action String
+
+  @@index([at])
+}

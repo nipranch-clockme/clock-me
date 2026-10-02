@@ -1,0 +1,105 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { getSettings, logAction } from "@/lib/settings";
+import { isDayLocked, missingFields } from "@/lib/entries";
+import { trackableProjectsWhere } from "@/lib/scope";
+import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
+import { fmtHours, parseDuration } from "@/lib/format";
+
+export type EntryResult = { ok: boolean; error?: string; fields?: string[] } | null;
+
+export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryResult> {
+  const me = await requireUser();
+  const settings = await getSettings();
+  const id = String(form.get("id") ?? "");
+  const projectId = String(form.get("projectId") ?? "");
+  const date = String(form.get("date") ?? "");
+  const start = String(form.get("start") ?? "09:00");
+  const minutes = parseDuration(String(form.get("duration") ?? ""));
+  if (!isDateStr(date)) return { ok: false, error: "Choose a date." };
+  if (!(minutes > 0) || minutes > 24 * 60) return { ok: false, error: "Enter a duration like 1.5 or 1:30.", fields: ["duration"] };
+  const [hh, mm] = start.split(":").map(Number);
+  const startMin = (hh || 0) * 60 + (mm || 0);
+
+  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(me) }, include: { phases: true } });
+  if (!project) return { ok: false, error: "Choose a project you can log time on.", fields: ["projectId"] };
+  const phaseId = String(form.get("phaseId") ?? "") || null;
+  if (phaseId && !project.phases.some((p) => p.id === phaseId)) return { ok: false, error: "That phase doesn't belong to this project.", fields: ["phaseId"] };
+  const tagId = String(form.get("tagId") ?? "") || null;
+  const description = String(form.get("description") ?? "").trim();
+  const fields = await db.customField.findMany();
+  const custom = Object.fromEntries(fields.map((f) => [f.id, String(form.get("cf_" + f.id) ?? "").trim()]));
+
+  const miss = await missingFields({ phaseId, tagId, description, custom }, settings);
+  if (miss.length) return { ok: false, error: `Fill in: ${miss.join(", ")}.`, fields: miss };
+
+  if (id) {
+    const old = await db.timeEntry.findUnique({ where: { id } });
+    if (!old || old.userId !== me.id) return { ok: false, error: "You can only change your own entries." };
+    const lockOld = await isDayLocked(me.id, toStr(old.date), settings);
+    if (lockOld) return { ok: false, error: lockOld };
+  }
+  const lock = await isDayLocked(me.id, date, settings);
+  if (lock) return { ok: false, error: lock };
+
+  const data = { projectId, phaseId, tagId, description, custom, date: toDate(date), startMin, minutes };
+  if (id) await db.timeEntry.update({ where: { id }, data });
+  else await db.timeEntry.create({ data: { ...data, userId: me.id } });
+  await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}`);
+  revalidatePath("/timesheet");
+  revalidatePath("/calendar");
+  return { ok: true };
+}
+
+export async function deleteEntry(form: FormData) {
+  const me = await requireUser();
+  const settings = await getSettings();
+  const e = await db.timeEntry.findUnique({ where: { id: String(form.get("id")) }, include: { project: true } });
+  if (!e || e.userId !== me.id) throw new Error("You can only delete your own entries.");
+  const lock = await isDayLocked(me.id, toStr(e.date), settings);
+  if (lock) throw new Error(lock);
+  await db.timeEntry.delete({ where: { id: e.id } });
+  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}`);
+  revalidatePath("/timesheet");
+  revalidatePath("/calendar");
+}
+
+export async function submitWeek(form: FormData) {
+  const me = await requireUser();
+  const settings = await getSettings();
+  const ws = monday(String(form.get("week")));
+  const back = String(form.get("back") ?? "/timesheet");
+  const entries = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  if (!entries.length) redirect(back);
+  for (const e of entries) if ((await missingFields(e, settings)).length) redirect(back + (back.includes("?") ? "&" : "?") + "missing=1");
+  await db.timesheet.upsert({
+    where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } },
+    update: { status: "SUBMITTED", comment: "" },
+    create: { userId: me.id, weekStart: toDate(ws), status: "SUBMITTED" },
+  });
+  await logAction(me.id, `Submitted timesheet for ${weekLabel(ws)}`);
+  revalidatePath("/timesheet");
+  redirect(back);
+}
+
+export async function copyLastWeek(form: FormData) {
+  const me = await requireUser();
+  const settings = await getSettings();
+  const ws = monday(String(form.get("week")));
+  const prev = addDays(ws, -7);
+  const src = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(prev), lt: toDate(ws) } } });
+  const existing = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  let n = 0;
+  for (const e of src) {
+    const nd = addDays(toStr(e.date), 7);
+    if (await isDayLocked(me.id, nd, settings)) continue;
+    if (existing.some((x) => toStr(x.date) === nd && x.projectId === e.projectId && x.phaseId === e.phaseId)) continue;
+    await db.timeEntry.create({ data: { userId: me.id, projectId: e.projectId, phaseId: e.phaseId, tagId: e.tagId, description: e.description, custom: e.custom ?? {}, date: toDate(nd), startMin: e.startMin, minutes: e.minutes } });
+    n++;
+  }
+  if (n) await logAction(me.id, `Copied ${n} entries from the week of ${shortDate(prev)}`);
+  revalidatePath("/timesheet");
+}

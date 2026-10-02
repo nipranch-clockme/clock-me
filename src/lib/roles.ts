@@ -1,0 +1,43 @@
+import type { Role } from "@prisma/client";
+
+export const ROLES: [Role, string][] = [
+  ["MEMBER", "Team member"],
+  ["LEADER", "Team leader"],
+  ["PM", "Project manager"],
+  ["LOCATION", "Location manager"],
+  ["ADMIN", "Admin"],
+];
+export const roleName = (r: Role) => ROLES.find((x) => x[0] === r)?.[1] ?? r;
+
+type Cell = "y" | "n" | string;
+export const PERMISSIONS: [string, Record<Role, Cell>][] = [
+  ["Add own time in timesheet and calendar", { MEMBER: "y", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
+  ["See own reports", { MEMBER: "y", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
+  ["See other people's entries, reports and dashboard", { MEMBER: "n", LEADER: "Own team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
+  ["Approve or send back timesheets", { MEMBER: "n", LEADER: "Own team", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
+  ["Create projects (blank or from a phase template)", { MEMBER: "n", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
+  ["Edit projects and who can see them", { MEMBER: "n", LEADER: "Ones they manage", PM: "Ones they manage", LOCATION: "Ones they manage", ADMIN: "All" }],
+  ["Create clients, tags and phase templates", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
+  ["Import and export CSV", { MEMBER: "Export own", LEADER: "Export team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
+  ["Invite people, set targets", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
+  ["View time audit and change log", { MEMBER: "n", LEADER: "Own team", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
+  ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
+];
+
+export type Tab = "dashboard" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "audit" | "settings";
+export const TABS: [Tab, string, Role[] | "all"][] = [
+  ["dashboard", "Dashboard", ["LEADER", "PM", "LOCATION", "ADMIN"]],
+  ["timesheet", "Timesheet", "all"],
+  ["calendar", "Calendar", "all"],
+  ["approvals", "Approvals", ["LEADER", "LOCATION", "ADMIN"]],
+  ["reports", "Reports", "all"],
+  ["projects", "Projects", "all"],
+  ["people", "People", ["LOCATION", "ADMIN"]],
+  ["import-export", "Import & export", ["PM", "LOCATION", "ADMIN"]],
+  ["audit", "Time audit", ["LEADER", "LOCATION", "ADMIN"]],
+  ["settings", "Settings", ["ADMIN"]],
+];
+export const canTab = (tab: Tab, role: Role) => {
+  const t = TABS.find((x) => x[0] === tab);
+  return !!t && (t[2] === "all" || t[2].includes(role));
+};

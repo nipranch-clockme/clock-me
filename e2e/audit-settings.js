@@ -1,0 +1,23 @@
+const {start,login,BASE}=require('./helpers');
+(async()=>{const b=await start();const a=await login(b,'admin@example.com');
+ await a.goto(BASE+'/settings');await a.waitForLoadState('networkidle');
+ await a.check('input[value=hhmm]');await a.click('button:has-text("Save settings")');await a.waitForSelector('text=Saved.');
+ await a.fill('#st-tag','Zeta');await a.click('button:has-text("Add tag")');await a.waitForTimeout(1200);
+ console.log('tag added:',await a.locator('.item:has-text("Zeta")').count());
+ await a.fill('#st-tag','zeta');await a.click('button:has-text("Add tag")');await a.waitForSelector('.err-text');console.log('dup tag:',await a.textContent('.err-text'));
+ await a.fill('#st-cf','Priority');await a.selectOption('#st-cf-type','select');await a.fill('#st-cf-opt','Low, High');await a.click('button:has-text("Add field")');await a.waitForTimeout(1200);
+ console.log('fields:',(await a.locator('section:has(h3:has-text("Custom fields")) .item').allInnerTexts()).map(t=>t.replace(/\n/g,' ')).join(' / '));
+ await a.fill('#st-tpl','Video');await a.fill('#st-tpl-ph','Script, Shoot, Edit');await a.click('button:has-text("Add template")');await a.waitForTimeout(1000);
+ await a.screenshot({path:'/tmp/claude-0/shots/settings.png',fullPage:true});
+ await a.goto(BASE+'/reports');await a.waitForLoadState('networkidle');console.log('hh:mm format in reports:',(await a.locator('.stat b').first().innerText()));
+ // revert format, remove Priority field
+ await a.goto(BASE+'/settings');await a.check('input[value=decimal]');await a.click('button:has-text("Save settings")');await a.waitForSelector('text=Saved.');
+ a.on('dialog',d=>d.accept());await a.locator('.item:has-text("Priority") button:has-text("Remove")').click();await a.waitForTimeout(1200);
+ await a.locator('.item:has-text("Zeta")').locator('button:has-text("Remove")').click();await a.waitForTimeout(800);await a.locator('.item:has-text("Video") button:has-text("Remove")').click();await a.waitForTimeout(800);
+ await a.goto(BASE+'/audit');await a.waitForLoadState('networkidle');
+ console.log('audit counts:',(await a.locator('section.panel .pill').allInnerTexts()).join(','),'log first:',(await a.locator('section.full .item').first().innerText()).replace(/\n/g,' | '));
+ await a.screenshot({path:'/tmp/claude-0/shots/audit.png',fullPage:true});
+ const l=await login(b,'daniel@example.com');await l.goto(BASE+'/audit?days=7');await l.waitForLoadState('networkidle');
+ console.log('leader audit log items:',await l.locator('section.full .item').count(),'gaps people:',[...new Set((await l.locator('section:has(h3:has-text("Workdays")) .item > div:first-child').allInnerTexts()).map(t=>t.split('\n')[0]))].join(','));
+ const r=await l.request.get(BASE+'/settings');console.log('leader /settings ->',r.url().replace(BASE,''));
+ console.log('errors',a.errs,l.errs);await b.close()})();
