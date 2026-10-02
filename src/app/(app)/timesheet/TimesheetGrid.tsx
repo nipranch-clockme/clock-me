@@ -1,5 +1,5 @@
 "use client";
-import { startTransition, useEffect, useRef, useState, type FocusEvent, type MouseEvent, type ReactNode } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
@@ -11,7 +11,7 @@ export type SheetEntry = {
   custom: Record<string, string>; date: string; startMin: number; minutes: number;
 };
 export type SheetRow = { projectId: string; projectName: string; clientName: string; clientColor: string };
-type Tip = { e: SheetEntry; x: number; top: number; bottom: number };
+type Tip = { id: string; el: HTMLElement };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -23,6 +23,9 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
   const router = useRouter();
   const [edit, setEdit] = useState<EntryValue | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  const [tipPos, setTipPos] = useState<{ left: number; top: number } | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
   const [rowError, setRowError] = useState("");
   const [addError, setAddError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,30 +34,51 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
   const lockFor = (d: string) => locked[dates.indexOf(d)];
   const inCell = (projectId: string, d: string) => entries.filter((e) => e.projectId === projectId && e.date === d).sort((a, b) => a.startMin - b.startMin);
   const sum = (projectId: string | null, d: string | null) => entries.filter((e) => (!projectId || e.projectId === projectId) && (!d || e.date === d)).reduce((a, e) => a + e.minutes, 0);
-  // New time starts where the day's last entry ends, so the calendar shows entries one after another.
-  const nextStart = (d: string) => Math.min(23 * 60, Math.max(9 * 60, ...entries.filter((e) => e.date === d).map((e) => e.startMin + e.minutes)));
+  // New time starts where the day's last entry ends (09:00 on an empty day), so the calendar shows entries one after another.
+  const nextStart = (d: string) => {
+    const ends = entries.filter((e) => e.date === d).map((e) => e.startMin + e.minutes);
+    return Math.min(23 * 60, ends.length ? Math.max(...ends) : 9 * 60);
+  };
+  // Projects that are archived or no longer open to this person keep their time on show, but take no new time.
+  const canLog = (projectId: string) => opts.projects.some((p) => p.id === projectId);
   const available = opts.projects.filter((p) => !rows.some((r) => r.projectId === p.id));
   const clients = [...new Set(available.map((p) => p.client))];
 
-  // The tooltip sits outside the table's scroll box, so it hides whenever the page scrolls.
+  // The tooltip reads the entry fresh on every render, so it disappears with a deleted entry.
+  const tipEntry = tip ? entries.find((e) => e.id === tip.id) : undefined;
+  useEffect(() => { if (tip && !tipEntry) setTip(null); }, [tip, tipEntry]);
+
+  // It sits outside the table's scroll box, placed from the chip's position and its own real size:
+  // below the chip if it fits, otherwise above, and always inside the window.
+  const placeTip = useCallback(() => {
+    const box = tipRef.current;
+    if (!tip || !box) return;
+    const r = tip.el.getBoundingClientRect();
+    if (!tip.el.isConnected || r.bottom < 0 || r.top > window.innerHeight) return setTip(null);
+    const m = 8, w = box.offsetWidth, h = box.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - m) top = r.top - 6 - h;
+    top = Math.max(m, Math.min(top, window.innerHeight - m - h));
+    const left = Math.max(m, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - m - w));
+    setTipPos({ left, top });
+  }, [tip]);
+  useLayoutEffect(() => { placeTip(); }, [placeTip, tipEntry]);
   useEffect(() => {
     if (!tip) return;
-    const hide = () => setTip(null);
-    window.addEventListener("scroll", hide, true);
-    window.addEventListener("resize", hide);
-    return () => { window.removeEventListener("scroll", hide, true); window.removeEventListener("resize", hide); };
-  }, [tip]);
+    window.addEventListener("scroll", placeTip, true);
+    window.addEventListener("resize", placeTip);
+    return () => { window.removeEventListener("scroll", placeTip, true); window.removeEventListener("resize", placeTip); };
+  }, [tip, placeTip]);
 
-  const showTip = (e: SheetEntry) => (ev: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) => {
-    const r = ev.currentTarget.getBoundingClientRect();
-    setTip({ e, x: r.left + r.width / 2, top: r.top, bottom: r.bottom });
-  };
+  const showTip = (id: string, el: HTMLElement) => { setTipPos(null); setTip({ id, el }); };
   const openAdd = (r: SheetRow, d: string) => {
     setTip(null);
     setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
   };
   const openEntry = (e: SheetEntry) => {
     setTip(null);
+    // On a project that's closed for new time, the full form lets the person move the entry to another project.
+    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), context: `${e.projectName} is archived or no longer open to you. You can move this entry to another project or delete it.` });
     setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
   };
   const changeRow = (fn: typeof addRow, fd: FormData, setError: (m: string) => void, after?: () => void) => {
@@ -70,12 +94,6 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
   };
   const rowForm = (projectId: string) => { const fd = new FormData(); fd.set("week", weekStart); fd.set("projectId", projectId); return fd; };
 
-  // Keep the tooltip on screen: below the chip unless that would run off the bottom.
-  const tipStyle = tip && typeof window !== "undefined" ? {
-    left: Math.min(Math.max(tip.x, 130), window.innerWidth - 130),
-    ...(tip.bottom + 130 > window.innerHeight ? { bottom: window.innerHeight - tip.top + 6 } : { top: tip.bottom + 6 }),
-  } : undefined;
-
   return (
     <>
       <div className="tablebox">
@@ -88,7 +106,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
                 <tr key={r.projectId}>
                   <td style={{ minWidth: 180 }}>
                     <div className="row between" style={{ gap: 6, flexWrap: "nowrap" }}>
-                      <div><span className="dot" style={{ background: `var(--${r.clientColor})` }} />{r.projectName}<div className="note">{r.clientName}</div></div>
+                      <div><span className="dot" style={{ background: `var(--${r.clientColor})` }} />{r.projectName}<div className="note">{r.clientName}{!canLog(r.projectId) && " · closed for new time"}</div></div>
                       {!rowTotal && !rowsLocked && (
                         <button type="button" className="rowx" aria-label={`Remove ${r.projectName} row`} title="Remove this row" disabled={busy} onClick={() => changeRow(removeRow, rowForm(r.projectId), setRowError)}>×</button>
                       )}
@@ -96,18 +114,20 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
                   </td>
                   {dates.map((d, i) => {
                     const list = inCell(r.projectId, d);
-                    const lk = locked[i];
+                    const open = !locked[i] && canLog(r.projectId);
                     return (
-                      <td key={d} className={"sheetcell" + (lk ? " locked" : "")}>
+                      // Mouse users can click anywhere free in the cell; the + button inside is there for keyboard users.
+                      <td key={d} className={"sheetcell" + (open ? " open" : " locked")} onClick={open ? (ev) => { if (!(ev.target as HTMLElement).closest("button")) openAdd(r, d); } : undefined}>
                         <div className="cellstack">
                           {list.map((e) => (
                             <button type="button" key={e.id} className="chipbtn" style={{ borderLeftColor: `var(--${r.clientColor})` }}
-                              onClick={() => openEntry(e)} onMouseEnter={showTip(e)} onMouseLeave={() => setTip(null)} onFocus={showTip(e)} onBlur={() => setTip(null)}
+                              onClick={() => openEntry(e)} onMouseEnter={(ev) => showTip(e.id, ev.currentTarget)} onMouseLeave={() => setTip(null)}
+                              onFocus={(ev) => { if (ev.currentTarget.matches(":focus-visible")) showTip(e.id, ev.currentTarget); }} onBlur={() => setTip(null)}
                               aria-label={`${f(e.minutes)} hours. Phase: ${e.phaseName}. Tag: ${e.tagName || "no tag"}. ${e.description ? `Description: ${e.description}` : "No description"}.`}>
                               {f(e.minutes)}
                             </button>
                           ))}
-                          {!lk && (
+                          {open && (
                             <button type="button" className="addcell" onClick={() => openAdd(r, d)} aria-label={`Add time to ${r.projectName} on ${dayLabel(d)}`}>+</button>
                           )}
                         </div>
@@ -125,17 +145,17 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
       {rowError && <p className="err-text" role="alert">{rowError}</p>}
       <div className="row between" style={{ marginTop: 14 }}>
         <div className="row" style={{ flex: "1 1 400px" }}>
-          {!rowsLocked && <button type="button" className="btn primary" onClick={() => { setAddError(""); addRef.current?.showModal(); }}>Add project row</button>}
+          {!rowsLocked && <button type="button" className="btn primary" onClick={() => { setAddError(""); addFormRef.current?.reset(); addRef.current?.showModal(); }}>Add project row</button>}
           {footerLeft}
         </div>
         {footerRight}
       </div>
 
-      {tip && (
-        <div className="sheettip" role="tooltip" style={tipStyle}>
-          <div><span>Phase</span>{tip.e.phaseName}</div>
-          <div><span>Tag</span>{tip.e.tagName || "No tag"}</div>
-          <div><span>Description</span>{tip.e.description || "No description"}</div>
+      {tip && tipEntry && (
+        <div ref={tipRef} className="sheettip" role="tooltip" style={tipPos ?? { left: 0, top: 0, visibility: "hidden" }}>
+          <div><span>Phase</span>{tipEntry.phaseName}</div>
+          <div><span>Tag</span>{tipEntry.tagName || "No tag"}</div>
+          <div><span>Description</span>{tipEntry.description || "No description"}</div>
         </div>
       )}
 
@@ -143,7 +163,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
         <div className="panel">
           <div className="row between" style={{ marginBottom: 8 }}><h2 id="addrow-title">Add a project row</h2><button type="button" className="btn sm" onClick={() => addRef.current?.close()}>Close</button></div>
           {available.length ? (
-            <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
+            <form ref={addFormRef} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
               <label htmlFor="addrow-project">Project</label>
               <select id="addrow-project" name="projectId" required defaultValue="">
                 <option value="" disabled>Choose a project</option>
@@ -161,7 +181,8 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
           )}
         </div>
       </dialog>
-      <EntryDialog opts={opts} value={edit} onClose={() => setEdit(null)} />
+      {/* Closing the dialog puts focus back on the chip; don't let that pop the tooltip up. */}
+      <EntryDialog opts={opts} value={edit} onClose={() => { setEdit(null); setTip(null); }} />
     </>
   );
 }

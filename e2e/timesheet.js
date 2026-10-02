@@ -32,6 +32,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.click('button:has-text("Add project row")');await p.waitForSelector('dialog[open] #addrow-project');
   const opts=await p.$$eval('#addrow-project option',os=>os.map(o=>o.value));
   ok('added project is no longer offered',!opts.includes(proj),`${opts.length} options`);
+  ok('add row dialog starts with nothing chosen',(await p.inputValue('#addrow-project'))==='');
   await p.click('dialog[open] button:has-text("Close")');
 
   // click a day to add time
@@ -40,7 +41,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   ok('add dialog names the project, client and day',/Patient portal · Bluebird Health · Wed, \w+ \d+/.test(ctx),ctx);
   ok('add dialog has no project, date or start pickers',!(await p.isVisible('dialog[open] #e-project'))&&!(await p.isVisible('dialog[open] #e-date'))&&!(await p.isVisible('dialog[open] #e-start')));
   const labels=await p.$$eval('dialog[open] label',ls=>ls.map(l=>l.textContent.replace(' *','').trim()));
-  ok('add dialog asks phase, tag, time and description',['Phase','Tag','Time','Description'].every(x=>labels.includes(x)),labels.join(', '));
+  ok('add dialog asks phase, tag, duration and description',['Phase','Tag','Duration','Description'].every(x=>labels.includes(x)),labels.join(', '));
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForSelector('dialog[open] [role=alert]');
   ok('phase is required',/Phase/.test(await p.textContent('dialog[open] [role=alert]')));
   await p.selectOption('#e-phase',{label:'Build'});await p.selectOption('#e-tag',{label:'Development'});await p.fill('#e-dur','2');await p.fill('#e-desc','API work');
@@ -71,6 +72,8 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.click('button.chipbtn >> nth=1');await p.waitForSelector('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:has-text("Delete entry")');
   await p.waitForFunction(()=>document.querySelectorAll('button.chipbtn').length===1);
   ok('deleted entry disappears',true);
+  await p.waitForTimeout(600);
+  ok('no tooltip left behind after deleting',(await p.$$('.sheettip')).length===0);
 
   // remove an empty row, and rows survive a reload
   await p.click('button:has-text("Add project row")');await p.waitForSelector('dialog[open] #addrow-project');await p.selectOption('#addrow-project',pub[0][0]);await p.click('dialog[open] button:has-text("Add row")');
@@ -78,6 +81,42 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.waitForSelector(`button[aria-label="Remove ${pub[0][1]} row"]`,{state:'detached'});
   await p.reload();await p.waitForLoadState('networkidle');
   ok('rows are remembered after reload, removed row stays gone',(await p.isVisible('tr:has-text("Patient portal")'))&&!(await p.isVisible(`tr:has-text("${pub[0][1]}")`)));
+
+  // the whole free part of a cell is clickable, even in a tall row
+  const cellBox=await p.$eval(`tr:has-text("Patient portal") td.sheetcell >> nth=0`,td=>{const r=td.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+4}}).catch(()=>null);
+  if(cellBox){await p.mouse.click(cellBox.x,cellBox.y);}
+  ok('clicking the top edge of an empty cell opens Add time',!!cellBox&&await p.isVisible('dialog[open] #e-phase'));
+  if(await p.isVisible('dialog[open] #e-phase'))await p.click('dialog[open] button:has-text("Close")');
+
+  // a day that starts early: new time follows the last entry, not 09:00
+  const fri=addDays(ws,4);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values('${uid}e','${uid}','${proj}',(select id from "Phase" where "projectId"='${proj}' and name='Build'),(select id from "Tag" where name='Development'),'${fri}',360,120,'early')`);
+  await p.reload();await p.waitForLoadState('networkidle');
+  await p.click(`tr:has-text("Patient portal") button.addcell[aria-label*="Fri"]`);await p.waitForSelector('dialog[open] #e-phase');
+  await p.selectOption('#e-phase',{label:'Build'});await p.selectOption('#e-tag',{label:'Development'});await p.fill('#e-dur','1');await p.fill('#e-desc','after early');
+  await p.click('dialog[open] button:has-text("Add entry")');await p.waitForFunction(()=>[...document.querySelectorAll('button.chipbtn')].length>=3);
+  ok('time after an early entry starts at 08:00',sql(`select "startMin" from "TimeEntry" where "userId"='${uid}' and description='after early'`)==='480');
+
+  // deleting the only entry on a row that came from the calendar keeps the row
+  const thu=addDays(ws,3);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId",date,"startMin",minutes,description) values('${uid}f','${uid}','${pub[0][0]}',(select id from "Phase" where "projectId"='${pub[0][0]}' order by sort limit 1),'${thu}',540,60,'from calendar')`);
+  await p.reload();await p.waitForLoadState('networkidle');
+  await p.click(`tr:has-text("${pub[0][1]}") button.chipbtn`);await p.waitForSelector('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:has-text("Delete entry")');
+  await p.waitForSelector(`button[aria-label="Remove ${pub[0][1]} row"]`);
+  ok('deleting the last entry keeps the row',await p.isVisible(`tr:has-text("${pub[0][1]}")`));
+  await p.click(`button[aria-label="Remove ${pub[0][1]} row"]`);await p.waitForSelector(`button[aria-label="Remove ${pub[0][1]} row"]`,{state:'detached'});
+
+  // time on an archived project stays visible but takes no new time, and can be moved
+  const client=sql(`select "clientId" from "Project" where id='${proj}'`);
+  sql(`insert into "Project"(id,name,"clientId",archived) values('arch${uid}','Old work ${uid}','${client}',true); insert into "Phase"(id,"projectId",name,sort) values('archph${uid}','arch${uid}','Wrap up',0);
+       insert into "TimeEntry"(id,"userId","projectId","phaseId",date,"startMin",minutes,description) values('${uid}g','${uid}','arch${uid}','archph${uid}','${thu}',600,60,'old')`);
+  await p.reload();await p.waitForLoadState('networkidle');
+  const archRow=`tr:has-text("Old work ${uid}")`;
+  ok('archived project row says it is closed and has no add buttons',(await p.textContent(archRow)).includes('closed for new time')&&(await p.$$(`${archRow} button.addcell`)).length===0);
+  await p.click(`${archRow} button.chipbtn`);await p.waitForSelector('dialog[open] h2');
+  ok('its entry opens with a project picker so it can be moved',await p.isVisible('dialog[open] #e-project'));
+  await p.click('dialog[open] button:has-text("Close")');
+  sql(`delete from "TimeEntry" where id='${uid}g'`);
 
   // copy last week brings last week's rows
   await p.click('button:has-text("Copy last week")');await p.waitForURL(/copied=/);
@@ -98,6 +137,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
  }finally{
   sql(`delete from "AuditLog" where "userId"='${uid}' or "targetUserId"='${uid}'`);
   sql(`delete from "User" where id='${uid}'`);
+  sql(`delete from "TimeEntry" where "projectId"='arch${uid}'; delete from "Project" where id='arch${uid}'`);
   await b.close();
  }
 })();

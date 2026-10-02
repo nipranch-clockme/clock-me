@@ -33,9 +33,10 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     phaseId: e.phaseId, phaseName: e.phase?.name ?? "No phase", tagId: e.tagId, tagName: e.tag?.name ?? "", description: e.description,
     custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes,
   }));
-  // One row per project: the ones added for this week plus any with time this week.
+  // One row per project: the ones added for this week (while still open to log on) plus any with time this week.
   const sheetRows = new Map<string, SheetRow>();
-  for (const r of savedRows) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
+  const open = new Set(opts.projects.map((p) => p.id));
+  for (const r of savedRows) if (open.has(r.projectId)) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
   for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
   const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
   const back = `/timesheet${offset ? `?w=${offset}` : ""}`;
@@ -81,7 +82,10 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
             <button className="btn ok" disabled={statusLocked || !rows.length}>Submit for approval</button>
           </form>
         )} />
-      <p className="note" style={{ margin: "12px 0 0" }}>Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase{settings.requireTag ? ", tag" : ""}{settings.requireDescription ? " and description" : ""}.</p>
+      <p className="note" style={{ margin: "12px 0 0" }}>
+        {statusLocked ? "This week can't be changed. Click an entry to see its details, or hover over it to see its phase, tag and description."
+          : `Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}
+      </p>
     </section>
   );
 }

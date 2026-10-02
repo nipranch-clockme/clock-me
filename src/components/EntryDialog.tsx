@@ -40,7 +40,7 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
       <label htmlFor="e-phase">Phase<span className="req"> *</span></label>
       <select id="e-phase" name="phaseId" key={projectId} autoFocus={fixed && !value.id && !ro} defaultValue={project?.phases.some((p) => p.id === value.phaseId) || (keepOldPhase && projectId === value.projectId) ? value.phaseId ?? "" : ""} className={bad("Phase")}>
         <option value="">Choose a phase</option>
-        {keepOldPhase && projectId === value.projectId && <option value={value.phaseId!}>{value.phaseName} (removed from project)</option>}
+        {keepOldPhase && projectId === value.projectId && <option value={value.phaseId!}>{value.phaseName}{project ? " (removed from project)" : ""}</option>}
         {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
     </div>
@@ -60,6 +60,8 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
       {f.type === "select" ? (
         <select id={"e-cf-" + f.id} name={"cf_" + f.id} defaultValue={value.custom?.[f.id] ?? ""} className={bad(f.name)}>
           <option value="">Choose</option>
+          {/* Keep a saved value an admin has since taken off the list, so editing doesn't blank it. */}
+          {!!value.custom?.[f.id] && !f.options.includes(value.custom[f.id]) && <option>{value.custom[f.id]}</option>}
           {f.options.map((o) => <option key={o}>{o}</option>)}
         </select>
       ) : (
@@ -73,7 +75,7 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
       <input id="e-desc" name="description" defaultValue={value.description ?? ""} placeholder="What did you work on?" className={bad("Description")} />
     </div>
   );
-  const durField = <div><label htmlFor="e-dur">{fixed ? "Time" : "Duration"}</label><input id="e-dur" name="duration" defaultValue={dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" className={bad("duration")} /></div>;
+  const durField = <div><label htmlFor="e-dur">Duration</label><input id="e-dur" name="duration" defaultValue={dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" className={bad("duration")} /></div>;
 
   return (
     <div className="panel">

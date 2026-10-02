@@ -65,6 +65,12 @@ export async function deleteEntry(form: FormData) {
   const lock = await isDayLocked(me.id, toStr(e.date), settings);
   if (lock) throw new Error(lock);
   await db.timeEntry.delete({ where: { id: e.id } });
+  // Deleting the last entry on a project that week keeps its timesheet row, so the person can add time again straight away.
+  const ws = monday(toStr(e.date));
+  const left = await db.timeEntry.count({ where: { userId: me.id, projectId: e.projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  if (!left && (await db.project.count({ where: { id: e.projectId, ...trackableProjectsWhere(me) } }))) {
+    await db.timesheetRow.createMany({ data: [{ userId: me.id, weekStart: toDate(ws), projectId: e.projectId }], skipDuplicates: true });
+  }
   await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}`, me.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
