@@ -37,7 +37,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </div>
         {people.length > 1 && <PersonPicker people={people} current={who} meId={me.id} offset={offset} />}
       </div>
-      <p className="note" style={{ margin: "0 0 10px" }}>{who === me.id ? "Click an empty slot to add time there. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
+      <p className="note" style={{ margin: "0 0 10px" }}>{who === me.id ? "Click a time to add an hour, or drag down the day to add exactly the time you spent. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
       <CalendarWeek
         opts={opts} dates={dates} today={today()} editable={who === me.id} locked={locked}
         ownerName={people.find((p) => p.id === who)?.name ?? ""}

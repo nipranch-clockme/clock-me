@@ -93,7 +93,7 @@ export function FieldForm() {
   const [type, setType] = useState("text");
   return (
     <form ref={ref} action={action} className="row" style={{ marginTop: 10 }} onReset={() => setType("text")}>
-      <div><label htmlFor="st-cf">Field name</label><input id="st-cf" name="name" placeholder="e.g. Ticket ID" /></div>
+      <div><label htmlFor="st-cf">Field name</label><input id="st-cf" name="name" placeholder="e.g. Client reference" /></div>
       <div><label htmlFor="st-cf-type">Type</label><select id="st-cf-type" name="type" value={type} onChange={(e) => setType(e.target.value)}><option value="text">Text</option><option value="select">Dropdown</option></select></div>
       {type === "select" && <div style={{ flexBasis: "100%" }}><label htmlFor="st-cf-opt">Options, separated by commas</label><input id="st-cf-opt" name="options" placeholder="Low, Medium, High" /></div>}
       <label className="check" style={{ flex: "0 0 auto" }}><input type="checkbox" name="required" /> Required</label>

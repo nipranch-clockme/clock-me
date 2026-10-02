@@ -122,8 +122,10 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .cal .hd.today{color:var(--accent)}
 .cal .hrs{position:relative}
 .cal .hrs span{position:absolute;right:6px;font:400 11px var(--mono);color:var(--muted);transform:translateY(-50%)}
-.cal .col{position:relative;border-left:1px solid var(--line);cursor:copy;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
+.cal .col{position:relative;border-left:1px solid var(--line);cursor:crosshair;user-select:none;-webkit-user-select:none;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
 .cal .col.locked{cursor:not-allowed;background-color:color-mix(in srgb,var(--line) 35%,transparent)}
+.dragsel{position:absolute;left:3px;right:3px;z-index:3;border-radius:5px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font:600 12px/1.25 var(--body);padding:3px 6px;pointer-events:none;overflow:hidden}
+.cal.dragging .ev{pointer-events:none}
 .ev{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 6px;font-size:12px;line-height:1.25;overflow:hidden;background:var(--surface);border:1px solid var(--line2);border-left-width:4px;cursor:pointer;color:var(--ink)}
 .ev b{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev span{color:var(--muted);font-family:var(--mono);font-size:11px}

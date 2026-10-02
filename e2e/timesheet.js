@@ -41,7 +41,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   ok('add dialog names the project, client and day',/Patient portal · Bluebird Health · Wed, \w+ \d+/.test(ctx),ctx);
   ok('add dialog has no project, date or start pickers',!(await p.isVisible('dialog[open] #e-project'))&&!(await p.isVisible('dialog[open] #e-date'))&&!(await p.isVisible('dialog[open] #e-start')));
   const labels=await p.$$eval('dialog[open] label',ls=>ls.map(l=>l.textContent.replace(' *','').trim()));
-  ok('add dialog asks phase, tag, duration and description',['Phase','Tag','Duration','Description'].every(x=>labels.includes(x)),labels.join(', '));
+  ok('add dialog asks phase, tag, duration and description, and no Ticket ID',['Phase','Tag','Duration','Description'].every(x=>labels.includes(x))&&!labels.includes('Ticket ID'),labels.join(', '));
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForSelector('dialog[open] [role=alert]');
   ok('phase is required',/Phase/.test(await p.textContent('dialog[open] [role=alert]')));
   await p.selectOption('#e-phase',{label:'Build'});await p.selectOption('#e-tag',{label:'Development'});await p.fill('#e-dur','2');await p.fill('#e-desc','API work');

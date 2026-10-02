@@ -2,15 +2,15 @@ const {start,login,BASE}=require('./helpers');
 (async()=>{const b=await start();const p=await login(b,'rosa@example.com');
  await p.goto(BASE+'/import-export');await p.waitForLoadState('networkidle');
  const run='run'+process.pid;
- const csv=['Date,Email,Project,Phase,Tag,Description,Hours,Start,Ticket ID',
-  `2026-09-29,mei@example.com,Patient portal,Build,Development,API work ${run},2.5,10:30,PP-12`,
-  '2026-09-29,priya@example.com,Patient portal,Build,,x,1,,',
-  '2026-09-30,mei@example.com,Patient portal,Nope,,x,1,,',
-  'bad,mei@example.com,Patient portal,Build,,x,1,,',
-  `2026-09-30,marcus@example.com,Website rebuild,Launch,Meetings,"Call, with ""quotes""\nand a second line ${run}",1:15,,`,
-  `2026-09-30,mei@example.com,Patient portal,Build,Development,'- note ${run},1,9:5,`,
-  `2026-09-30,mei@example.com,Patient portal,Build,Development,'- note ${run},1,,`,
-  `2026-09-30,mei@example.com,Patient portal,Build,Development,5" screen ${run},1,,`].join('\n');
+ const csv=['Date,Email,Project,Phase,Tag,Description,Hours,Start',
+  `2026-09-29,mei@example.com,Patient portal,Build,Development,API work ${run},2.5,10:30`,
+  '2026-09-29,priya@example.com,Patient portal,Build,,x,1,',
+  '2026-09-30,mei@example.com,Patient portal,Nope,,x,1,',
+  'bad,mei@example.com,Patient portal,Build,,x,1,',
+  `2026-09-30,marcus@example.com,Website rebuild,Launch,Meetings,"Call, with ""quotes""\nand a second line ${run}",1:15,`,
+  `2026-09-30,mei@example.com,Patient portal,Build,Development,'- note ${run},1,9:5`,
+  `2026-09-30,mei@example.com,Patient portal,Build,Development,'- note ${run},1,`,
+  `2026-09-30,mei@example.com,Patient portal,Build,Development,5" screen ${run},1,`].join('\n');
  const sec='section:has(#imp-text-time)';
  const check=async()=>{await p.fill('#imp-text-time',csv);await p.locator(`${sec} button:has-text("Check file")`).click();await p.waitForSelector(`${sec} table`);await p.waitForTimeout(300);return (await p.locator(`${sec} tbody`).innerText()).replace(/\t/g,' ');};
  console.log(await check());
