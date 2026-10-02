@@ -15,10 +15,9 @@ It covers time tracking and performance only. There is no billing.
 | Calendar | Everyone | Week view by time of day. Click a slot to add an hour, or drag down a day to add exactly the time spent. Managers can view their people's calendars |
 | Approvals | Leaders, location managers, admins | Approve or send back submitted weeks, and remind people who haven't submitted |
 | Reports | Everyone (limited to what they can see) | Filters for date range (including all time), person, team, client, project, tag, phase, description and office. Includes a chart, a breakdown table and CSV export |
-| Projects | Everyone (team members see only their own projects, read only) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people |
+| Projects | Everyone (team members see only the projects they have been added to, read only, without the clients and phase templates lists) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people |
 | People | Location managers, admins | Invite people, set roles, office, team and weekly target. Create password reset links. Add offices and teams |
 | Import & export | Project managers, location managers, admins | CSV import of time entries and projects, with a check of every row before anything is saved. CSV export of time, projects and people |
-| Time audit | Leaders, location managers, admins | Days over 10 hours, workdays with no time, entries missing required fields, and a full change log |
 | Settings | Admins | Time format (7.50 or 7:30), required fields, lock date, reminders, tags, phase templates, custom fields |
 
 What each role can see:

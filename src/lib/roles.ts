@@ -20,11 +20,10 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Create clients, tags and phase templates", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
   ["Import and export CSV", { MEMBER: "Export own", LEADER: "Export team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Invite people, set targets", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
-  ["View time audit and change log", { MEMBER: "n", LEADER: "Own team", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
 ];
 
-export type Tab = "dashboard" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "audit" | "settings";
+export type Tab = "dashboard" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
 export const TABS: [Tab, string, Role[] | "all"][] = [
   ["dashboard", "Dashboard", ["LEADER", "PM", "LOCATION", "ADMIN"]],
   ["timesheet", "Timesheet", "all"],
@@ -34,7 +33,6 @@ export const TABS: [Tab, string, Role[] | "all"][] = [
   ["projects", "Projects", "all"],
   ["people", "People", ["LOCATION", "ADMIN"]],
   ["import-export", "Import & export", ["PM", "LOCATION", "ADMIN"]],
-  ["audit", "Time audit", ["LEADER", "LOCATION", "ADMIN"]],
   ["settings", "Settings", ["ADMIN"]],
 ];
 export const canTab = (tab: Tab, role: Role) => {
