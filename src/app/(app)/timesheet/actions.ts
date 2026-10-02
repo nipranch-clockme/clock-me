@@ -81,7 +81,8 @@ export type RowResult = { ok: boolean; error?: string };
 /** The week's own status lock (submitted or approved). Admin lock dates only stop changes to time, not rows. */
 async function weekClosed(userId: string, ws: string) {
   const sheet = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(ws) } } });
-  return sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED" ? `This week is ${sheet.status.toLowerCase()}.` : null;
+  return sheet?.status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it."
+    : sheet?.status === "APPROVED" ? "This week is approved." : null;
 }
 
 export async function addRow(form: FormData): Promise<RowResult> {
@@ -140,6 +141,9 @@ export async function cancelSubmission(form: FormData) {
   const me = await requireUser();
   const ws = monday(String(form.get("week")));
   const back = String(form.get("back") ?? "/timesheet");
+  // A week whose days are all locked by an admin couldn't be changed anyway, so it stays with the approver.
+  const settings = await getSettings();
+  if (settings.lockBeforeStr && addDays(ws, 6) <= settings.lockBeforeStr) redirect(back);
   // Only a week still waiting for approval can be taken back. If it was approved or sent back in the meantime, it stays that way.
   const r = await db.timesheet.updateMany({ where: { userId: me.id, weekStart: toDate(ws), status: "SUBMITTED" }, data: { status: "DRAFT", comment: "" } });
   if (r.count) await logAction(me.id, `Cancelled the submission of their timesheet for ${weekLabel(ws)}`, me.id);

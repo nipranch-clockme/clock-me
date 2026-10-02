@@ -51,6 +51,55 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   sql(`update "Timesheet" set status='SUBMITTED' where "userId"='${uid}' and "weekStart"='${ws}'`);
   await d.goto(BASE+'/timesheet');await d.waitForLoadState('networkidle');
   ok("another person's timesheet page doesn't show this week",!(await d.textContent('main')).includes('Cancel Test'));
+
+  // stale approvals: an open Approvals page only acts on the version of the week it showed
+  const fmtOk=(t,h)=>t.includes(h.toFixed(2))||t.includes(`${Math.floor(h)}:${String(Math.round(h%1*60)).padStart(2,'0')}`);
+  sql(`update "Timesheet" set status='DRAFT', comment='' where "userId"='${uid}' and "weekStart"='${ws}'`);
+  await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
+  await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
+  await d.goto(BASE+'/approvals');await d.waitForLoadState('networkidle');
+  const card=()=>d.locator('section.panel.full .item:has-text("Cancel Test")');
+  ok('approver sees 2 hours',fmtOk(await card().innerText(),2));
+  await p.click('button:has-text("Cancel submission")');await p.waitForSelector('text=Submission cancelled');
+  sql(`update "TimeEntry" set minutes=180 where id='${uid}e'`);
+  await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
+  await card().locator('button:has-text("Approve")').click();await d.waitForSelector('text=changed their timesheet');
+  ok('a stale Approve does not approve a changed week',status()==='SUBMITTED',status());
+  ok('the approver now sees the new hours',fmtOk(await card().innerText(),3));
+  // cancelled and not sent again
+  await p.click('button:has-text("Cancel submission")');await p.waitForSelector('text=Submission cancelled');
+  await card().locator('button:has-text("Approve")').click();await d.waitForSelector('text=cancelled their submission');
+  ok('Approve after the person cancelled says so and changes nothing',status()==='DRAFT'&&(await card().count())===0);
+  // Send back on a stale card
+  await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
+  await d.goto(BASE+'/approvals');await d.waitForLoadState('networkidle');
+  await card().locator('button:has-text("Send back")').click();await card().locator('input[name=reason]').fill('Check Monday');
+  await p.click('button:has-text("Cancel submission")');await p.waitForSelector('text=Submission cancelled');
+  await card().locator('form button:has-text("Send back")').click();await d.waitForSelector('text=cancelled their submission');
+  ok('Send back after the person cancelled says so and changes nothing',status()==='DRAFT');
+  // Approve all skips a week that changed after the page was opened
+  const before=sql(`select t.id from "Timesheet" t join "User" u on u.id=t."userId" where t.status='SUBMITTED' and u."teamId"='${daniel[1]}' and u.id<>'${uid}'`).split('\n').filter(Boolean);
+  const t0=sql(`select to_char(now() at time zone 'UTC','YYYY-MM-DD HH24:MI:SS.MS')`);
+  try{
+   await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
+   await d.goto(BASE+'/approvals');await d.waitForLoadState('networkidle');
+   if(await d.isVisible('button:has-text("Approve all")')){
+    await p.click('button:has-text("Cancel submission")');await p.waitForSelector('text=Submission cancelled');
+    await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
+    await d.click('button:has-text("Approve all")');await d.waitForSelector('text=wasn\'t approved');
+    ok('Approve all leaves a changed week waiting',status()==='SUBMITTED');
+    ok('Approve all still approves the unchanged ones',!before.length||sql(`select count(*) from "Timesheet" where status='APPROVED' and id in (${before.map(x=>`'${x}'`).join(',')})`)===String(before.length));
+   }else console.log('SKIP Approve all (only one week waiting)');
+  }finally{
+   if(before.length)sql(`update "Timesheet" set status='SUBMITTED' where id in (${before.map(x=>`'${x}'`).join(',')})`);
+   sql(`delete from "AuditLog" where "userId"=(select id from "User" where email='daniel@example.com') and at>='${t0}' and action like 'Approved%'`);
+  }
+  // a week an admin has locked completely can't be taken back
+  const lock0=sql(`select coalesce(to_char("lockBefore",'YYYY-MM-DD'),'') from "Settings"`);
+  try{
+   sql(`update "Settings" set "lockBefore"='${addDays(ws,6)}'`);await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
+   ok('fully locked week offers no Cancel submission',(await p.locator('button:has-text("Cancel submission")').count())===0&&(await p.textContent('main')).includes('locked by an admin'));
+  }finally{sql(`update "Settings" set "lockBefore"=${lock0?`'${lock0}'`:'null'}`);}
   ok('no browser errors',p.errs.length===0&&d.errs.length===0,JSON.stringify([p.errs,d.errs]));
  }finally{
   sql(`delete from "AuditLog" where "userId"='${uid}' or "targetUserId"='${uid}'`);

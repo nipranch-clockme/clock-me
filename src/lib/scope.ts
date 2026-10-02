@@ -44,21 +44,17 @@ export function visibleProjectsWhere(me: Me): Prisma.ProjectWhereInput {
 }
 
 /** Projects a team member has been added to, which is all their Projects page lists: restricted projects shared with
- *  them, their team or their office, and ones they manage. Open-to-everyone projects aren't listed there, though they can
+ *  them, their team or their office, or managed by them. Open-to-everyone projects aren't listed there, though they can
  *  still log time on them. Archived projects are left out. */
 export function addedProjectsWhere(me: Me): Prisma.ProjectWhereInput {
   return {
     archived: false,
+    access: "RESTRICTED",
     OR: [
+      { users: { some: { userId: me.id } } },
       { managers: { some: { userId: me.id } } },
-      {
-        access: "RESTRICTED",
-        OR: [
-          { users: { some: { userId: me.id } } },
-          { locations: { some: { locationId: me.locationId } } },
-          ...(me.teamId ? [{ teams: { some: { teamId: me.teamId } } }] : []),
-        ],
-      },
+      { locations: { some: { locationId: me.locationId } } },
+      ...(me.teamId ? [{ teams: { some: { teamId: me.teamId } } }] : []),
     ],
   };
 }

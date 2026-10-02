@@ -6,7 +6,8 @@ import type { AppSettings } from "./settings";
 export async function isDayLocked(userId: string, date: string, settings: AppSettings) {
   if (settings.lockBeforeStr && date <= settings.lockBeforeStr) return "This date is locked by an admin.";
   const ts = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(monday(date)) } } });
-  if (ts && (ts.status === "SUBMITTED" || ts.status === "APPROVED")) return `That week is already ${ts.status.toLowerCase()}.`;
+  if (ts?.status === "SUBMITTED") return "That week is waiting for approval. Cancel the submission on the Timesheet to change it.";
+  if (ts?.status === "APPROVED") return "That week is already approved.";
   return null;
 }
 

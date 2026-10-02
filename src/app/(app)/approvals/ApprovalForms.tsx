@@ -2,13 +2,13 @@
 import { useActionState, useState } from "react";
 import { remind, sendBack, type ApproveResult } from "./actions";
 
-export function SendBack({ id }: { id: string }) {
+export function SendBack({ id, v }: { id: string; v: string }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState<ApproveResult, FormData>(sendBack, null);
   if (!open) return <button type="button" className="btn bad sm" onClick={() => setOpen(true)}>Send back</button>;
   return (
     <form action={action} className="row" style={{ flexBasis: "100%", marginTop: 10 }}>
-      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} /><input type="hidden" name="v" value={v} />
       <div style={{ flex: "2 1 240px" }}><label htmlFor={`rj-${id}`}>Reason for sending back</label><input id={`rj-${id}`} name="reason" placeholder="e.g. Tuesday looks short" autoFocus /></div>
       <button className="btn bad sm" disabled={pending}>Send back</button>
       <button type="button" className="btn sm" onClick={() => setOpen(false)}>Cancel</button>

@@ -21,7 +21,8 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
   names.direct=P('direct','RESTRICTED');sql(`insert into "ProjectUserAccess"("projectId","userId") values('${t}direct','${t}')`);
   names.team=P('team','RESTRICTED');sql(`insert into "ProjectTeamAccess"("projectId","teamId") values('${t}team','${team}')`);
   names.office=P('office','RESTRICTED');sql(`insert into "ProjectLocationAccess"("projectId","locationId") values('${t}office','${loc}')`);
-  names.managed=P('managed','PUBLIC');sql(`insert into "ProjectManager"("projectId","userId") values('${t}managed','${t}')`);
+  names.managed=P('managed','RESTRICTED');sql(`insert into "ProjectManager"("projectId","userId") values('${t}managed','${t}')`);
+  names.managedPublic=P('managedpub','PUBLIC');sql(`insert into "ProjectManager"("projectId","userId") values('${t}managedpub','${t}')`);
   names.public=P('public','PUBLIC');
   names.publicLeftover=P('leftover','PUBLIC');sql(`insert into "ProjectUserAccess"("projectId","userId") values('${t}leftover','${t}')`);
   names.otherTeam=P('otherteam','RESTRICTED');sql(`insert into "ProjectTeamAccess"("projectId","teamId") values('${t}otherteam','${otherTeam}')`);
@@ -33,7 +34,7 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
   const mine=rows.filter(r=>r.startsWith(t));
   const want=[names.direct,names.team,names.office,names.managed].sort();
   ok('member sees only projects they were added to',JSON.stringify(mine.sort())===JSON.stringify(want),JSON.stringify(mine));
-  const sample=sql(`select name from "Project" p where not archived and (exists(select 1 from "ProjectManager" m where m."projectId"=p.id and m."userId"='${t}') or (access='RESTRICTED' and (exists(select 1 from "ProjectUserAccess" u where u."projectId"=p.id and u."userId"='${t}') or exists(select 1 from "ProjectTeamAccess" x where x."projectId"=p.id and x."teamId"='${team}') or exists(select 1 from "ProjectLocationAccess" l where l."projectId"=p.id and l."locationId"='${loc}'))))`).split('\n').filter(Boolean).sort();
+  const sample=sql(`select name from "Project" p where not archived and access='RESTRICTED' and ((exists(select 1 from "ProjectManager" m where m."projectId"=p.id and m."userId"='${t}') or (exists(select 1 from "ProjectUserAccess" u where u."projectId"=p.id and u."userId"='${t}') or exists(select 1 from "ProjectTeamAccess" x where x."projectId"=p.id and x."teamId"='${team}') or exists(select 1 from "ProjectLocationAccess" l where l."projectId"=p.id and l."locationId"='${loc}'))))`).split('\n').filter(Boolean).sort();
   ok('row count matches the rule',rows.length===sample.length,`${rows.length} vs ${sample.length}`);
   const body=await p.textContent('main');
   ok('no Clients section',!(await p.$('h3:text-is("Clients")')));

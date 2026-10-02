@@ -8,8 +8,10 @@ import { Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
 import { trackingStarts } from "@/lib/startDates";
+import { staleText } from "@/lib/approvalText";
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ stale?: string; skipped?: string }> }) {
+  const sp = await searchParams;
   const me = await requireTab("approvals");
   const settings = await getSettings();
   const where = approverUsersWhere(me);
@@ -23,6 +25,9 @@ export default async function ApprovalsPage() {
     db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
+  // After an Approve or Approve all that didn't go through (see actions.ts), say why.
+  const stale = sp.stale ? await db.timesheet.findFirst({ where: { id: sp.stale, user: where }, include: { user: true } }) : null;
+  const skipped = Math.max(0, Math.floor(Number(sp.skipped) || 0));
   const entries = pending.length
     ? await db.timeEntry.findMany({
         where: { OR: pending.map((s) => ({ userId: s.userId, date: { gte: s.weekStart, lte: toDate(addDays(toStr(s.weekStart), 6)) } })) },
@@ -39,8 +44,10 @@ export default async function ApprovalsPage() {
       <section className="panel full">
         <div className="row between">
           <div><h2>Waiting for your approval</h2><p className="sub">{scopeLabel(me)} · {pending.length} timesheet{pending.length === 1 ? "" : "s"}</p></div>
-          {pending.length > 1 && <form action={approveAll}><button className="btn ok">Approve all</button></form>}
+          {pending.length > 1 && <form action={approveAll}>{pending.map((s) => <input key={s.id} type="hidden" name="sheet" value={`${s.id}|${s.updatedAt.toISOString()}`} />)}<button className="btn ok">Approve all</button></form>}
         </div>
+        {stale && <p className="alert warn" role="status">{staleText(stale.status, stale.user.name, weekLabel(toStr(stale.weekStart)))}</p>}
+        {skipped > 0 && <p className="alert warn" role="status">{skipped === 1 ? "One timesheet was" : `${skipped} timesheets were`} changed, cancelled or handled by someone else after you opened this page, so {skipped === 1 ? "it wasn't" : "they weren't"} approved. Check the list below.</p>}
         <div className="list">
           {pending.map((s) => {
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
@@ -56,8 +63,8 @@ export default async function ApprovalsPage() {
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>
-                  <form action={approve}><input type="hidden" name="id" value={s.id} /><button className="btn ok sm">Approve</button></form>
-                  <SendBack id={s.id} />
+                  <form action={approve}><input type="hidden" name="id" value={s.id} /><input type="hidden" name="v" value={s.updatedAt.toISOString()} /><button className="btn ok sm">Approve</button></form>
+                  <SendBack id={s.id} v={s.updatedAt.toISOString()} />
                 </div>
               </div>
             );

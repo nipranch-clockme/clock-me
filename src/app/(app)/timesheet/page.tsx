@@ -26,6 +26,8 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
   const adminLocked = (d: string) => !!settings.lockBeforeStr && d <= settings.lockBeforeStr;
+  // People can take back a submitted week, unless an admin has locked every day of it.
+  const canCancel = status === "SUBMITTED" && !dates.every(adminLocked);
   const total = rows.reduce((a, e) => a + e.minutes, 0);
   const missingList = sp.missing ? (await Promise.all(rows.map(async (e) => ({ e, miss: await missingFields(e, settings) })))).filter((x) => x.miss.length) : [];
   const entries: SheetEntry[] = rows.map((e) => ({
@@ -67,7 +69,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           {skipped ? ` ${skipped} ${skipped === 1 ? "project was" : "projects were"} left out because ${skipped === 1 ? "it's" : "they're"} archived or you no longer have access.` : ""}
         </p>
       )}
-      {sp.cancelled === "1" && status === "DRAFT" && <p className="alert info" role="status">Submission cancelled. You can change this week and submit it again.</p>}
+      {sp.cancelled != null && status === "DRAFT" && <p className="alert info" role="status">Submission cancelled. You can change this week and submit it again.</p>}
       {sp.cancelled === "0" && status !== "DRAFT" && status !== "SUBMITTED" && (
         <p className="alert warn" role="status">{status === "APPROVED" ? "This week was approved before you cancelled, so it can't be changed now. Ask your approver if something needs changing." : "This week was sent back before you cancelled. You can change it and submit it again."}</p>
       )}
@@ -79,9 +81,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission if you need to change something." : "This week is approved. Ask your approver if something needs changing."}</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
-        )} footerRight={status === "SUBMITTED" ? (
+        )} footerRight={canCancel ? (
           <form action={cancelSubmission}>
             <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
             <button className="btn">Cancel submission</button>
