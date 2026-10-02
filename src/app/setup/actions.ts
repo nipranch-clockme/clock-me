@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createSession } from "@/lib/session";
 import { ensureDefaults } from "@/lib/defaults";
+import { matchesDatabasePassword } from "@/lib/ownerCheck";
+import { isTimeZone } from "@/lib/dates";
+import { clientIp, overLimit, recordAttempt } from "@/lib/throttle";
 
 export type SetupState = { error: string } | null;
 
@@ -12,6 +15,14 @@ export async function setupAdmin(_: SetupState, form: FormData): Promise<SetupSt
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const office = String(form.get("office") ?? "").trim();
   const password = String(form.get("password") ?? "");
+  const ip = await clientIp();
+  if (await overLimit([[`setup-ip:${ip}`, 10]])) return { error: "Too many attempts. Wait 15 minutes and try again." };
+  if (!matchesDatabasePassword(String(form.get("proof") ?? ""))) {
+    await recordAttempt(`setup-ip:${ip}`);
+    return { error: "That isn't this site's database connection string. Copy it from Neon (Connect) or from Vercel (Settings > Environment Variables)." };
+  }
+  const tzIn = String(form.get("timeZone") ?? "");
+  const timeZone = isTimeZone(tzIn) ? tzIn : "UTC";
   if (!name) return { error: "Add your name." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
   if (!office) return { error: "Name your office." };
@@ -25,9 +36,10 @@ export async function setupAdmin(_: SetupState, form: FormData): Promise<SetupSt
     userId = await db.$transaction(async (tx) => {
       if ((await tx.user.count()) > 0) throw new Error("ALREADY_SET_UP");
       await ensureDefaults(tx);
+      await tx.settings.update({ where: { id: 1 }, data: { timeZone } });
       const loc = await tx.location.upsert({ where: { name: office }, update: {}, create: { name: office } });
       const user = await tx.user.create({ data: { name, email, title: "Administrator", role: "ADMIN", weeklyTarget: 0, locationId: loc.id, passwordHash } });
-      await tx.auditLog.create({ data: { userId: user.id, action: `Set up Clock me and created the ${office} office` } });
+      await tx.auditLog.create({ data: { userId: user.id, action: `Set up Clock me and created the ${office} office`, targetUserId: user.id } });
       return user.id;
     }, { isolationLevel: "Serializable", timeout: 20000 });
   } catch (e) {

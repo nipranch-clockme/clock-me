@@ -1,18 +1,20 @@
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { canTab, roleName } from "@/lib/roles";
-import { trackableProjectsWhere, visibleUsersWhere } from "@/lib/scope";
+import { visibleProjectsWhere, visibleUsersWhere } from "@/lib/scope";
 import { toCsv } from "@/lib/report";
 import { today } from "@/lib/dates";
+import { getSettings } from "@/lib/settings";
 
 export async function GET(_: Request, { params }: { params: Promise<{ kind: string }> }) {
   const me = await currentUser();
   if (!me || !canTab("import-export", me.role)) return new Response("Not allowed", { status: 403 });
   const { kind } = await params;
+  await getSettings(); // sets the company time zone used for the file name's date
   let rows: unknown[][];
   if (kind === "projects") {
     const projects = await db.project.findMany({
-      where: me.role === "ADMIN" ? {} : { OR: [trackableProjectsWhere(me), { managers: { some: { userId: me.id } } }] },
+      where: visibleProjectsWhere(me),
       include: { client: true, phases: { orderBy: { sort: "asc" } }, managers: { include: { user: true } }, users: { include: { user: true } }, locations: { include: { location: true } }, teams: { include: { team: { include: { location: true } } } } },
       orderBy: [{ client: { name: "asc" } }, { name: "asc" }],
     });

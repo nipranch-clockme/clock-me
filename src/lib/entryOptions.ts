@@ -7,7 +7,7 @@ import type { EntryOptions } from "@/components/entryTypes";
 export async function entryOptions(me: Me): Promise<EntryOptions> {
   const settings = await getSettings();
   const [projects, tags, fields] = await Promise.all([
-    db.project.findMany({ where: trackableProjectsWhere(me), include: { client: true, phases: { orderBy: { sort: "asc" } } }, orderBy: [{ client: { name: "asc" } }, { name: "asc" }] }),
+    db.project.findMany({ where: trackableProjectsWhere(me), include: { client: true, phases: { where: { sort: { lt: 999 } }, orderBy: { sort: "asc" } } }, orderBy: [{ client: { name: "asc" } }, { name: "asc" }] }),
     db.tag.findMany({ orderBy: { name: "asc" } }),
     db.customField.findMany({ orderBy: { sort: "asc" } }),
   ]);

@@ -28,8 +28,8 @@ enum SheetStatus {
 }
 
 model Location {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id        String                  @id @default(cuid())
+  name      String                  @unique
   managerId String?
   teams     Team[]
   users     User[]
@@ -37,10 +37,10 @@ model Location {
 }
 
 model Team {
-  id         String   @id @default(cuid())
+  id         String              @id @default(cuid())
   name       String
   locationId String
-  location   Location @relation(fields: [locationId], references: [id])
+  location   Location            @relation(fields: [locationId], references: [id])
   users      User[]
   access     ProjectTeamAccess[]
 
@@ -48,25 +48,28 @@ model Team {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  title        String    @default("")
-  passwordHash String?
-  inviteToken  String?   @unique
-  role         Role      @default(MEMBER)
-  locationId   String
-  location     Location  @relation(fields: [locationId], references: [id])
-  teamId       String?
-  team         Team?     @relation(fields: [teamId], references: [id])
-  weeklyTarget Float     @default(40)
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  entries      TimeEntry[]
-  timesheets   Timesheet[]
-  managing     ProjectManager[]
-  access       ProjectUserAccess[]
-  audit        AuditLog[]
+  id             String              @id @default(cuid())
+  email          String              @unique
+  name           String
+  title          String              @default("")
+  passwordHash   String?
+  inviteToken    String?             @unique
+  inviteExpires  DateTime? // invite and password reset links stop working after this
+  resetSentAt    DateTime? // last "forgot password" email, to stop floods
+  sessionVersion Int                 @default(0) // bumped to sign someone out everywhere
+  role           Role                @default(MEMBER)
+  locationId     String
+  location       Location            @relation(fields: [locationId], references: [id])
+  teamId         String?
+  team           Team?               @relation(fields: [teamId], references: [id])
+  weeklyTarget   Float               @default(40)
+  active         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  entries        TimeEntry[]
+  timesheets     Timesheet[]
+  managing       ProjectManager[]
+  access         ProjectUserAccess[]
+  audit          AuditLog[]
 }
 
 model Client {
@@ -77,14 +80,14 @@ model Client {
 }
 
 model Project {
-  id          String   @id @default(cuid())
+  id          String                  @id @default(cuid())
   name        String
   clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
+  client      Client                  @relation(fields: [clientId], references: [id])
   budgetHours Float?
-  access      Access   @default(PUBLIC)
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  access      Access                  @default(PUBLIC)
+  archived    Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
   phases      Phase[]
   managers    ProjectManager[]
   locations   ProjectLocationAccess[]
@@ -207,16 +210,28 @@ model Settings {
   remindSubmitTime   String    @default("16:00")
   remindDaily        Boolean   @default(true)
   remindApprovers    Boolean   @default(true)
+  timeZone           String    @default("UTC") // the company's time zone, used for "today" and "this week"
 }
 
 model AuditLog {
-  id     String   @id @default(cuid())
-  at     DateTime @default(now())
-  userId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action String
+  id           String   @id @default(cuid())
+  at           DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       String
+  targetUserId String? // the person the action was about, so managers only see changes to their own people
 
   @@index([at])
+  @@index([targetUserId])
+}
+
+// Recent failed sign-ins, keyed by email and by IP address, to slow down password guessing.
+model AuthAttempt {
+  id  String   @id @default(cuid())
+  key String
+  at  DateTime @default(now())
+
+  @@index([key, at])
 }
 
 // Values the app generates for itself on first use (e.g. the key that signs login cookies), so a new install needs no secrets in its settings.

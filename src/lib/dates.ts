@@ -13,12 +13,26 @@ export function addDays(s: string, n: number) {
 export const dow = (s: string) => (toDate(s).getUTCDay() + 6) % 7; // Monday = 0
 export const monday = (s: string) => addDays(s, -dow(s));
 
+// "Today" is the company's date, not the server's (Vercel servers run on UTC). getSettings() sets the zone.
+let companyTimeZone = "UTC";
+export function isTimeZone(tz: unknown): tz is string {
+  if (typeof tz !== "string" || !tz) return false;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch { return false; }
+}
+export function setCompanyTimeZone(tz: string) {
+  companyTimeZone = isTimeZone(tz) ? tz : "UTC";
+}
+/** The company-local calendar date of a moment in time, as YYYY-MM-DD. */
+export function localDate(d: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: companyTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
 export function today() {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: companyTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-export const isDateStr = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(toDate(s).getTime());
+/** A real calendar date written as YYYY-MM-DD (2026-09-31 is rejected rather than rolling into October). */
+export const isDateStr = (s: unknown): s is string =>
+  typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(toDate(s).getTime()) && toStr(toDate(s)) === s;
 
 export const shortDate = (s: string) => toDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 export const longDate = (s: string) =>
@@ -63,7 +77,7 @@ export function rangeDates(range: string, from?: string, to?: string): [string, 
     case "thisquarter": return [qStart + "-01", endOfMonth(addMonths(qStart, 2))];
     case "thisyear": return [`${y}-01-01`, `${y}-12-31`];
     case "lastyear": return [`${y - 1}-01-01`, `${y - 1}-12-31`];
-    case "all": return ["2000-01-01", t];
+    case "all": return ["2000-01-01", "9999-12-31"]; // includes time planned ahead
     case "custom": return [isDateStr(from) ? from : addDays(t, -30), isDateStr(to) ? to : t];
     default: return [ym + "-01", endOfMonth(ym)];
   }

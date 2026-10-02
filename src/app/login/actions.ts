@@ -3,19 +3,33 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createSession, destroySession } from "@/lib/session";
-import { randomBytes } from "crypto";
 import { sendEmail, appUrl } from "@/lib/email";
+import { issueLinkToken, liveTokenWhere, SELF_RESET_HOURS } from "@/lib/tokens";
+import { clearAttempts, clientIp, overLimit, recordAttempt } from "@/lib/throttle";
 
 export type LoginState = { error: string; email: string } | null;
+
+// Compared against when there's no account, so a wrong email takes as long as a wrong password.
+let dummyHash: Promise<string> | null = null;
+const getDummyHash = () => (dummyHash ??= bcrypt.hash("no-account-placeholder", 10));
 
 export async function login(_: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  const ip = await clientIp();
+  if (await overLimit([[`login:${email}`, 10], [`login-ip:${ip}`, 50]])) {
+    return { error: "Too many sign-in attempts. Wait 15 minutes and try again, or reset your password.", email };
+  }
   const user = await db.user.findUnique({ where: { email } });
-  if (!user || !user.active || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+  const ok = await bcrypt.compare(password, user?.passwordHash ?? (await getDummyHash()));
+  if (!user || !user.active || !user.passwordHash || !ok) {
+    await recordAttempt(`login:${email}`, `login-ip:${ip}`);
     return { error: "That email and password don't match. Check them and try again.", email };
   }
-  await createSession(user.id);
+  await clearAttempts(`login:${email}`);
+  // They remembered their password, so any reset link they asked for is no longer needed.
+  if (user.inviteToken) await db.user.update({ where: { id: user.id }, data: { inviteToken: null, inviteExpires: null } });
+  await createSession(user.id, user.sessionVersion);
   redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
 }
 
@@ -29,20 +43,33 @@ export async function acceptInvite(_: string | null, form: FormData): Promise<st
   const password = String(form.get("password") ?? "");
   if (password.length < 8) return "Use at least 8 characters.";
   if (password !== String(form.get("confirm") ?? "")) return "The two passwords don't match.";
-  const user = await db.user.findUnique({ where: { inviteToken: token } });
-  if (!user) return "This invite link has already been used or is no longer valid.";
-  await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(password, 10), inviteToken: null } });
-  await createSession(user.id);
-  redirect("/timesheet");
+  const user = token ? await db.user.findFirst({ where: liveTokenWhere(token) }) : null;
+  if (!user) return "This link has expired or has already been used. Ask your admin for a new one.";
+  const passwordHash = await bcrypt.hash(password, 10);
+  // Use the link up in one step, so it can't be used twice, and sign out any other devices.
+  const used = await db.user.updateMany({
+    where: { id: user.id, ...liveTokenWhere(token) },
+    data: { passwordHash, inviteToken: null, inviteExpires: null, sessionVersion: { increment: 1 } },
+  });
+  if (used.count !== 1) return "This link has expired or has already been used. Ask your admin for a new one.";
+  await clearAttempts(`login:${user.email}`);
+  await createSession(user.id, user.sessionVersion + 1);
+  redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
 }
+
+const RESET_MESSAGE = "If that email has an account, we've sent it a link to choose a new password. It works for one hour. No email after a few minutes? Ask your admin for a reset link.";
 
 export async function requestReset(_: string | null, form: FormData): Promise<string | null> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const ip = await clientIp();
+  if (await overLimit([[`reset-ip:${ip}`, 20]])) return RESET_MESSAGE;
+  await recordAttempt(`reset-ip:${ip}`);
   const user = email ? await db.user.findUnique({ where: { email } }) : null;
-  if (user?.active) {
-    const token = user.inviteToken ?? randomBytes(24).toString("base64url");
-    if (!user.inviteToken) await db.user.update({ where: { id: user.id }, data: { inviteToken: token } });
-    await sendEmail(user.email, "Reset your Clock me password", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to reset your Clock me password. If it was you, choose a new one here: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
+  // At most one reset email every 10 minutes per person, so nobody can flood an inbox or use up the email quota.
+  if (user?.active && (!user.resetSentAt || Date.now() - user.resetSentAt.getTime() > 10 * 60_000)) {
+    const token = await issueLinkToken(user.id, SELF_RESET_HOURS);
+    await db.user.update({ where: { id: user.id }, data: { resetSentAt: new Date() } });
+    await sendEmail(user.email, "Reset your Clock me password", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to reset your Clock me password. If it was you, choose a new one here within the next hour: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
   }
-  return "If that email has an account, we've sent it a link to choose a new password. No email after a few minutes? Ask your admin for a reset link.";
+  return RESET_MESSAGE;
 }

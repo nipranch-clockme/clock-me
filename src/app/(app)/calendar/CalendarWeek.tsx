@@ -3,9 +3,27 @@ import { useState } from "react";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 
-type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; tagId: string | null; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
+type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; phaseName: string; tagId: string | null; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const H0 = 7, H1 = 20, PX = 40;
+/** Side-by-side columns for entries that overlap in time, so none hides another. */
+function layout(list: CalEntry[]) {
+  const sorted = [...list].sort((a, b) => a.startMin - b.startMin || b.minutes - a.minutes);
+  const out = new Map<string, { col: number; cols: number }>();
+  let cluster: CalEntry[] = [], colEnds: number[] = [], clusterEnd = -1;
+  const flush = () => { for (const e of cluster) out.get(e.id)!.cols = colEnds.length; cluster = []; colEnds = []; };
+  for (const e of sorted) {
+    const end = e.startMin + Math.max(e.minutes, 15);
+    if (e.startMin >= clusterEnd) flush();
+    let col = colEnds.findIndex((x) => x <= e.startMin);
+    if (col === -1) { col = colEnds.length; colEnds.push(end); } else colEnds[col] = end;
+    out.set(e.id, { col, cols: 1 });
+    cluster.push(e);
+    clusterEnd = Math.max(clusterEnd, end);
+  }
+  flush();
+  return out;
+}
 const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 export default function CalendarWeek({ opts, dates, entries, today, editable, locked, ownerName }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string }) {
@@ -30,12 +48,12 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
                 const mins = Math.max(H0 * 60, Math.min((H1 - 1) * 60, H0 * 60 + Math.floor(((ev.clientY - r.top) / PX) * 4) * 15));
                 setEdit({ date: d, startMin: mins });
               }}>
-              {entries.filter((e) => e.date === d).map((e) => (
-                <button key={e.id} className="ev" style={{ top: Math.max(0, (e.startMin / 60 - H0) * PX), height: Math.max(18, (e.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left" }}
+              {(() => { const day = entries.filter((e) => e.date === d); const pos = layout(day); return day.map((e) => { const { col, cols } = pos.get(e.id)!; return (
+                <button key={e.id} className="ev" style={{ top: Math.max(0, (e.startMin / 60 - H0) * PX), height: Math.max(18, (e.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left", left: `calc(${(col / cols) * 100}% + 3px)`, right: "auto", width: `calc(${100 / cols}% - 6px)` }}
                   onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerName: editable ? undefined : ownerName })}>
                   <b>{e.projectName}</b><span>{hm(e.startMin)} · {f(e.minutes)}</span>
                 </button>
-              ))}
+              ); }); })()}
             </div>
           ))}
         </div>

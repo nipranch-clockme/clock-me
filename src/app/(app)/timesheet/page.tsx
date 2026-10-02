@@ -10,7 +10,7 @@ import TimesheetGrid, { type SheetEntry } from "./TimesheetGrid";
 import { copyLastWeek, submitWeek } from "./actions";
 import Link from "next/link";
 
-export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string }> }) {
+export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; copied?: string; skipped?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
@@ -50,6 +50,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <div className="stat"><b>{me.weeklyTarget ? Math.round((total / 60 / me.weeklyTarget) * 100) : 0}%</b><span>of {me.weeklyTarget} h target</span></div>
         </div>
       </div>
+      {sp.copied != null && (
+        <p className={Number(sp.skipped) ? "alert warn" : "alert info"} role="status">
+          Copied {sp.copied} {sp.copied === "1" ? "entry" : "entries"} from last week.
+          {Number(sp.skipped) ? ` ${sp.skipped} ${sp.skipped === "1" ? "entry was" : "entries were"} left out because the project is archived, you no longer have access, or the phase was removed.` : ""}
+        </p>
+      )}
       {status === "REJECTED" && sheet?.comment && <p className="alert bad">Sent back: {sheet.comment}</p>}
       {dates.some(adminLocked) && <p className="alert info">Days on or before {settings.lockBeforeStr} are locked by an admin and can&apos;t be changed.</p>}
       {missingList.length > 0 && (
@@ -61,7 +67,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       <TimesheetGrid opts={opts} entries={entries} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? `This week is ${status.toLowerCase()}.` : null))} today={today()} />
       <div className="row between" style={{ marginTop: 14 }}>
         {statusLocked ? <span className="note">This week is {status.toLowerCase()}. Ask your approver if something needs changing.</span> : (
-          <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><button className="btn">Copy last week</button></form>
+          <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )}
         <form action={submitWeek}>
           <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />

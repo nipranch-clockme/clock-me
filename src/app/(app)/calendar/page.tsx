@@ -41,7 +41,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <CalendarWeek
         opts={opts} dates={dates} today={today()} editable={who === me.id} locked={locked}
         ownerName={people.find((p) => p.id === who)?.name ?? ""}
-        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, tagId: e.tagId, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
+        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: e.phase?.name ?? "", tagId: e.tagId, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
       />
       <div className="legend">{clients.map((c) => <span key={c.id}><i style={{ background: `var(--${c.color})` }} />{c.name}</span>)}</div>
     </section>

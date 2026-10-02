@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canCreateProject, canEditProject, trackableProjectsWhere } from "@/lib/scope";
+import { canCreateProject, canEditProject, trackableProjectsWhere, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
 import { Pill } from "@/components/ui";
 import ProjectsClient from "./ProjectsClient";
@@ -12,7 +12,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const me = await requireUser();
   const creator = canCreateProject(me);
-  const where = creator ? {} : trackableProjectsWhere(me);
+  // Restricted projects only show to the people, teams and offices they are shared with (and their managers).
+  const where = creator ? visibleProjectsWhere(me) : trackableProjectsWhere(me);
   const [projects, clients, templates, locations, teams, users, usage] = await Promise.all([
     db.project.findMany({
       where: { ...where, ...(sp.client ? { clientId: sp.client } : {}) },

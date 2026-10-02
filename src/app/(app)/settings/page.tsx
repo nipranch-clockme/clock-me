@@ -18,7 +18,7 @@ export default async function SettingsPage() {
   const mark = (v: string) => (v === "y" ? <span className="yes">✓</span> : v === "n" ? <span className="no">–</span> : <span className="part">{v}</span>);
   return (
     <div className="grid g2">
-      <GeneralForm s={{ timeFormat: settings.timeFormat, requireTag: settings.requireTag, requireDescription: settings.requireDescription, lockBefore: settings.lockBeforeStr ?? "", dailyMinimum: settings.dailyMinimum, remindSubmit: settings.remindSubmit, remindSubmitDay: settings.remindSubmitDay, remindDaily: settings.remindDaily, remindApprovers: settings.remindApprovers }} emailOn={!!process.env.RESEND_API_KEY} />
+      <GeneralForm zones={Intl.supportedValuesOf("timeZone")} s={{ timeZone: settings.timeZone, timeFormat: settings.timeFormat, requireTag: settings.requireTag, requireDescription: settings.requireDescription, lockBefore: settings.lockBeforeStr ?? "", dailyMinimum: settings.dailyMinimum, remindSubmit: settings.remindSubmit, remindSubmitDay: settings.remindSubmitDay, remindDaily: settings.remindDaily, remindApprovers: settings.remindApprovers }} emailOn={!!process.env.RESEND_API_KEY} cronOn={!!process.env.CRON_SECRET} />
       <section className="panel">
         <h3>Tags</h3>
         <p className="note" style={{ margin: "0 0 8px" }}>One list for the whole company. Removing a tag clears it from entries that used it.</p>

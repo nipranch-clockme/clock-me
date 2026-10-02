@@ -6,6 +6,7 @@ import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { addDays, addMonths, endOfMonth, longDate, rangeDates, today, toDate, workdaysSoFar } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import AutoForm from "@/components/AutoForm";
+import { trackingStarts } from "@/lib/startDates";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
 const OFFCOL = ["s1", "s2", "s3", "s4"];
@@ -22,13 +23,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const [a, bRaw] = rangeDates(range);
   const yesterday = addDays(today(), -1);
   const b = bRaw < yesterday ? bRaw : yesterday; // count complete days only, so hours and targets cover the same days
-  const wd = workdaysSoFar(a, b);
 
   const users = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
   const ids = users.map((u) => u.id);
   const sums = b >= a ? await db.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: ids }, date: { gte: toDate(a), lte: toDate(b) } }, _sum: { minutes: true } }) : [];
   const byUser = new Map(sums.map((s) => [s.userId, s._sum.minutes ?? 0]));
-  const rows: Row[] = users.map((u) => { const m = byUser.get(u.id) ?? 0, tg = (u.weeklyTarget / 5) * wd * 60; return { id: u.id, name: u.name, title: u.title, team: u.team?.name ?? "No team", locationId: u.locationId, m, tg, prod: tg ? m / tg : 0 }; });
+  const starts = await trackingStarts(users);
+  // Target hours only count working days from when each person started (see trackingStarts).
+  const workdays = (uid: string, from: string, to: string) => { const st = starts.get(uid)!; return workdaysSoFar(st > from ? st : from, to); };
+  const rows: Row[] = users.map((u) => { const m = byUser.get(u.id) ?? 0, tg = (u.weeklyTarget / 5) * (b >= a ? workdays(u.id, a, b) : 0) * 60; return { id: u.id, name: u.name, title: u.title, team: u.team?.name ?? "No team", locationId: u.locationId, m, tg, prod: tg ? m / tg : 0 }; });
   const locs = [...new Map(users.map((u) => [u.locationId, u.location])).values()].sort((x, y) => x.name.localeCompare(y.name));
   const allLocs = await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true } });
   const colorOf = (id: string) => OFFCOL[Math.max(0, allLocs.findIndex((l) => l.id === id)) % 4];
@@ -49,9 +52,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const series = locs.map((l) => ({
     id: l.id, name: l.name, color: colorOf(l.id),
     v: months.map((m) => {
-      const wdm = workdaysSoFar(m + "-01", endOfMonth(m));
       const us = users.filter((u) => u.locationId === l.id);
-      const tg = us.reduce((s, u) => s + (u.weeklyTarget / 5) * wdm * 60, 0);
+      const tg = us.reduce((s, u) => s + (u.weeklyTarget / 5) * workdays(u.id, m + "-01", endOfMonth(m)) * 60, 0);
       return tg ? us.reduce((s, u) => s + (mm.get(`${u.id}|${m}`) ?? 0), 0) / tg : null;
     }),
   }));
@@ -74,7 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <AutoForm className="row" key={range + rank}>
           <div><label htmlFor="ds-range">Period</label><select id="ds-range" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
           <div><label htmlFor="ds-rank">Rank performers by</label><select id="ds-rank" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></select></div>
-          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours. Each person&apos;s weekly target is spread over Monday to Friday, up to yesterday. People with a target of 0 are left out.</p></div>
+          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours. Each person&apos;s weekly target is spread over Monday to Friday, up to yesterday, from the day they started. People with a target of 0 are left out.</p></div>
         </AutoForm>
       </section>
       <div className="grid g2">

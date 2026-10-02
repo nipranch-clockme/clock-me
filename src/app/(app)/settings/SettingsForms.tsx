@@ -3,16 +3,22 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { addField, addTag, addTemplate, saveSettings, type SettingsResult } from "./actions";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-type General = { timeFormat: string; requireTag: boolean; requireDescription: boolean; lockBefore: string; dailyMinimum: number; remindSubmit: boolean; remindSubmitDay: number; remindDaily: boolean; remindApprovers: boolean };
+type General = { timeZone: string; timeFormat: string; requireTag: boolean; requireDescription: boolean; lockBefore: string; dailyMinimum: number; remindSubmit: boolean; remindSubmitDay: number; remindDaily: boolean; remindApprovers: boolean };
 
-export function GeneralForm({ s, emailOn }: { s: General; emailOn: boolean }) {
+export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn: boolean; cronOn: boolean; zones: string[] }) {
   const [state, action, pending] = useActionState<SettingsResult, FormData>(saveSettings, null);
   const [lock, setLock] = useState(s.lockBefore);
   return (
     <form action={action} className="panel full">
       <div className="grid g2" style={{ gap: 24 }}>
         <div>
-          <h3>Time format</h3>
+          <h3>Time zone</h3>
+          <select name="timeZone" defaultValue={s.timeZone} aria-label="Company time zone" style={{ maxWidth: 320 }}>
+            {!zones.includes(s.timeZone) && <option value={s.timeZone}>{s.timeZone}</option>}
+            {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
+          </select>
+          <p className="note" style={{ margin: "4px 0 0" }}>Decides when a new day and a new week start, for &ldquo;today&rdquo;, &ldquo;this week&rdquo; and reminders.</p>
+          <h3 style={{ marginTop: 18 }}>Time format</h3>
           <label className="check"><input type="radio" name="timeFormat" value="decimal" defaultChecked={s.timeFormat !== "hhmm"} /> Decimal (7.50)</label>
           <label className="check"><input type="radio" name="timeFormat" value="hhmm" defaultChecked={s.timeFormat === "hhmm"} /> Hours and minutes (7:30)</label>
           <h3 style={{ marginTop: 18 }}>Required fields</h3>
@@ -32,9 +38,15 @@ export function GeneralForm({ s, emailOn }: { s: General; emailOn: boolean }) {
           <p className="note" style={{ margin: "4px 0 10px" }}>Weekly targets are set per person on the People page.</p>
           <label className="check"><input type="checkbox" name="remindSubmit" defaultChecked={s.remindSubmit} /> Remind people to submit their timesheet on</label>
           <select name="remindSubmitDay" defaultValue={s.remindSubmitDay} aria-label="Reminder day" style={{ maxWidth: 200, marginLeft: 24 }}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select>
+          <p className="note" style={{ margin: "2px 0 0 24px" }}>On Monday or Tuesday it&apos;s about the week that just ended; on other days, the current week.</p>
           <label className="check" style={{ marginTop: 6 }}><input type="checkbox" name="remindDaily" defaultChecked={s.remindDaily} /> Remind people who logged less than the daily minimum on the previous workday</label>
           <label className="check"><input type="checkbox" name="remindApprovers" defaultChecked={s.remindApprovers} /> Remind approvers about timesheets waiting for them</label>
-          <p className={emailOn ? "note" : "alert info"} style={{ margin: "10px 0 0" }}>{emailOn ? "Reminder emails go out once a day." : "Email isn't switched on yet, so reminders are only written to the server log. Add an email key when you deploy (see the setup guide)."}</p>
+          <p className={emailOn && cronOn ? "note" : "alert info"} style={{ margin: "10px 0 0" }}>
+            {emailOn && cronOn ? "Reminder emails go out once a day, in the afternoon (UTC)."
+              : !emailOn && !cronOn ? "Automatic reminders are off. To turn them on, add RESEND_API_KEY, EMAIL_FROM and CRON_SECRET in Vercel (see the setup guide)."
+              : !emailOn ? "Email isn't switched on yet, so reminders are only written to the server log. Add RESEND_API_KEY and EMAIL_FROM in Vercel."
+              : "The daily reminder job is off. Add CRON_SECRET (any long random string) in Vercel to turn it on."}
+          </p>
         </div>
       </div>
       <div className="row" style={{ marginTop: 16, alignItems: "center" }}>

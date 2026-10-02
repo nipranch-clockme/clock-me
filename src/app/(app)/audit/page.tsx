@@ -1,4 +1,6 @@
+import type { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
+import { trackingStarts } from "@/lib/startDates";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
@@ -18,13 +20,22 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const days = RANGES.some((r) => String(r[0]) === sp.days) ? Number(sp.days) : 28;
   const from = addDays(today(), -days), to = addDays(today(), -1);
-  const people = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null } }] }, orderBy: { name: "asc" }, select: { id: true, name: true, weeklyTarget: true, role: true } });
+  const people = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null } }] }, orderBy: { name: "asc" }, select: { id: true, name: true, weeklyTarget: true, role: true, createdAt: true } });
+  const starts = await trackingStarts(people);
   const ids = people.map((u) => u.id);
   const U = new Map(people.map((u) => [u.id, u]));
+  // Managers see changes about their own people, plus general changes made by their people. Admin-wide changes
+  // (and, for team leaders, office-wide ones) stay out of their log.
+  const hiddenAuthors: Role[] = me.role === "LEADER" ? ["ADMIN", "LOCATION"] : ["ADMIN"];
+  const allInScope = await db.user.findMany({ where: visibleUsersWhere(me), select: { id: true } });
+  const scopeIds = allInScope.map((u) => u.id);
+  const logWhere: Prisma.AuditLogWhereInput = me.role === "ADMIN" ? {} : {
+    OR: [{ targetUserId: { in: scopeIds } }, { targetUserId: null, userId: { in: scopeIds }, user: { role: { notIn: hiddenAuthors } } }],
+  };
   const [daily, fields, logs] = await Promise.all([
     ids.length ? db.timeEntry.groupBy({ by: ["userId", "date"], where: { userId: { in: ids }, date: { gte: toDate(from), lte: toDate(to) } }, _sum: { minutes: true } }) : [],
     db.customField.findMany({ where: { required: true } }),
-    db.auditLog.findMany({ where: me.role === "ADMIN" ? {} : { userId: { in: ids } }, include: { user: { select: { name: true, role: true } } }, orderBy: { at: "desc" }, take: sp.log === "all" ? 2000 : 200 }),
+    db.auditLog.findMany({ where: logWhere, include: { user: { select: { name: true, role: true } } }, orderBy: { at: "desc" }, take: sp.log === "all" ? 2000 : 200 }),
   ]);
 
   // Required-field gaps: phase always; tag, description and custom fields when an admin requires them.
@@ -38,7 +49,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const long = daily.filter((d) => (d._sum.minutes ?? 0) > 600).sort((a, b) => b.date.getTime() - a.date.getTime());
   const has = new Set(daily.map((d) => `${d.userId}|${toStr(d.date)}`));
   const gaps: { userId: string; date: string }[] = [];
-  for (let d = to; d >= from; d = addDays(d, -1)) if (dow(d) < 5) for (const u of people) if (u.weeklyTarget > 0 && !has.has(`${u.id}|${d}`)) gaps.push({ userId: u.id, date: d });
+  for (let d = to; d >= from; d = addDays(d, -1)) if (dow(d) < 5) for (const u of people) if (u.weeklyTarget > 0 && d >= starts.get(u.id)! && !has.has(`${u.id}|${d}`)) gaps.push({ userId: u.id, date: d });
 
   const box = (title: string, count: number, tone: string, children: React.ReactNode) => (
     <section className="panel">

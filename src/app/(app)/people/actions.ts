@@ -1,5 +1,4 @@
 "use server";
-import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -7,10 +6,10 @@ import { requireTab, type Me } from "@/lib/auth";
 import { logAction } from "@/lib/settings";
 import { roleName } from "@/lib/roles";
 import { sendEmail, appUrl } from "@/lib/email";
+import { issueLinkToken, INVITE_HOURS, RESET_HOURS } from "@/lib/tokens";
 
 export type PeopleResult = { ok: boolean; error?: string; link?: string; message?: string } | null;
 const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "PM", "LOCATION", "ADMIN"];
-const newToken = () => randomBytes(24).toString("base64url");
 
 /** Location managers manage their own office and can't hand out admin or location manager roles. */
 function checkScope(me: Me, locationId: string, role: Role): string | null {
@@ -44,13 +43,12 @@ export async function invitePerson(_: PeopleResult, form: FormData): Promise<Peo
   const scopeErr = checkScope(me, p.data.locationId, p.data.role);
   if (scopeErr) return { ok: false, error: scopeErr };
   if (await db.user.findUnique({ where: { email } })) return { ok: false, error: "Someone with that email already has an account." };
-  const token = newToken();
-  await db.user.create({ data: { name, email, ...p.data, inviteToken: token } });
-  const link = `${appUrl()}/invite/${token}`;
-  const r = await sendEmail(email, "You're invited to Clock me", `Hi ${name.split(" ")[0]},\n\n${me.name} invited you to Clock me, where you'll log your time.\nSet your password here: ${link}`);
-  await logAction(me.id, `Invited ${name} (${email}) as ${roleName(p.data.role)}`);
+  const created = await db.user.create({ data: { name, email, ...p.data } });
+  const link = `${appUrl()}/invite/${await issueLinkToken(created.id, INVITE_HOURS)}`;
+  const r = await sendEmail(email, "You're invited to Clock me", `Hi ${name.split(" ")[0]},\n\n${me.name} invited you to Clock me, where you'll log your time.\nSet your password here within 7 days: ${link}`);
+  await logAction(me.id, `Invited ${name} (${email}) as ${roleName(p.data.role)}`, created.id);
   revalidatePath("/people");
-  return { ok: true, link, message: r.sent ? `Invite emailed to ${email}.` : `Email isn't switched on yet, so send ${name} this link yourself:` };
+  return { ok: true, link, message: r.sent ? `Invite emailed to ${email}. The link works for 7 days.` : `Email isn't switched on yet, so send ${name} this link yourself. It works for 7 days:` };
 }
 
 export async function updatePerson(_: PeopleResult, form: FormData): Promise<PeopleResult> {
@@ -65,7 +63,13 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
   const active = form.get("active") === "on";
   if (id === me.id && (!active || p.data.role !== me.role)) return { ok: false, error: "You can't change your own role or deactivate yourself. Ask another admin." };
   const name = String(form.get("name") ?? "").trim() || person.name;
-  await db.user.update({ where: { id }, data: { ...p.data, name, active } });
+  // A role, office or status change cancels any open invite or reset link (a new one can be made),
+  // and deactivating someone signs them out everywhere.
+  const sensitive = person.role !== p.data.role || person.locationId !== p.data.locationId || person.active !== active;
+  await db.user.update({
+    where: { id },
+    data: { ...p.data, name, active, ...(sensitive ? { inviteToken: null, inviteExpires: null } : {}), ...(person.active && !active ? { sessionVersion: { increment: 1 } } : {}) },
+  });
   const changes = [
     person.role !== p.data.role && `role to ${roleName(p.data.role)}`,
     person.weeklyTarget !== p.data.weeklyTarget && `weekly target to ${p.data.weeklyTarget} h`,
@@ -73,7 +77,7 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
     person.teamId !== p.data.teamId && "team",
     person.active !== active && (active ? "reactivated" : "deactivated"),
   ].filter(Boolean);
-  await logAction(me.id, `Updated ${name}${changes.length ? `: ${changes.join(", ")}` : ""}`);
+  await logAction(me.id, `Updated ${name}${changes.length ? `: ${changes.join(", ")}` : ""}`, id);
   revalidatePath("/people");
   return { ok: true };
 }
@@ -84,13 +88,14 @@ export async function resetLink(_: PeopleResult, form: FormData): Promise<People
   if (!person) return { ok: false, error: "Person not found." };
   const scopeErr = checkScope(me, person.locationId, person.role);
   if (scopeErr) return { ok: false, error: scopeErr };
-  const token = person.inviteToken ?? newToken();
-  if (!person.inviteToken) await db.user.update({ where: { id: person.id }, data: { inviteToken: token } });
-  const link = `${appUrl()}/invite/${token}`;
-  const r = await sendEmail(person.email, person.passwordHash ? "Reset your Clock me password" : "You're invited to Clock me", `Set your password here: ${link}`);
-  await logAction(me.id, `${person.passwordHash ? "Sent a password reset link to" : "Re-sent the invite to"} ${person.name}`);
+  if (!person.active) return { ok: false, error: "Reactivate this person first." };
+  // Always a fresh link: any older one stops working.
+  const hours = person.passwordHash ? RESET_HOURS : INVITE_HOURS;
+  const link = `${appUrl()}/invite/${await issueLinkToken(person.id, hours)}`;
+  const r = await sendEmail(person.email, person.passwordHash ? "Reset your Clock me password" : "You're invited to Clock me", `Set your password here within ${person.passwordHash ? "3 days" : "7 days"}: ${link}`);
+  await logAction(me.id, `${person.passwordHash ? "Made a password reset link for" : "Made a new invite link for"} ${person.name}`, person.id);
   revalidatePath("/people");
-  return { ok: true, link, message: r.sent ? `Link emailed to ${person.email}.` : "Email isn't switched on yet, so send them this link:" };
+  return { ok: true, link, message: r.sent ? `Link emailed to ${person.email}. It works for ${person.passwordHash ? "3 days" : "7 days"}.` : `Email isn't switched on yet, so send them this link. It works for ${person.passwordHash ? "3 days" : "7 days"}, and any older link has stopped working:` };
 }
 
 export async function addOffice(_: PeopleResult, form: FormData): Promise<PeopleResult> {

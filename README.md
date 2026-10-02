@@ -33,8 +33,8 @@ You need three free accounts. **GitHub** stores the code, **Neon** holds the dat
 You don't need to install anything on your own computer.
 
 1. **The code is on GitHub** in a private repository.
-2. **Create the database.** At [neon.tech](https://neon.tech), create a project, pick a region near your main office,
-   and click **Connect**. Copy the connection string. It starts with `postgresql://` and ends with `neon.tech/neondb?sslmode=require...`.
+2. **Create the database.** At [neon.tech](https://neon.tech), create a project and pick the region
+   **AWS US East (N. Virginia)**, which is where Vercel runs the app unless you change it. Then click **Connect**. Copy the connection string. It starts with `postgresql://` and ends with `neon.tech/neondb?sslmode=require...`.
 3. **Create the app.** At [vercel.com](https://vercel.com), choose *Add New → Project* and import the GitHub repository.
    Before you click Deploy, open *Environment Variables* and add one:
 
@@ -68,7 +68,9 @@ Reminders are only written to the server log.
 To turn email on:
 1. Create a free account at [resend.com](https://resend.com) and verify your company's email domain.
 2. In Vercel, add `RESEND_API_KEY` and `EMAIL_FROM` (for example `Clock me <timesheets@yourcompany.com>`).
-3. Redeploy.
+3. For reminder emails, also add `CRON_SECRET` with any long random string (40 or more letters and numbers).
+   Vercel sends it with the daily reminder call so nobody else can trigger it.
+4. Redeploy.
 
 Reminders go out once a day at 15:00 UTC. You can change the time in `vercel.json`. Choose which reminders to send in Settings.
 
@@ -100,6 +102,6 @@ With sample data, every sample account uses the password `password123`:
 - Logins use bcrypt password hashes and a signed, http-only session cookie (`src/lib/session.ts`). The signing key comes from `SESSION_SECRET`, or one is generated and kept in the `AppSecret` table.
 - Database changes are Prisma migrations in `prisma/migrations`. `npm run build` applies them through `scripts/migrate.mjs`, which uses Neon's direct address for migrations and the pooled address for the app. To change the schema, edit `prisma/schema.prisma`, then run `npx prisma migrate dev --name what-changed`.
 - Who can see what lives in `src/lib/scope.ts`. Which tabs each role gets lives in `src/lib/roles.ts`. Every page and server action checks these on the server.
-- Dates are stored as calendar days (`@db.Date`) and handled as `YYYY-MM-DD` strings in UTC.
+- Dates are stored as calendar days (`@db.Date`) and handled as `YYYY-MM-DD` strings. "Today" follows the company time zone in Settings (set from the admin's browser during setup).
 - `npm run lint` type-checks the project. Browser tests are in `e2e/` and need a running server and the sample data:
   `node e2e/roles.js` signs in as each role and visits every tab.

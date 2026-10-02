@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { isDateStr, longDate, toDate } from "@/lib/dates";
+import { isDateStr, isTimeZone, longDate, toDate } from "@/lib/dates";
 
 export type SettingsResult = { ok: boolean; error?: string } | null;
 const done = () => { revalidatePath("/", "layout"); return { ok: true }; };
@@ -16,7 +16,10 @@ export async function saveSettings(_: SettingsResult, form: FormData): Promise<S
   const day = parseInt(String(form.get("remindSubmitDay") ?? "5"));
   if (lock && !isDateStr(lock)) return { ok: false, error: "Choose a valid lock date." };
   if (isNaN(dailyMinimum) || dailyMinimum < 0 || dailyMinimum > 24) return { ok: false, error: "Daily minimum should be between 0 and 24 hours." };
+  const timeZone = String(form.get("timeZone") ?? "");
+  if (!isTimeZone(timeZone)) return { ok: false, error: "Choose a time zone." };
   const data = {
+    timeZone,
     timeFormat: form.get("timeFormat") === "hhmm" ? "hhmm" : "decimal",
     requireTag: form.get("requireTag") === "on",
     requireDescription: form.get("requireDescription") === "on",
@@ -29,6 +32,7 @@ export async function saveSettings(_: SettingsResult, form: FormData): Promise<S
   };
   await db.settings.update({ where: { id: 1 }, data });
   const changes = [
+    before.timeZone !== data.timeZone && `time zone to ${timeZone}`,
     before.timeFormat !== data.timeFormat && `time format to ${data.timeFormat === "hhmm" ? "7:30" : "7.50"}`,
     before.requireTag !== data.requireTag && `tag ${data.requireTag ? "required" : "optional"}`,
     before.requireDescription !== data.requireDescription && `description ${data.requireDescription ? "required" : "optional"}`,

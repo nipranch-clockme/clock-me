@@ -27,7 +27,8 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(me) }, include: { phases: true } });
   if (!project) return { ok: false, error: "Choose a project you can log time on.", fields: ["projectId"] };
   const phaseId = String(form.get("phaseId") ?? "") || null;
-  if (phaseId && !project.phases.some((p) => p.id === phaseId)) return { ok: false, error: "That phase doesn't belong to this project.", fields: ["phaseId"] };
+  const phase = phaseId ? project.phases.find((p) => p.id === phaseId) : null;
+  if (phaseId && !phase) return { ok: false, error: "That phase doesn't belong to this project.", fields: ["phaseId"] };
   const tagId = String(form.get("tagId") ?? "") || null;
   const description = String(form.get("description") ?? "").trim();
   const fields = await db.customField.findMany();
@@ -36,8 +37,10 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const miss = await missingFields({ phaseId, tagId, description, custom }, settings);
   if (miss.length) return { ok: false, error: `Fill in: ${miss.join(", ")}.`, fields: miss };
 
+  const old = id ? await db.timeEntry.findUnique({ where: { id } }) : null;
+  // A phase the project manager removed can stay on old entries, but can't be picked for new time.
+  if (phase && phase.sort >= 999 && old?.phaseId !== phase.id) return { ok: false, error: "That phase has been removed from the project. Choose another.", fields: ["Phase"] };
   if (id) {
-    const old = await db.timeEntry.findUnique({ where: { id } });
     if (!old || old.userId !== me.id) return { ok: false, error: "You can only change your own entries." };
     const lockOld = await isDayLocked(me.id, toStr(old.date), settings);
     if (lockOld) return { ok: false, error: lockOld };
@@ -48,7 +51,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const data = { projectId, phaseId, tagId, description, custom, date: toDate(date), startMin, minutes };
   if (id) await db.timeEntry.update({ where: { id }, data });
   else await db.timeEntry.create({ data: { ...data, userId: me.id } });
-  await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}`);
+  await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}`, me.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
   return { ok: true };
@@ -62,7 +65,7 @@ export async function deleteEntry(form: FormData) {
   const lock = await isDayLocked(me.id, toStr(e.date), settings);
   if (lock) throw new Error(lock);
   await db.timeEntry.delete({ where: { id: e.id } });
-  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}`);
+  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}`, me.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
 }
@@ -72,6 +75,9 @@ export async function submitWeek(form: FormData) {
   const settings = await getSettings();
   const ws = monday(String(form.get("week")));
   const back = String(form.get("back") ?? "/timesheet");
+  // A week that's already waiting or approved stays as it is (e.g. a second tab clicking Submit again).
+  const current = await db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } } });
+  if (current && (current.status === "SUBMITTED" || current.status === "APPROVED")) redirect(back);
   const entries = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
   if (!entries.length) redirect(back);
   for (const e of entries) if ((await missingFields(e, settings)).length) redirect(back + (back.includes("?") ? "&" : "?") + "missing=1");
@@ -80,7 +86,7 @@ export async function submitWeek(form: FormData) {
     update: { status: "SUBMITTED", comment: "" },
     create: { userId: me.id, weekStart: toDate(ws), status: "SUBMITTED" },
   });
-  await logAction(me.id, `Submitted timesheet for ${weekLabel(ws)}`);
+  await logAction(me.id, `Submitted timesheet for ${weekLabel(ws)}`, me.id);
   revalidatePath("/timesheet");
   redirect(back);
 }
@@ -89,17 +95,25 @@ export async function copyLastWeek(form: FormData) {
   const me = await requireUser();
   const settings = await getSettings();
   const ws = monday(String(form.get("week")));
+  const back = String(form.get("back") ?? "/timesheet");
   const prev = addDays(ws, -7);
-  const src = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(prev), lt: toDate(ws) } } });
-  const existing = await db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
-  let n = 0;
+  const [src, existing, allowed] = await Promise.all([
+    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(prev), lt: toDate(ws) } }, include: { phase: true } }),
+    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } }),
+    db.project.findMany({ where: trackableProjectsWhere(me), select: { id: true } }),
+  ]);
+  const canLog = new Set(allowed.map((p) => p.id));
+  let n = 0, skipped = 0;
   for (const e of src) {
     const nd = addDays(toStr(e.date), 7);
     if (await isDayLocked(me.id, nd, settings)) continue;
     if (existing.some((x) => toStr(x.date) === nd && x.projectId === e.projectId && x.phaseId === e.phaseId)) continue;
+    // Skip time on projects they can no longer log on (archived or access removed) and phases that were removed.
+    if (!canLog.has(e.projectId) || (e.phase && e.phase.sort >= 999)) { skipped++; continue; }
     await db.timeEntry.create({ data: { userId: me.id, projectId: e.projectId, phaseId: e.phaseId, tagId: e.tagId, description: e.description, custom: e.custom ?? {}, date: toDate(nd), startMin: e.startMin, minutes: e.minutes } });
     n++;
   }
-  if (n) await logAction(me.id, `Copied ${n} entries from the week of ${shortDate(prev)}`);
+  if (n) await logAction(me.id, `Copied ${n} entries from the week of ${shortDate(prev)}`, me.id);
   revalidatePath("/timesheet");
+  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${n}&skipped=${skipped}`);
 }

@@ -28,11 +28,11 @@ export const scopeLabel = (me: Me) =>
   : me.role === "MEMBER" ? "Your own time"
   : me.team ? `${me.team.name} team, ${me.location.name}` : "Your own time";
 
-/** Projects this person can log time on. */
-export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
-  if (me.role === "ADMIN") return { archived: false };
+/** Projects this person may see on the Projects page and in exports, archived ones included: public ones, ones shared
+ *  with them, their team or their office, and ones they manage. Admins see all. */
+export function visibleProjectsWhere(me: Me): Prisma.ProjectWhereInput {
+  if (me.role === "ADMIN") return {};
   return {
-    archived: false,
     OR: [
       { access: "PUBLIC" },
       { users: { some: { userId: me.id } } },
@@ -41,6 +41,11 @@ export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
       ...(me.teamId ? [{ teams: { some: { teamId: me.teamId } } }] : []),
     ],
   };
+}
+
+/** Projects this person can log time on: the visible ones that aren't archived. */
+export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
+  return { AND: [visibleProjectsWhere(me), { archived: false }] };
 }
 
 export const canCreateProject = (me: Me) => me.role !== "MEMBER";

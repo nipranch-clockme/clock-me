@@ -20,8 +20,9 @@ async function secret() {
   return (cachedKey = new TextEncoder().encode(row.value));
 }
 
-export async function createSession(userId: string) {
-  const token = await new SignJWT({ uid: userId })
+/** Signs the person in on this browser. `version` is their sessionVersion; bumping it signs them out everywhere. */
+export async function createSession(userId: string, version = 0) {
+  const token = await new SignJWT({ uid: userId, sv: version })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
@@ -35,12 +36,12 @@ export async function createSession(userId: string) {
   });
 }
 
-export async function readSession(): Promise<string | null> {
+export async function readSession(): Promise<{ uid: string; sv: number } | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, await secret());
-    return typeof payload.uid === "string" ? payload.uid : null;
+    return typeof payload.uid === "string" ? { uid: payload.uid, sv: typeof payload.sv === "number" ? payload.sv : 0 } : null;
   } catch {
     return null;
   }

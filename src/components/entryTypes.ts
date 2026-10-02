@@ -13,6 +13,7 @@ export type EntryValue = {
   projectId?: string;
   projectName?: string;
   phaseId?: string | null;
+  phaseName?: string;
   tagId?: string | null;
   description?: string;
   custom?: Record<string, string>;

@@ -29,6 +29,8 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
   const project = opts.projects.find((p) => p.id === projectId);
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const ro = !!value.readOnly || !!value.lockedReason;
+  // An existing entry may sit on a phase the project manager has since removed: show it so it can be kept.
+  const keepOldPhase = !!value.id && !!value.phaseId && !!value.phaseName && !project?.phases.some((p) => p.id === value.phaseId);
   useEffect(() => { if (state?.ok) { onDone(); router.refresh(); } }, [state, onDone, router]);
   const clients = [...new Set(opts.projects.map((p) => p.client))];
 
@@ -58,8 +60,9 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
             </div>
             <div>
               <label htmlFor="e-phase">Phase<span className="req"> *</span></label>
-              <select id="e-phase" name="phaseId" key={projectId} defaultValue={project?.phases.some((p) => p.id === value.phaseId) ? value.phaseId ?? "" : ""} className={bad("Phase")}>
+              <select id="e-phase" name="phaseId" key={projectId} defaultValue={project?.phases.some((p) => p.id === value.phaseId) || (keepOldPhase && projectId === value.projectId) ? value.phaseId ?? "" : ""} className={bad("Phase")}>
                 <option value="">Choose a phase</option>
+                {keepOldPhase && projectId === value.projectId && <option value={value.phaseId!}>{value.phaseName} (removed from project)</option>}
                 {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>

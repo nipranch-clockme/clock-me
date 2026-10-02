@@ -6,10 +6,11 @@ import { readSession } from "./session";
 import { canTab, type Tab } from "./roles";
 
 export const currentUser = cache(async () => {
-  const uid = await readSession();
-  if (!uid) return null;
-  const user = await db.user.findUnique({ where: { id: uid }, include: { team: true, location: true } });
-  return user && user.active ? user : null;
+  const session = await readSession();
+  if (!session) return null;
+  const user = await db.user.findUnique({ where: { id: session.uid }, include: { team: true, location: true } });
+  // A changed password or a deactivation bumps sessionVersion, which ends every older sign-in.
+  return user && user.active && user.sessionVersion === session.sv ? user : null;
 });
 
 export type Me = NonNullable<Awaited<ReturnType<typeof currentUser>>>;

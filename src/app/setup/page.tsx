@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import SetupForm from "./SetupForm";
+import { databasePassword } from "@/lib/ownerCheck";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function SetupPage() {
       <section className="panel">
         <h2>Set up Clock me</h2>
         <p className="sub">Create your admin account. You can add more offices, teams and people once you&apos;re in.</p>
-        <SetupForm />
+        <SetupForm needsProof={!!databasePassword()} />
       </section>
     </div>
   );

@@ -7,6 +7,7 @@ import { fmtHours } from "@/lib/format";
 import { Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
+import { trackingStarts } from "@/lib/startDates";
 
 export default async function ApprovalsPage() {
   const me = await requireTab("approvals");
@@ -19,17 +20,19 @@ export default async function ApprovalsPage() {
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
     db.timesheet.findMany({ where: { status: "SUBMITTED", user: where }, include: { user: { include: { team: true, location: true } } }, orderBy: [{ weekStart: "asc" }] }),
-    db.user.findMany({ where: { AND: [where, { active: true }] }, include: { location: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
   const entries = pending.length
     ? await db.timeEntry.findMany({
         where: { OR: pending.map((s) => ({ userId: s.userId, date: { gte: s.weekStart, lte: toDate(addDays(toStr(s.weekStart), 6)) } })) },
-        select: { userId: true, date: true, minutes: true, project: { select: { name: true, client: { select: { color: true } } } } },
+        select: { userId: true, date: true, minutes: true, projectId: true, project: { select: { name: true, client: { select: { name: true, color: true } } } } },
       })
     : [];
-  const submitted = new Set(lastWeekSheets.filter((s) => s.status !== "DRAFT").map((s) => s.userId));
-  const late = people.filter((u) => !submitted.has(u.id));
+  // Sent-back weeks still count as not submitted. People who started after that week aren't listed.
+  const submitted = new Set(lastWeekSheets.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED").map((s) => s.userId));
+  const starts = await trackingStarts(people);
+  const late = people.filter((u) => !submitted.has(u.id) && starts.get(u.id)! <= addDays(lastWeek, 4));
 
   return (
     <div className="grid">
@@ -43,14 +46,14 @@ export default async function ApprovalsPage() {
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
-            const byP = new Map<string, { m: number; color: string }>();
-            es.forEach((e) => { const x = byP.get(e.project.name) ?? { m: 0, color: e.project.client.color }; x.m += e.minutes; byP.set(e.project.name, x); });
+            const byP = new Map<string, { m: number; color: string; name: string }>();
+            es.forEach((e) => { const x = byP.get(e.projectId) ?? { m: 0, color: e.project.client.color, name: e.project.name }; x.m += e.minutes; byP.set(e.projectId, x); });
             return (
               <div className="item" style={{ flexWrap: "wrap" }} key={s.id}>
                 <div style={{ minWidth: 0, flex: "1 1 300px" }}>
                   <strong>{s.user.name}</strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
                   <div className="meta">{f(total)} of {f(s.user.weeklyTarget * 60)} h target {total < s.user.weeklyTarget * 60 && <Pill tone="warn">Under target</Pill>}</div>
-                  <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([p, x]) => <span className="chip" key={p}><span className="dot" style={{ background: `var(--${x.color})` }} />{p} {f(x.m)}</span>)}</div>
+                  <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>
                   <form action={approve}><input type="hidden" name="id" value={s.id} /><button className="btn ok sm">Approve</button></form>

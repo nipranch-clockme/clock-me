@@ -14,6 +14,6 @@ export async function remindDay(_: RemindResult, form: FormData): Promise<Remind
   const user = await db.user.findFirst({ where: { AND: [visibleUsersWhere(me), { id: String(form.get("userId")) }] } });
   if (!user || !isDateStr(date)) return { message: "Can't remind them." };
   const r = await sendEmail(user.email, `No time logged for ${longDate(date)}`, `Hi ${user.name.split(" ")[0]},\n\nThere's no time in Clock me for ${longDate(date)}. Please add it: ${appUrl()}/timesheet\n\n${me.name}`);
-  await logAction(me.id, `Reminded ${user.name} to log time for ${longDate(date)}`);
+  await logAction(me.id, `Reminded ${user.name} to log time for ${longDate(date)}`, user.id);
   return { message: r.sent ? "Reminder sent" : "Reminder logged" };
 }
