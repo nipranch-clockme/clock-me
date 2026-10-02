@@ -57,12 +57,10 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
   ok('timesheet still offers added projects',opts.includes(names.direct)&&opts.includes(names.team));
   ok('no browser errors',p.errs.length===0,JSON.stringify(p.errs));
 
-  // a member with no added projects gets a clear empty message
-  sql(`delete from "ProjectUserAccess" where "userId"='${t}'; delete from "ProjectManager" where "userId"='${t}'; update "User" set "teamId"='${otherTeam}', "locationId"=(select "locationId" from "Team" where id='${otherTeam}') where id='${t}'`);
-  const left=sql(`select count(*) from "Project" p where not archived and access='RESTRICTED' and (exists(select 1 from "ProjectTeamAccess" x where x."projectId"=p.id and x."teamId"='${otherTeam}') or exists(select 1 from "ProjectLocationAccess" l where l."projectId"=p.id and l."locationId"=(select "locationId" from "Team" where id='${otherTeam}')))`);
+  // a member with no added projects (moved to a new office with no team) gets a clear empty message, outside the table
+  sql(`insert into "Location"(id,name) values('${t}loc','Test office ${t}'); update "User" set "teamId"=null, "locationId"='${t}loc' where id='${t}'; delete from "ProjectUserAccess" where "userId"='${t}'; delete from "ProjectManager" where "userId"='${t}'`);
   await p.goto(BASE+'/projects');await p.waitForLoadState('networkidle');
-  if(left==='0')ok('empty message for a member with no projects',(await p.textContent('main')).includes("You haven't been added to any projects yet"));
-  else console.log('SKIP empty message (other team has',left,'projects)');
+  ok('empty message for a member with no projects',(await p.textContent('main')).includes("You haven't been added to any projects yet")&&(await p.locator('table').count())===0);
 
   // a project manager still sees clients, templates and every visible project
   const r=await login(b,'rosa@example.com');await r.goto(BASE+'/projects');await r.waitForLoadState('networkidle');
@@ -72,6 +70,7 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
   sql(`delete from "Project" where id like '${t}%'`);
   sql(`delete from "AuditLog" where "userId"='${t}' or "targetUserId"='${t}'`);
   sql(`delete from "User" where id='${t}'`);
+  sql(`delete from "Location" where id='${t}loc'`);
   await b.close();
  }
 })();

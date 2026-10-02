@@ -49,6 +49,10 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   ok('the project shows as a row',await m.isVisible('tr:has-text("Patient portal")'));
   await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=0/);
   ok('copying again says the projects are already there',/already on this week/.test(await m.textContent('p[role=status]')));
+  // a closed project that still shows this week (it has time on it) isn't reported as left out
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values ('${uid}w','${uid}','${retired}',null,'${tag}','${ws}',900,30,'this week')`);
+  await m.goto(BASE+'/timesheet');await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=0/);
+  {const n=await m.textContent('p[role=status]');ok('a closed project already on this week is not called left out',/already on this week/.test(n)&&!/left out/.test(n),n.trim());}
 
   // 4. Overlapping entries sit side by side in the calendar.
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values

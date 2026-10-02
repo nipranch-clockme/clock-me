@@ -173,6 +173,8 @@ export async function copyLastWeek(form: FormData) {
   const keep = last.filter((id) => canLog.has(id));
   if (keep.length) await db.timesheetRow.createMany({ data: keep.map((projectId) => ({ userId: me.id, weekStart: toDate(ws), projectId })), skipDuplicates: true });
   const copied = keep.filter((id) => !shown.has(id)).length;
+  // Left out: last week's projects closed to new time that aren't on this week anyway (ones with time this week still show).
+  const skipped = last.filter((id) => !canLog.has(id) && !shown.has(id)).length;
   revalidatePath("/timesheet");
-  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${copied}&last=${last.length}&skipped=${last.length - keep.length}`);
+  redirect(back + (back.includes("?") ? "&" : "?") + `copied=${copied}&last=${last.length}&skipped=${skipped}`);
 }
