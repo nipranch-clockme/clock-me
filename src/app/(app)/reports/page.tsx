@@ -124,7 +124,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </section>
       <div className="grid">
         <section className="panel full">
-          <div className="stats">
+          <div className="stats spread">
             <div className="stat"><b>{f(total)}</b><span>total hours</span></div>
             <div className="stat"><b>{new Set(combos.map((c) => c.projectId)).size}</b><span>projects</span></div>
             <div className="stat"><b>{entryCount.toLocaleString("en-US")}</b><span>entries</span></div>
