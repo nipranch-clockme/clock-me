@@ -1,7 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import LoginForm from "./LoginForm";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage() {
+  if ((await db.user.count()) === 0) redirect("/setup"); // brand-new install
   return (
     <div className="login">
       <div className="brand" style={{ marginBottom: 20 }}><h1>Clock me</h1></div>

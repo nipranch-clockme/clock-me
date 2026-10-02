@@ -1,10 +1,12 @@
 /**
  * Seeds the database.
  *   npm run db:seed                      -> settings, tags, templates and one admin (ADMIN_EMAIL / ADMIN_PASSWORD)
+ *   (On a live site you don't need this: the first visit opens a setup page that creates the admin.)
  *   SAMPLE_DATA=1 npm run db:seed        -> also a sample company with two offices and 21 months of time
  */
 import { PrismaClient, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureDefaults } from "../src/lib/defaults";
 
 const db = new PrismaClient();
 const toDate = (s: string) => new Date(s + "T00:00:00Z");
@@ -13,17 +15,7 @@ const dow = (s: string) => (toDate(s).getUTCDay() + 6) % 7;
 const todayStr = new Date().toISOString().slice(0, 10);
 
 async function main() {
-  await db.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
-  const tagNames = ["Admin", "Content", "Courses", "Design", "Development", "Meetings", "Mentoring", "QA", "Research"];
-  for (const name of tagNames) await db.tag.upsert({ where: { name }, update: {}, create: { name } });
-  const templates: [string, string[]][] = [
-    ["Product build", ["Discovery", "Design", "Build", "Launch", "Support"]],
-    ["Brand project", ["Research", "Concept", "Refinement", "Delivery"]],
-    ["Website", ["Discovery", "Wireframes", "Visual design", "Development", "Launch"]],
-    ["Ongoing internal work", ["Ongoing"]],
-  ];
-  for (const [name, phases] of templates) await db.phaseTemplate.upsert({ where: { name }, update: {}, create: { name, phases } });
-  await db.customField.upsert({ where: { name: "Ticket ID" }, update: {}, create: { name: "Ticket ID", type: "text", options: [], required: false } });
+  await ensureDefaults(db);
 
   const hq = await db.location.upsert({ where: { name: process.env.ADMIN_OFFICE || "New York" }, update: {}, create: { name: process.env.ADMIN_OFFICE || "New York" } });
   const adminEmail = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();

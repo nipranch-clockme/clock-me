@@ -27,40 +27,38 @@ What each role can see:
 - **Location manager:** every team in their office.
 - **Admin:** the whole company.
 
-## Putting it online (about 30 minutes, free to start)
+## Putting it online (free to start)
 
-You need three free accounts: **GitHub** (stores the code), **Neon** (the database), and **Vercel** (runs the app).
+You need three free accounts. **GitHub** stores the code, **Neon** holds the database, and **Vercel** runs the app.
+You don't need to install anything on your own computer.
 
-1. **Put the code on GitHub.** Create a new private repository and upload this folder to it.
-   Leave out `node_modules`, `.next` and `.env`; the `.gitignore` file already excludes them.
-2. **Create the database.** At [neon.tech](https://neon.tech), create a project. Copy its connection
-   string; choose the "Pooled connection" option. It looks like `postgresql://...neon.tech/neondb?sslmode=require`.
-3. **Create the app.** At [vercel.com](https://vercel.com), choose *Add New → Project*, then pick the GitHub repository.
-   Before you deploy, open *Environment Variables* and add:
+1. **The code is on GitHub** in a private repository.
+2. **Create the database.** At [neon.tech](https://neon.tech), create a project, pick a region near your main office,
+   and click **Connect**. Copy the connection string. It starts with `postgresql://` and ends with `neon.tech/neondb?sslmode=require...`.
+3. **Create the app.** At [vercel.com](https://vercel.com), choose *Add New → Project* and import the GitHub repository.
+   Before you click Deploy, open *Environment Variables* and add one:
 
    | Name | Value |
    |---|---|
-   | `DATABASE_URL` | The Neon connection string |
-   | `SESSION_SECRET` | A long random string (at least 32 characters) |
-   | `CRON_SECRET` | Another long random string |
-   | `APP_URL` | The app's address, e.g. `https://clock-me.vercel.app` (you can fix this after the first deploy) |
+   | `DATABASE_URL` | The Neon connection string from step 2 |
 
-   Then click **Deploy**.
-4. **Create the tables and your admin account.** Do this once from your own computer, with
-   [Node.js](https://nodejs.org) installed. Run these commands in this folder:
-
-   ```bash
-   npm install
-   DATABASE_URL="<neon string>" npx prisma db push
-   DATABASE_URL="<neon string>" ADMIN_EMAIL="you@company.com" ADMIN_PASSWORD="<strong password>" ADMIN_NAME="Your Name" ADMIN_OFFICE="New York" npm run db:seed
-   ```
-
-   This sets up the database tables and default tags, phase templates and settings. It also creates your admin login.
-   It doesn't add sample people or projects.
-5. **Sign in** at your Vercel address. Then:
+   Then click **Deploy**. On each deploy, the app also creates or updates the database tables.
+4. **Open your new site straight away** using the address Vercel shows, which ends in `.vercel.app`.
+   The first visit opens a setup page where you create your admin account and name your first office.
+   Once one account exists, that page closes for good, so do this before you share the address.
+5. **Set up your company:**
    - In People, add your other offices and teams.
    - In Projects, add your clients.
    - In People, invite everyone.
+
+Optional settings you can add later in Vercel (*Settings → Environment Variables*, then redeploy):
+
+| Name | What it's for |
+|---|---|
+| `RESEND_API_KEY`, `EMAIL_FROM` | Send invites, password resets and reminders by email (see below) |
+| `CRON_SECRET` | Any long random string. Turns on the daily reminder emails |
+| `APP_URL` | Your own web address, if you add a custom domain such as `https://time.yourcompany.com` |
+| `SESSION_SECRET` | A long random string for signing logins. If you leave it out, the app makes its own and keeps it in the database |
 
 ### Email (invites, password resets, reminders)
 
@@ -78,11 +76,13 @@ Reminders go out once a day at 15:00 UTC. You can change the time in `vercel.jso
 
 ```bash
 npm install
-cp .env.example .env          # then fill in DATABASE_URL and SESSION_SECRET
-npx prisma db push
+cp .env.example .env          # then fill in DATABASE_URL
+npm run db:migrate            # creates the tables
 SAMPLE_DATA=1 npm run db:seed # optional: two offices, 11 sample people and about 12,000 entries
 npm run dev                   # open http://localhost:3000
 ```
+
+Without sample data, the first visit opens the setup page so you can create your admin account.
 
 With sample data, every sample account uses the password `password123`:
 
@@ -97,7 +97,8 @@ With sample data, every sample account uses the password `password123`:
 ## For developers
 
 - Next.js 15 (App Router, server actions), React 19, TypeScript, Prisma with PostgreSQL. Fonts are self-hosted through `next/font`.
-- Logins use bcrypt password hashes and a signed, http-only session cookie (`src/lib/session.ts`).
+- Logins use bcrypt password hashes and a signed, http-only session cookie (`src/lib/session.ts`). The signing key comes from `SESSION_SECRET`, or one is generated and kept in the `AppSecret` table.
+- Database changes are Prisma migrations in `prisma/migrations`. `npm run build` applies them through `scripts/migrate.mjs`, which uses Neon's direct address for migrations and the pooled address for the app. To change the schema, edit `prisma/schema.prisma`, then run `npx prisma migrate dev --name what-changed`.
 - Who can see what lives in `src/lib/scope.ts`. Which tabs each role gets lives in `src/lib/roles.ts`. Every page and server action checks these on the server.
 - Dates are stored as calendar days (`@db.Date`) and handled as `YYYY-MM-DD` strings in UTC.
 - `npm run lint` type-checks the project. Browser tests are in `e2e/` and need a running server and the sample data:

@@ -218,3 +218,9 @@ model AuditLog {
 
   @@index([at])
 }
+
+// Values the app generates for itself on first use (e.g. the key that signs login cookies), so a new install needs no secrets in its settings.
+model AppSecret {
+  key   String @id
+  value String
+}

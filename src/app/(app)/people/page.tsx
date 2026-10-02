@@ -1,10 +1,12 @@
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { ROLES } from "@/lib/roles";
+import Link from "next/link";
 import PeopleClient from "./PeopleClient";
 import { OfficeForm, TeamForm } from "./SmallForms";
 
-export default async function PeoplePage() {
+export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
+  const { welcome } = await searchParams;
   const me = await requireTab("people");
   const admin = me.role === "ADMIN";
   const [people, locations, teams] = await Promise.all([
@@ -15,6 +17,12 @@ export default async function PeoplePage() {
   const myLocations = admin ? locations : locations.filter((l) => l.id === me.locationId);
   return (
     <div className="grid g2">
+      {welcome && (
+        <section className="panel full" role="status">
+          <h3>Your account is ready</h3>
+          <p style={{ margin: 0 }}>Next steps: add your other offices and teams below, add clients on the <Link href="/projects">Projects</Link> page, then invite people with <strong>Invite person</strong>. Company settings like the time format and lock date are under <Link href="/settings">Settings</Link>.</p>
+        </section>
+      )}
       <PeopleClient
         meId={me.id}
         admin={admin}

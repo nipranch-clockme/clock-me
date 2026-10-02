@@ -14,4 +14,7 @@ export async function sendEmail(to: string, subject: string, text: string): Prom
   return res.ok ? { sent: true } : { sent: false, error: `Email service said ${res.status}` };
 }
 
-export const appUrl = () => process.env.APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+export const appUrl = () =>
+  process.env.APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
