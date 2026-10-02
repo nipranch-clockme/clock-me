@@ -35,6 +35,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const lastPointer = useRef("mouse");
+  const calRef = useRef<HTMLDivElement>(null);
   const setDragBoth = (d: Drag | null) => { dragRef.current = d; setDrag(d); };
   const f = (m: number) => opts.timeFormat === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2);
   const canAdd = (i: number) => editable && !locked[i];
@@ -44,13 +45,27 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
     return Math.max(H0 * 60, Math.min(H1 * 60, H0 * 60 + round((y / PX) * (60 / SNAP)) * SNAP));
   };
 
-  // Escape cancels a drag in progress.
+  // Escape cancels a drag in progress, and so does anything that swallows the button release
+  // (switching windows, or a right-click menu opening mid-drag).
+  const dragging = !!drag;
   useEffect(() => {
-    if (!drag) return;
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") setDragBoth(null); };
+    if (!dragging) return;
+    const cancel = () => setDragBoth(null);
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") cancel(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [drag]);
+    window.addEventListener("blur", cancel);
+    window.addEventListener("contextmenu", cancel);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("blur", cancel); window.removeEventListener("contextmenu", cancel); };
+  }, [dragging]);
+  // A pen drag on a touch screen would otherwise scroll the page and cancel itself. React's touch listeners
+  // are passive, so this one is added by hand; it only blocks scrolling while a drag is in progress.
+  useEffect(() => {
+    const el = calRef.current;
+    if (!el) return;
+    const onTouchMove = (ev: TouchEvent) => { if (dragRef.current) ev.preventDefault(); };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, []);
 
   // Mouse and pen: press and drag down a day to pick exactly the time spent. Touch keeps tap-to-add, so swiping still scrolls.
   const onDown = (d: string, i: number) => (ev: PointerEvent<HTMLDivElement>) => {
@@ -64,6 +79,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
   const onMove = (ev: PointerEvent<HTMLDivElement>) => {
     const cur = dragRef.current;
     if (!cur || cur.pointerId !== ev.pointerId) return;
+    if (ev.pointerType === "mouse" && (ev.buttons & 1) === 0) return setDragBoth(null);
     const moved = cur.moved || Math.abs(ev.clientY - cur.y0) > 6;
     const at = minuteAt(ev.currentTarget, ev.clientY, Math.round);
     if (moved !== cur.moved || at !== cur.cur) setDragBoth({ ...cur, moved, cur: moved ? at : cur.anchor });
@@ -74,13 +90,13 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
     setDragBoth(null);
     const [start, end] = range(cur);
     // A plain click adds the default hour at that slot; a drag adds exactly the dragged time.
-    setEdit(cur.moved ? { date: cur.date, startMin: start, minutes: end - start } : { date: cur.date, startMin: cur.anchor });
+    setEdit(cur.moved ? { date: cur.date, startMin: start, minutes: end - start } : { date: cur.date, startMin: Math.min(cur.anchor, (H1 - 1) * 60) });
   };
 
   return (
     <>
       <div className="tablebox">
-        <div className={"cal" + (drag ? " dragging" : "")}>
+        <div ref={calRef} className={"cal" + (drag ? " dragging" : "")}>
           <div className="hd" />
           {dates.map((d, i) => (
             <div key={d} className={"hd" + (d === today ? " today" : "")}>{DAYS[i]} {+d.slice(8)}<div className="num" style={{ textAlign: "center", fontWeight: 400 }}>{f(entries.filter((e) => e.date === d).reduce((a, e) => a + e.minutes, 0))}</div></div>
@@ -91,6 +107,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
           {dates.map((d, i) => (
             <div key={d} className={"col" + (canAdd(i) ? "" : " locked")} style={{ height: (H1 - H0) * PX }}
               onPointerDown={onDown(d, i)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDragBoth(null)}
+              onLostPointerCapture={(ev) => { if (dragRef.current?.pointerId === ev.pointerId) setDragBoth(null); }}
               onClick={(ev) => {
                 // Mouse and pen are handled by the pointer events above; this is the tap on touch screens.
                 if (lastPointer.current !== "touch" || !canAdd(i) || (ev.target as HTMLElement).closest(".ev")) return;
@@ -98,11 +115,21 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
                 const mins = Math.max(H0 * 60, Math.min((H1 - 1) * 60, H0 * 60 + Math.floor(((ev.clientY - r.top) / PX) * 4) * 15));
                 setEdit({ date: d, startMin: mins });
               }}>
-              {drag?.date === d && drag.moved && (() => { const [a, b] = range(drag); return (
-                <div className="dragsel" style={{ top: (a / 60 - H0) * PX, height: ((b - a) / 60) * PX }} aria-live="polite">
-                  {hm(a)} to {hm(b)} · {f(b - a)} h
-                </div>
-              ); })()}
+              {drag?.date === d && drag.moved && (() => {
+                const [a, b] = range(drag);
+                // The label sits just below the block (above it near the bottom of the grid, inside it when the block fills
+                // the day) so short drags stay readable. On the last days it lines up on the right to stay on screen.
+                const y = b < H1 * 60 - 60 ? { top: (b / 60 - H0) * PX + 3 } : a >= H0 * 60 + 30 ? { bottom: (H1 - a / 60) * PX + 3 } : { top: (a / 60 - H0) * PX + 3 };
+                const x = i >= 5 ? { right: 3 } : { left: 3 };
+                return (
+                  <>
+                    <div className="dragsel" style={{ top: (a / 60 - H0) * PX, height: ((b - a) / 60) * PX }} />
+                    <div className="draglabel" aria-live="polite" style={{ ...y, ...x }}>
+                      {hm(a)} to {hm(b)} · {f(b - a)} h
+                    </div>
+                  </>
+                );
+              })()}
               {(() => { const day = entries.filter((e) => e.date === d); const pos = layout(day); return day.map((e) => { const { col, cols } = pos.get(e.id)!; return (
                 <button key={e.id} className="ev" style={{ top: Math.max(0, (e.startMin / 60 - H0) * PX), height: Math.max(18, (e.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left", left: `calc(${(col / cols) * 100}% + 3px)`, right: "auto", width: `calc(${100 / cols}% - 6px)` }}
                   onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerName: editable ? undefined : ownerName })}>

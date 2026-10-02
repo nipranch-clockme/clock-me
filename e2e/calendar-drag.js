@@ -18,7 +18,7 @@ const H0=7,PX=40;
   const p=await login(b,email);await p.goto(BASE+'/calendar');await p.waitForLoadState('networkidle');
   const col=await p.$('.cal .col >> nth=2');const box=await col.boundingBox();const x=box.x+box.width/2;
   const Y=(h)=>box.y+(h-H0)*PX;
-  const drag=async(h1,h2,{check,release=true}={})=>{await p.mouse.move(x,Y(h1)+1);await p.mouse.down();await p.mouse.move(x+30,Y(h2),{steps:12});const label=await p.textContent('.dragsel').catch(()=>null);if(release)await p.mouse.up();return label;};
+  const drag=async(h1,h2,{check,release=true}={})=>{await p.mouse.move(x,Y(h1)+1);await p.mouse.down();await p.mouse.move(x+30,Y(h2),{steps:12});const label=await p.textContent('.draglabel').catch(()=>null);if(release)await p.mouse.up();return label;};
   const closeDialog=async()=>{if(await p.isVisible('dialog[open]'))await p.click('dialog[open] button:has-text("Close")');await p.waitForTimeout(150);};
 
   ok('help text mentions dragging',(await p.textContent('main')).includes('drag down the day'));
@@ -40,6 +40,34 @@ const H0=7,PX=40;
   ok('dragging upwards works',(await p.inputValue('#e-start'))==='13:00'&&(await p.inputValue('#e-dur'))==='2.00',label);await closeDialog();
   label=await drag(18,23);await p.waitForSelector('dialog[open] #e-start');
   ok('dragging past the bottom stops at the grid edge',(await p.inputValue('#e-start'))==='18:00'&&(await p.inputValue('#e-dur'))==='2.00',label);await closeDialog();
+
+  // a short drag keeps its label readable: not cut off, inside the window
+  await drag(17,17.25,{release:false});
+  const lb=await p.$eval('.draglabel',e=>{const r=e.getBoundingClientRect();return {h:r.height,w:r.width,sw:e.scrollWidth,cw:e.clientWidth,right:r.right,vw:innerWidth,text:e.textContent}});
+  await p.mouse.up();await p.waitForSelector('dialog[open] #e-start');
+  ok('a 15-minute drag shows its whole label',lb.h>=14&&lb.sw<=lb.cw&&lb.right<=lb.vw&&lb.text.includes('17:00 to 17:15'),JSON.stringify(lb));
+  ok('a 15-minute drag opens 0.25 hours',(await p.inputValue('#e-start'))==='17:00'&&(await p.inputValue('#e-dur'))==='0.25');await closeDialog();
+  // on Sunday the label lines up on the right so it stays inside the grid
+  {const sun=await (await p.$('.cal .col >> nth=6')).boundingBox();const sx=sun.x+sun.width/2;
+   await p.mouse.move(sx,Y(9)+1);await p.mouse.down();await p.mouse.move(sx,Y(9.25),{steps:6});
+   const r=await p.$eval('.draglabel',e=>{const a=e.getBoundingClientRect(),c=e.parentElement.getBoundingClientRect();return {l:a.left,r:a.right,cl:c.left,cr:c.right}});
+   await p.keyboard.press('Escape');await p.mouse.up();await p.waitForTimeout(200);
+   ok('Sunday label stays inside the grid',r.r<=r.cr+1,JSON.stringify(r));await closeDialog();}
+
+  // a drag that loses the mouse (switching windows, or the browser taking the pointer) is dropped, not stuck
+  await drag(8,9.5,{release:false});
+  await p.evaluate(()=>{const el=[...document.querySelectorAll('.cal .col')].find(c=>c.hasPointerCapture(1));el&&el.releasePointerCapture(1);});
+  await p.mouse.move(x+2,Y(9.5)+2);await p.waitForTimeout(100);const selLost=(await p.$$('.dragsel')).length;await p.mouse.up();await p.waitForTimeout(300);
+  ok('losing the pointer cancels the drag',selLost===0&&!(await p.isVisible('dialog[open]')),`selection ${selLost}`);
+  await drag(8,9.5,{release:false});await p.evaluate(()=>window.dispatchEvent(new Event('blur')));await p.waitForTimeout(100);
+  const selBlur=(await p.$$('.dragsel')).length;await p.mouse.up();await p.waitForTimeout(300);
+  ok('switching windows cancels the drag',selBlur===0&&!(await p.isVisible('dialog[open]')),`selection ${selBlur}`);
+  await p.mouse.move(x,Y(10)+5);await p.mouse.click(x,Y(14)+5);await p.waitForSelector('dialog[open] #e-start');
+  ok('entries and clicks work after a cancelled drag',(await p.inputValue('#e-start'))==='14:00');await closeDialog();
+
+  // a click in the last hour starts at 19:00 so the hour ends at 20:00
+  await p.mouse.click(x,Y(19.6));await p.waitForSelector('dialog[open] #e-start');
+  ok('a click at 19:30 opens 19:00 to 20:00',(await p.inputValue('#e-start'))==='19:00'&&(await p.inputValue('#e-dur'))==='1.00',await p.inputValue('#e-start'));await closeDialog();
 
   // plain click still adds an hour
   await p.mouse.click(x,Y(14)+5);await p.waitForSelector('dialog[open] #e-start');
