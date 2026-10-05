@@ -61,9 +61,12 @@ async function main() {
   }
   await db.location.update({ where: { id: london.id }, data: { managerId: users.oliver.id } });
 
-  const clientDefs: [string, string][] = [["Northwind Logistics", "s1"], ["Bluebird Health", "s2"], ["Harbor & Co", "s3"], ["Internal", "s4"]];
+  // Two clients with a fixed number of hours each month, two with no commitment.
+  const clientDefs: [string, string, number | null][] = [["Northwind Logistics", "s1", 300], ["Bluebird Health", "s2", 200], ["Harbor & Co", "s3", null], ["Internal", "s4", null]];
   const clients: Record<string, string> = {};
-  for (const [name, color] of clientDefs) clients[name] = (await db.client.upsert({ where: { name }, update: {}, create: { name, color } })).id;
+  for (const [name, color, monthlyHours] of clientDefs) {
+    clients[name] = (await db.client.upsert({ where: { name }, update: {}, create: { name, color, type: monthlyHours ? "FIXED" : "FLOATING", monthlyHours } })).id;
+  }
   const product = ["Discovery", "Design", "Build", "Launch", "Support"];
   const projDefs: { name: string; client: string; budget: number | null; phases: string[]; managers: string[]; restricted?: { teams: string[]; users: string[] } }[] = [
     { name: "Driver app redesign", client: "Northwind Logistics", budget: 7000, phases: product, managers: ["rosa"] },

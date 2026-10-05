@@ -18,14 +18,17 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Create projects (blank or from a phase template)", { MEMBER: "n", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
   ["Edit projects and who can see them", { MEMBER: "n", LEADER: "Ones they manage", PM: "Ones they manage", LOCATION: "Ones they manage", ADMIN: "All" }],
   ["Create clients, tags and phase templates", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
+  ["Set a client's type and contracted hours per month", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
+  ["See the client dashboard (hours and contract use for every client)", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Yes, people in own office only", ADMIN: "y" }],
   ["Import and export CSV", { MEMBER: "Export own", LEADER: "Export team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Invite people, set targets", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
 ];
 
-export type Tab = "dashboard" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
+export type Tab = "dashboard" | "clients" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
 export const TABS: [Tab, string, Role[] | "all"][] = [
   ["dashboard", "Dashboard", ["LEADER", "PM", "LOCATION", "ADMIN"]],
+  ["clients", "Clients", ["LOCATION", "ADMIN"]],
   ["timesheet", "Timesheet", "all"],
   ["calendar", "Calendar", "all"],
   ["approvals", "Approvals", ["LEADER", "LOCATION", "ADMIN"]],

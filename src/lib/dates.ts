@@ -83,10 +83,17 @@ export function rangeDates(range: string, from?: string, to?: string): [string, 
   }
 }
 
-/** Working days (Mon to Fri) in [a, b], counting only days before today. */
-export function workdaysSoFar(a: string, b: string) {
-  const end = b < today() ? b : addDays(today(), -1);
+/** Working days (Mon to Fri) in [a, b]. */
+export function workdays(a: string, b: string) {
   let n = 0;
-  for (let d = a; d <= end; d = addDays(d, 1)) if (dow(d) < 5) n++;
+  for (let d = a; d <= b; d = addDays(d, 1)) if (dow(d) < 5) n++;
   return n;
 }
+
+/** Working days (Mon to Fri) in [a, b], counting only days before today. */
+export function workdaysSoFar(a: string, b: string) {
+  return workdays(a, b < today() ? b : addDays(today(), -1));
+}
+
+/** Days from a to b (0 when they're the same day). */
+export const daysBetween = (a: string, b: string) => Math.round((toDate(b).getTime() - toDate(a).getTime()) / 864e5);

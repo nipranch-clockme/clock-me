@@ -1,5 +1,5 @@
 const {chromium}=require('playwright');
-const BASE='http://localhost:3000';
+const BASE=process.env.BASE||'http://localhost:3000';
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1200,height:1000}});
 const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error'&&!/fonts|ERR_CERT/.test(m.text()))errs.push(m.text())});
 await p.goto(BASE+'/login');await p.waitForLoadState('networkidle');await p.fill('#email','priya@example.com');await p.fill('#password','wrong');await p.click('button:has-text("Sign in")');await p.waitForSelector('[role=alert]');await p.waitForTimeout(800);

@@ -11,11 +11,12 @@ It covers time tracking and performance only. There is no billing.
 | Tab | Who sees it | What it does |
 |---|---|---|
 | Dashboard | Leaders, project managers, location managers, admins | Productivity (hours ÷ target) per office, a 12-month trend, and the top 5 performers per office and across all offices |
+| Clients | Location managers, admins | A client dashboard. Pick a period (this month, last month, this or last quarter, this year, the last 12 months) to see the hours logged on each client, and for clients with fixed monthly hours: contracted hours, utilisation (hours ÷ contracted hours), hours left, and this month's pace. Clients with no commitment show the change on the previous period. Click a client for its hours by month against the contract, and its hours by project, phase and person |
 | Timesheet | Everyone | Week view with one row per project. Add a project row, then click a day to add time with its phase, tag and description. Hover over an entry to see its details. "Copy last week" brings last week's projects (not their hours). Submit for approval, and cancel the submission to make changes until it's approved |
 | Calendar | Everyone | Week view by time of day. Click a slot to add an hour, or drag down a day to add exactly the time spent. Managers can view their people's calendars |
 | Approvals | Leaders, location managers, admins | Approve or send back submitted weeks, and remind people who haven't submitted |
 | Reports | Everyone (limited to what they can see) | Filters for date range (including all time), person, team, client, project, tag, phase, description and office. Includes a chart, a breakdown table and CSV export |
-| Projects | Everyone (team members see only the projects they have been added to, read only, without the clients and phase templates lists) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people |
+| Projects | Everyone (team members see only the projects they have been added to, read only, without the clients and phase templates lists) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people. Admins add clients and set each one's type: *Fixed monthly hours* (with the hours agreed per month) or *No commitment* (work as it comes) |
 | People | Location managers, admins | Invite people, set roles, office, team and weekly target. Create password reset links. Add offices and teams |
 | Import & export | Project managers, location managers, admins | CSV import of time entries and projects, with a check of every row before anything is saved. CSV export of time, projects and people |
 | Settings | Admins | Time format (7.50 or 7:30), required fields, lock date, reminders, tags, phase templates, custom fields |
@@ -25,6 +26,15 @@ What each role can see:
 - **Team leader and project manager:** their own team in their own office.
 - **Location manager:** every team in their office.
 - **Admin:** the whole company.
+
+Client contracts are company-wide, so on the Clients tab, location managers and admins both see every client's hours
+from the whole company. When a client's hours are broken down by person, location managers see only their own office's people by name.
+
+How the Clients tab counts:
+- **Contracted hours** are the monthly hours times the number of months in the period. A month that has started counts in full, so "This month" is always one whole month of contract.
+- **Utilisation** is the hours logged on all of the client's projects (archived ones included) divided by contracted hours. Over 100% is shown in red as over contract.
+- **Pace** (this month only) compares the hours logged up to yesterday with the monthly hours spread over this month's working days (Monday to Friday) so far. Within 10% either way is on pace.
+- **Change** compares a period with the one before it. A period that's still running is compared with the same number of days of the previous one.
 
 ## Putting it online (free to start)
 
@@ -47,7 +57,7 @@ You don't need to install anything on your own computer.
    Once one account exists, that page closes for good, so do this before you share the address.
 5. **Set up your company:**
    - In People, add your other offices and teams.
-   - In Projects, add your clients.
+   - In Projects, add your clients. Choose *Fixed monthly hours* and enter the hours agreed per month, or *No commitment*.
    - In People, invite everyone.
 
 Optional settings you can add later in Vercel (*Settings → Environment Variables*, then redeploy):
@@ -79,13 +89,14 @@ Reminders go out once a day at 15:00 UTC. You can change the time in `vercel.jso
 npm install
 cp .env.example .env          # then fill in DATABASE_URL
 npm run db:migrate            # creates the tables
-SAMPLE_DATA=1 npm run db:seed # optional: two offices, 11 sample people and about 12,000 entries
+SAMPLE_DATA=1 npm run db:seed # optional: two offices, 11 sample people, 4 clients and about 12,000 entries
 npm run dev                   # open http://localhost:3000
 ```
 
 Without sample data, the first visit opens the setup page so you can create your admin account.
 
-With sample data, every sample account uses the password `password123`:
+In the sample data, Northwind Logistics (300 hours a month) and Bluebird Health (200 hours a month) have fixed monthly hours;
+Harbor & Co and Internal have no commitment. Every sample account uses the password `password123`:
 
 | Account | Role |
 |---|---|
@@ -101,6 +112,9 @@ With sample data, every sample account uses the password `password123`:
 - Logins use bcrypt password hashes and a signed, http-only session cookie (`src/lib/session.ts`). The signing key comes from `SESSION_SECRET`, or one is generated and kept in the `AppSecret` table.
 - Database changes are Prisma migrations in `prisma/migrations`. `npm run build` applies them through `scripts/migrate.mjs`, which uses Neon's direct address for migrations and the pooled address for the app. To change the schema, edit `prisma/schema.prisma`, then run `npx prisma migrate dev --name what-changed`.
 - Who can see what lives in `src/lib/scope.ts`. Which tabs each role gets lives in `src/lib/roles.ts`. Every page and server action checks these on the server.
+- Targets spread over working days (used for productivity on the Dashboard and for pace on the Clients tab) live in `src/lib/productivity.ts`. Client periods, contracted hours and pace live in `src/lib/clients.ts`.
 - Dates are stored as calendar days (`@db.Date`) and handled as `YYYY-MM-DD` strings. "Today" follows the company time zone in Settings (set from the admin's browser during setup).
 - `npm run lint` type-checks the project. Browser tests are in `e2e/` and need a running server and the sample data:
-  `node e2e/roles.js` signs in as each role and visits every tab.
+  `node e2e/roles.js` signs in as each role and visits every tab. Tests use `http://localhost:3000` unless you set `BASE`,
+  and tests that add their own test data use `PSQL` to reach the database, for example
+  `BASE=http://localhost:4000 PSQL='psql -U postgres clockme' node e2e/clients.js`.

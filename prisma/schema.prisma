@@ -20,6 +20,12 @@ enum Access {
   RESTRICTED
 }
 
+/// FIXED: the client agreed to a set number of hours each month. FLOATING: no commitment, work as it comes.
+enum ClientType {
+  FIXED
+  FLOATING
+}
+
 enum SheetStatus {
   DRAFT
   SUBMITTED
@@ -74,10 +80,12 @@ model User {
 }
 
 model Client {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  color    String    @default("s1")
-  projects Project[]
+  id           String     @id @default(cuid())
+  name         String     @unique
+  color        String     @default("s1")
+  type         ClientType @default(FLOATING)
+  monthlyHours Float? // contracted hours per month, for FIXED clients only
+  projects     Project[]
 }
 
 model Project {

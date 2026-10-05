@@ -4,7 +4,8 @@ import { addedProjectsWhere, canCreateProject, canEditProject, visibleProjectsWh
 import { canTab, roleName } from "@/lib/roles";
 import { Pill } from "@/components/ui";
 import ProjectsClient from "./ProjectsClient";
-import ClientForm from "./ClientForm";
+import ClientForm, { EditClient } from "./ClientForm";
+import { clientTypeName, contractOf, perMonth } from "@/lib/clients";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -29,6 +30,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     db.timeEntry.groupBy({ by: ["projectId"], _sum: { minutes: true } }),
   ]);
   const used = Object.fromEntries(usage.map((u) => [u.projectId, (u._sum.minutes ?? 0) / 60]));
+  // Client types and contracted hours show to the people who have the Clients tab; admins can change them.
+  const contracts = canTab("clients", me.role);
   const accessText = (p: (typeof projects)[number]) => [...p.locations.map((l) => `${l.location.name} office`), ...p.teams.map((t) => `${t.team.name} team, ${t.team.location.name}`), ...p.users.map((u) => u.user.name)].join(", ");
   const formData = {
     clients: clients.map((c) => ({ id: c.id, name: c.name })),
@@ -83,7 +86,15 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       {creator && <>
         <section className="panel">
           <h3>Clients</h3>
-          <div className="list">{clients.map((c) => <div className="item" key={c.id}><div><span className="dot" style={{ background: `var(--${c.color})` }} />{c.name}</div><span className="note">{c._count.projects} project{c._count.projects === 1 ? "" : "s"}</span></div>)}</div>
+          <div className="list">{clients.map((c) => {
+            const h = contractOf(c), count = `${c._count.projects} project${c._count.projects === 1 ? "" : "s"}`;
+            return (
+              <div className="item" key={c.id}>
+                <div><span className="dot" style={{ background: `var(--${c.color})` }} />{contracts ? <Link href={`/clients/${c.id}`}>{c.name}</Link> : c.name}{contracts && <div className="meta">{h ? `${clientTypeName("FIXED")}, ${perMonth(h)}` : clientTypeName("FLOATING")}</div>}</div>
+                <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}><span className="note">{count}</span>{me.role === "ADMIN" && <EditClient client={{ id: c.id, name: c.name, type: c.type, monthlyHours: c.monthlyHours }} />}</div>
+              </div>
+            );
+          })}</div>
           {me.role === "ADMIN" ? <ClientForm /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
         </section>
         <section className="panel">
