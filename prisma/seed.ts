@@ -50,12 +50,16 @@ async function main() {
     ["rosa", "Rosa Alvarez", "Project manager", "Engineering", "l1", "PM"],
     ["oliver", "Oliver Grant", "Office manager", "Operations", "l2", "LOCATION"],
   ];
+  // Sample employee IDs (the admin is CM-0001) and joining dates spread over the last 1 to 8 years.
+  const yearsIn = [3.4, 1.2, 2.1, 5.8, 4.3, 1.7, 2.9, 6.5, 3.9, 7.6, 7.1];
+  const joined = (years: number) => toDate(addDays(todayStr, -Math.round(years * 365.25)));
+  await db.user.updateMany({ where: { email: adminEmail, employeeId: null }, data: { employeeId: "CM-0001", joiningDate: joined(7.9) } });
   const users: Record<string, { id: string; team: string }> = {};
-  for (const [key, name, title, team, l, role] of people) {
+  for (const [i, [key, name, title, team, l, role]] of people.entries()) {
     const u = await db.user.upsert({
       where: { email: `${key}@example.com` },
       update: {},
-      create: { email: `${key}@example.com`, name, title, role, locationId: loc[l], teamId: teamIds[team + "|" + l], passwordHash: pw },
+      create: { email: `${key}@example.com`, name, title, role, locationId: loc[l], teamId: teamIds[team + "|" + l], passwordHash: pw, employeeId: `CM-${String(i + 2).padStart(4, "0")}`, joiningDate: joined(yearsIn[i]) },
     });
     users[key] = { id: u.id, team };
   }

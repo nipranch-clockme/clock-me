@@ -84,9 +84,10 @@ export function rangeDates(range: string, from?: string, to?: string): [string, 
 }
 
 /** Working days (Mon to Fri) in [a, b], counting only days before today. */
-export function workdaysSoFar(a: string, b: string) {
+export function workdayDates(a: string, b: string) {
   const end = b < today() ? b : addDays(today(), -1);
-  let n = 0;
-  for (let d = a; d <= end; d = addDays(d, 1)) if (dow(d) < 5) n++;
-  return n;
+  const out: string[] = [];
+  for (let d = a; d <= end; d = addDays(d, 1)) if (dow(d) < 5) out.push(d);
+  return out;
 }
+export const workdaysSoFar = (a: string, b: string) => workdayDates(a, b).length;

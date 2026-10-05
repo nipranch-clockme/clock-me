@@ -142,7 +142,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <tbody>
               {rows.map(([k, g]) => (
                 <tr key={k}>
-                  <td>{g.label}</td>
+                  <td>{p.group === "person" && U.has(k) ? <Link className="plink" href={`/profile/${k}`}>{g.label}</Link> : g.label}</td>
                   <td className="num">{f(g.m)}</td><td className="num">{g.people.size}</td>
                   <td><div className="meter"><i style={{ width: `${(g.m / maxG) * 100}%` }} /></div><div className="note">{total ? ((g.m / total) * 100).toFixed(1) : 0}%</div></td>
                 </tr>

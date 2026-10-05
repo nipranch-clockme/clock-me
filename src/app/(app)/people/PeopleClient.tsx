@@ -1,12 +1,13 @@
 "use client";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { invitePerson, resetLink, updatePerson, type PeopleResult } from "./actions";
 
-type Person = { id: string; name: string; email: string; title: string; role: Role; locationId: string; locationName: string; teamId: string | null; teamName: string; weeklyTarget: number; active: boolean; pending: boolean };
+type Person = { id: string; name: string; email: string; title: string; role: Role; locationId: string; locationName: string; teamId: string | null; teamName: string; weeklyTarget: number; employeeId: string; joiningDate: string; active: boolean; pending: boolean };
 type Opt = { id: string; name: string };
-type Props = { meId: string; admin: boolean; people: Person[]; locations: Opt[]; teams: (Opt & { locationId: string })[]; roles: { value: Role; label: string }[]; defaultLocation: string };
+type Props = { meId: string; admin: boolean; people: Person[]; locations: Opt[]; teams: (Opt & { locationId: string })[]; roles: { value: Role; label: string }[]; defaultLocation: string; today: string };
 const roleLabel = (roles: Props["roles"], r: Role) => roles.find((x) => x.value === r)?.label ?? { ADMIN: "Admin", LOCATION: "Location manager" }[r as string] ?? r;
 
 export default function PeopleClient(props: Props) {
@@ -17,7 +18,7 @@ export default function PeopleClient(props: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const open = editing || inviting;
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
-  const shown = people.filter((p) => !q || `${p.name} ${p.email} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase()));
+  const shown = people.filter((p) => !q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <section className="panel full">
@@ -29,18 +30,19 @@ export default function PeopleClient(props: Props) {
         </div>
       </div>
       <div className="tablebox"><table>
-        <thead><tr><th>Name</th><th>Role</th><th>Office and team</th><th className="num">Weekly target</th><th /></tr></thead>
+        <thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Office and team</th><th className="num">Expected hours per week</th><th /></tr></thead>
         <tbody>
           {shown.map((p) => (
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
-              <td>{p.name} {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
+              <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
+              <td>{p.employeeId || <span className="note">Not set</span>}</td>
               <td>{roleLabel(roles, p.role)}</td>
               <td>{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num">{p.weeklyTarget} h</td>
               <td>{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
             </tr>
           ))}
-          {!shown.length && <tr><td colSpan={5} className="empty">Nobody matches.</td></tr>}
+          {!shown.length && <tr><td colSpan={6} className="empty">Nobody matches.</td></tr>}
         </tbody>
       </table></div>
       <dialog ref={ref} onClose={() => { setEditing(null); setInviting(false); }} aria-labelledby="pp-title">
@@ -50,7 +52,7 @@ export default function PeopleClient(props: Props) {
   );
 }
 
-function PersonForm({ person, locations, teams, roles, defaultLocation, meId, onDone }: Props & { person: Person | null; onDone: () => void }) {
+function PersonForm({ person, locations, teams, roles, defaultLocation, meId, today, onDone }: Props & { person: Person | null; onDone: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<PeopleResult, FormData>(person ? updatePerson : invitePerson, null);
   const [resetState, resetAction, resetPending] = useActionState<PeopleResult, FormData>(resetLink, null);
@@ -81,6 +83,7 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, on
         <div className="row">
           <div><label htmlFor="pf-name">Name<span className="req"> *</span></label><input id="pf-name" name="name" defaultValue={person?.name} /></div>
           {person ? <div><label>Email</label><input value={person.email} disabled /></div> : <div><label htmlFor="pf-email">Email<span className="req"> *</span></label><input id="pf-email" name="email" type="email" /></div>}
+          <div><label htmlFor="pf-emp">Employee ID</label><input id="pf-emp" name="employeeId" maxLength={32} defaultValue={person?.employeeId} placeholder="e.g. CM-0042" /></div>
           <div><label htmlFor="pf-title">Job title</label><input id="pf-title" name="title" defaultValue={person?.title} /></div>
           <div>
             <label htmlFor="pf-role">Role</label>
@@ -95,9 +98,10 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, on
               {teams.filter((t) => t.locationId === loc).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-          <div><label htmlFor="pf-target">Weekly target (hours)</label><input id="pf-target" name="weeklyTarget" type="number" min="0" max="80" step="0.5" defaultValue={person?.weeklyTarget ?? 40} /></div>
+          <div><label htmlFor="pf-join">Joining date</label><input id="pf-join" name="joiningDate" type="date" min="1950-01-01" max={today} defaultValue={person?.joiningDate} /></div>
+          <div><label htmlFor="pf-target">Expected hours per week</label><input id="pf-target" name="weeklyTarget" type="number" min="0" max="80" step="0.5" defaultValue={person?.weeklyTarget ?? 40} /></div>
         </div>
-        <p className="note">Set the target to 0 to leave someone out of productivity on the dashboard.</p>
+        <p className="note">Set expected hours to 0 to leave someone out of productivity on the dashboard. The joining date shows years of experience on their profile.</p>
         {person && <label className="check"><input type="checkbox" name="active" defaultChecked={person.active} disabled={self} /> Active (inactive people can&apos;t sign in)</label>}
         {person && self && <input type="hidden" name="active" value="on" />}
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}

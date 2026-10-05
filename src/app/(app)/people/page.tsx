@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { ROLES } from "@/lib/roles";
+import { toStr, today } from "@/lib/dates";
+import { getSettings } from "@/lib/settings";
 import Link from "next/link";
 import PeopleClient from "./PeopleClient";
 import { OfficeForm, TeamForm } from "./SmallForms";
@@ -15,6 +17,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     db.team.findMany({ where: admin ? {} : { locationId: me.locationId }, orderBy: { name: "asc" }, include: { location: true, _count: { select: { users: { where: { active: true } } } } } }),
   ]);
   const myLocations = admin ? locations : locations.filter((l) => l.id === me.locationId);
+  await getSettings(); // sets the company time zone for "today"
   return (
     <div className="grid g2">
       {welcome && (
@@ -26,11 +29,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       <PeopleClient
         meId={me.id}
         admin={admin}
-        people={people.map((u) => ({ id: u.id, name: u.name, email: u.email, title: u.title, role: u.role, locationId: u.locationId, locationName: u.location.name, teamId: u.teamId, teamName: u.team?.name ?? "", weeklyTarget: u.weeklyTarget, active: u.active, pending: !u.passwordHash }))}
+        people={people.map((u) => ({ id: u.id, name: u.name, email: u.email, title: u.title, role: u.role, locationId: u.locationId, locationName: u.location.name, teamId: u.teamId, teamName: u.team?.name ?? "", weeklyTarget: u.weeklyTarget, employeeId: u.employeeId ?? "", joiningDate: u.joiningDate ? toStr(u.joiningDate) : "", active: u.active, pending: !u.passwordHash }))}
         locations={myLocations.map((l) => ({ id: l.id, name: l.name }))}
         teams={teams.map((t) => ({ id: t.id, name: t.name, locationId: t.locationId }))}
         roles={(admin ? ROLES : ROLES.filter(([r]) => r !== "ADMIN" && r !== "LOCATION")).map(([v, l]) => ({ value: v, label: l }))}
         defaultLocation={me.locationId}
+        today={today()}
       />
       <section className="panel">
         <h3>Offices</h3>

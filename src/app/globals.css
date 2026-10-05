@@ -168,3 +168,24 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .alert.ok{background:var(--ok-soft,#e6f4ea);color:var(--ok)}
 .seg .segl{border:0;background:transparent;color:var(--muted);font:500 13px var(--body);padding:6px 10px;border-radius:6px;text-decoration:none}.seg .segl[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+/* Profiles: a picture or an initials circle, the header with the facts under it, and names that open a profile. */
+.avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;object-fit:cover;background:var(--accent-soft);color:var(--accent);font:700 14px/1 var(--display);overflow:hidden;user-select:none}
+.melink{display:inline-flex;align-items:center;gap:8px;color:var(--ink);font-weight:600;text-decoration:none;vertical-align:middle}
+.melink:hover,.melink:focus-visible{text-decoration:underline}
+a.plink{text-decoration:none;font-weight:500}
+a.plink:hover,a.plink:focus-visible{text-decoration:underline}
+.profile-head{display:flex;flex-wrap:wrap;gap:18px;align-items:center}
+.profile-name{flex:1 1 220px;min-width:0}
+.profile-name h2{font-size:24px;margin:0 0 2px;overflow-wrap:anywhere}
+.profile-title{margin:0 0 2px}
+.profile-actions{flex:0 1 auto}
+.photoform{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;max-width:360px}
+.photoform p{flex-basis:100%;text-align:right}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:14px 24px;margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+.facts dt{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:2px}
+.facts dd{margin:0;overflow-wrap:anywhere}
+@media (max-width:640px){.profile-actions{flex-basis:100%}.photoform{justify-content:flex-start}.photoform p{text-align:left}}
+/* Five summary numbers: one row on wide screens, three a row on tablets, two a row on phones. */
+.stats.spread.five{grid-template-columns:repeat(5,1fr)}
+@media (min-width:641px) and (max-width:900px){.stats.spread.five{grid-template-columns:repeat(3,1fr);row-gap:16px}.stats.spread.five .stat:nth-child(3n+1){padding-left:6px;border-left:0}}
+@media (max-width:640px){.stats.spread.five{grid-template-columns:repeat(2,1fr)}}
