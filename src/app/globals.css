@@ -105,11 +105,15 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .stats{display:flex;flex-wrap:wrap;gap:28px}
 .stat b{display:block;font:500 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted)}
-/* Summary numbers spread evenly across a panel, with a thin line between them. */
-.stats.spread{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
-.stats.spread .stat{padding:6px 24px;border-left:1px solid var(--line)}
-.stats.spread .stat:first-child{padding-left:6px;border-left:0}
-@media (max-width:640px){.stats.spread{grid-template-columns:repeat(2,1fr);row-gap:16px}.stats.spread .stat b{font-size:clamp(18px,5.6vw,26px)}.stats.spread .stat:nth-child(odd){padding-left:6px;border-left:0}}
+/* Summary numbers spread evenly across a panel, with a thin line between them, for any number of them. When the panel
+   gets narrow they wrap onto more rows; the box is shifted left and clips, which hides the line at the start of each row. */
+.stats.spread{display:flex;flex-wrap:wrap;gap:16px 0;margin-left:-24px;overflow:hidden}
+.stats.spread .stat{flex:1 1 0;min-width:min-content;padding:4px 24px;margin-left:-1px;border-left:1px solid var(--line)}
+.stats.spread .stat b{white-space:nowrap}
+.stats.spread.sm{margin-left:-16px}
+.stats.spread.sm .stat{padding:2px 16px}
+.stats.spread.sm .stat b{font-size:18px}
+@media (max-width:640px){.stats.spread{margin-left:-16px}.stats.spread .stat{padding:4px 16px}.stats.spread:not(.sm) .stat b{font-size:clamp(18px,5.6vw,26px)}}
 .weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .weeknav strong{font-family:var(--mono);font-size:14px}
 .note{font-size:13px;color:var(--muted)}

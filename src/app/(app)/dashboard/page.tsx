@@ -82,7 +82,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="grid g2">
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
-          <div className="stats">
+          <div className="stats spread">
             <div className="stat"><b>{pct(all.prod)}</b><span>productivity</span></div>
             <div className="stat"><b>{f(all.m)}</b><span>total hours</span></div>
             <div className="stat"><b>{f(all.tg)}</b><span>target hours</span></div>
@@ -97,10 +97,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n} people</span></div>
               <div className="stat" style={{ margin: "12px 0 8px" }}><b>{pct(o.prod)}</b><span>total productivity</span></div>
               <div className="meter" style={{ height: 10 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
-              <div className="row" style={{ marginTop: 12, gap: 20 }}>
-                <div className="stat"><b style={{ fontSize: 18 }}>{f(o.m)}</b><span>total hours</span></div>
-                <div className="stat"><b style={{ fontSize: 18 }}>{f(o.tg)}</b><span>target hours</span></div>
-                <div className="stat"><b style={{ fontSize: 18 }}>{f(o.avg)}</b><span>average per person</span></div>
+              <div className="stats spread sm" style={{ marginTop: 12 }}>
+                <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
+                <div className="stat"><b>{f(o.tg)}</b><span>target hours</span></div>
+                <div className="stat"><b>{f(o.avg)}</b><span>average per person</span></div>
               </div>
             </section>
           );
