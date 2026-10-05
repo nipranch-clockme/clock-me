@@ -105,15 +105,23 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .stats{display:flex;flex-wrap:wrap;gap:28px}
 .stat b{display:block;font:500 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted)}
-/* Summary numbers spread evenly across a panel, with a thin line between them, for any number of them. When the panel
-   gets narrow they wrap onto more rows; the box is shifted left and clips, which hides the line at the start of each row. */
-.stats.spread{display:flex;flex-wrap:wrap;gap:16px 0;margin-left:-24px;overflow:hidden}
-.stats.spread .stat{flex:1 1 0;min-width:min-content;padding:4px 24px;margin-left:-1px;border-left:1px solid var(--line)}
-.stats.spread .stat b{white-space:nowrap}
-.stats.spread.sm{margin-left:-16px}
-.stats.spread.sm .stat{padding:2px 16px}
-.stats.spread.sm .stat b{font-size:18px}
-@media (max-width:640px){.stats.spread{margin-left:-16px}.stats.spread .stat{padding:4px 16px}.stats.spread:not(.sm) .stat b{font-size:clamp(18px,5.6vw,26px)}}
+/* Summary numbers in equal columns with a thin line between them. The column count steps with the panel's width so a
+   9-character total fits: 5 numbers go 5, 3+2, then the first alone over 2x2; 4 go 4, then 2x2; 3 (.sm) go 3, then 2+1.
+   On a phone the numbers shrink to fit. The box is shifted left and clips, hiding the line at the start of each row. */
+.panel:has(>.stats.spread){container-type:inline-size}
+.stats.spread{--n:4;--p:16px;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:16px 0;margin-left:calc(0px - var(--p));overflow:hidden}
+.stats.spread:has(>:nth-child(5)){--n:5}
+.stats.spread .stat{padding:4px var(--p);margin-left:-1px;border-left:1px solid var(--line)}
+.stats.spread .stat b{white-space:nowrap;font-size:min(var(--fs,26px),((100cqw + var(--p))/var(--n) - 2*var(--p))/5.4)}
+.stats.spread .stat span{display:block;line-height:1.35;margin-top:2px}
+.stats.spread>:first-child:nth-last-child(5) b{font-size:26px}
+.stats.spread.sm{--n:3;--fs:18px}
+.stats.spread.sm .stat{padding-block:2px}
+@container (width<860px){.stats.spread:has(>:nth-child(5)){--n:3}}
+@container (width<680px){.stats.spread{--n:2}}
+@container (width<510px){.stats.spread:has(>:nth-child(5)){--n:2}.stats.spread>:first-child:nth-last-child(5){grid-column:1/-1}}
+@container (width<390px){.stats.spread.sm{--p:8px}}
+@container (width<280px){.stats.spread.sm{--n:2;--p:16px}.stats.spread.sm>:last-child{grid-column:1/-1}}
 .weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .weeknav strong{font-family:var(--mono);font-size:14px}
 .note{font-size:13px;color:var(--muted)}
