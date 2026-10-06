@@ -3,7 +3,8 @@
    role switch and the signed-in person, then the page: a big bold title with the page's main actions on the right, over light grey cards.
    Tables adapt to the width of their box (tighter, or rows as cards); the week grids scroll inside their own box on a phone */
 :root{
-  --bg:#FFFFFF; --side:#F3F4F5; --card:#F3F4F5; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#E8EAED; --track:#DADDE1;
+  color-scheme:light;
+  --bg:#FFFFFF; --side:#F8F9FB; --card:#F6F7F9; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#EDEFF2; --track:#DADDE1;
   --ink:#1F2328; --muted:#5B6470; --line:#E0E3E7; --border:#DEE0E4; --line2:#C9CDD2;
   --accent:#0168DA; --accent-hi:#0157B8; --link:#0168DA; --accent-soft:#DCE8FB; --accent-ink:#1F5FB8;
   --btn2:#E6E8EB; --btn2-hi:#DADDE1; --seg-on:#DADDE1; --lilac:#EEE3FC; --lilac-ink:#6A3DAE;
@@ -15,28 +16,6 @@
   --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --display:var(--body);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0F1216; --side:#16191E; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
-  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
-  --accent:#1F6FDB; --accent-hi:#1A62C4; --link:#72AAFF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
-  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
-  --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
-  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
-  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
-  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
-  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0F1216; --side:#16191E; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
-  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
-  --accent:#1F6FDB; --accent-hi:#1A62C4; --link:#72AAFF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
-  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
-  --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
-  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
-  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
-  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
-  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);-webkit-font-smoothing:antialiased}
@@ -81,9 +60,9 @@ nav.snav hr+.navend{margin-top:auto}
 .whot small{font-size:11.5px;color:var(--muted);white-space:nowrap}
 .who .plink[aria-current] .whot b{color:var(--link)}
 .who .plink[aria-current] .av{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
-#view{padding:10px 28px 64px;width:100%;max-width:1360px}
+#view{padding:10px 24px 64px;width:100%;max-width:none}
 /* the notice about new sample data, between the top bar and the page and lined up with it */
-.notice{padding:4px 28px 0;width:100%;max-width:1360px}
+.notice{padding:4px 24px 0;width:100%;max-width:none}
 .notice .alert{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0}
 .notice .alert p{margin:0;flex:1 1 380px;min-width:0}
 .scrim{display:none}
@@ -132,6 +111,7 @@ h3{font:700 14px/1.3 var(--body);color:var(--ink);margin:0 0 12px}
 .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))}
 .full{grid-column:1/-1}
 .grid.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
+.grid.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .grid.max2{grid-template-columns:repeat(auto-fit,minmax(max(min(100%,360px),calc(50% - 8px)),1fr))} /* never more than two cards side by side, so a pair fills the row on wide screens */
 .panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;min-width:0}
 .stack{display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -504,3 +484,10 @@ table.clients td:nth-child(-n+2){white-space:nowrap}
 .legend i.dash{background:none;width:16px;height:0;border-top:2px dashed var(--muted);border-radius:0;vertical-align:3px}
 .brand{display:flex;align-items:baseline;gap:10px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
 a.btn,a.btn:hover{text-decoration:none}
+
+/* Profile page */
+.profile-actions{flex:0 1 auto;margin-left:auto}
+.profile-title{margin:2px 0 4px;color:var(--muted)}
+.photoform{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;max-width:360px}
+.photoform p{flex-basis:100%;text-align:right;margin:0}
+@media (max-width:640px){.profile-actions{flex-basis:100%;margin-left:0}.photoform{justify-content:flex-start}.photoform p{text-align:left}}

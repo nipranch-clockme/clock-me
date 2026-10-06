@@ -86,9 +86,9 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
     <div className="grid g2">
       <section className="panel full">
         <h3>{self ? "My profile" : "Profile"}</h3>
-        <div className="profile-head">
+        <div className="phead profile-head">
           <Avatar person={person} size={96} alt={person.photoAt ? `Profile picture of ${person.name}` : ""} />
-          <div className="profile-name">
+          <div className="pinfo profile-name">
             <h2>{person.name}</h2>
             {person.title && <p className="profile-title">{person.title}</p>}
             <p className="note" style={{ margin: 0 }} title={person.joiningDate ? `Joined ${dayMonthYear(toStr(person.joiningDate))}` : undefined}>{joinedText(person.joiningDate)}</p>
@@ -102,7 +102,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
             </div>
           )}
         </div>
-        <dl className="facts">
+        <dl className="pfacts">
           <div><dt>Employee ID</dt><dd>{person.employeeId ?? <span className="note">Not set</span>}</dd></div>
           <div><dt>Role</dt><dd>{roleName(person.role)}</dd></div>
           <div><dt>Team</dt><dd>{person.team?.name ?? "No team"}</dd></div>

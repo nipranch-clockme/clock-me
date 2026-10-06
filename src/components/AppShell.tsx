@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ICONS } from "./icons";
 
 type Tab = { href: string; label: string; icon: string };
-const GROUPS: string[][] = [["dashboard", "timesheet"], ["approvals", "reports", "clients"], ["projects", "people", "import-export"]];
+const GROUPS: string[][] = [["dashboard", "timesheet"], ["approvals", "reports"], ["clients", "projects", "people", "import-export"]];
 const ICON_FOR: Record<string, string> = { dashboard: "dash", timesheet: "sheet", approvals: "approve", reports: "reports", clients: "clients", projects: "projects", people: "people", "import-export": "io", settings: "settings" };
 
 const Mark = () => (

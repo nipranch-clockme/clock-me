@@ -83,7 +83,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
         sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far). People with a target of 0 are left out.`} />
-      <div className="grid g2">
+      <div className="grid g3">
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
           <div className="stats spread">
