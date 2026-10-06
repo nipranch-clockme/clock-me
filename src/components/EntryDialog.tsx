@@ -3,6 +3,7 @@ import { startTransition, useActionState, useEffect, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import { saveEntry, deleteEntry, type EntryResult } from "@/app/(app)/timesheet/actions";
 import type { EntryOptions, EntryValue } from "./entryTypes";
+import SearchSelect from "@/components/SearchSelect";
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const dur = (m: number | undefined, f: "decimal" | "hhmm") => (m == null ? (f === "hhmm" ? "1:00" : "1.00") : f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
@@ -16,7 +17,7 @@ export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptio
     if (!value && d.open) d.close();
   }, [value]);
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="entry-title">
+    <dialog ref={ref} className="wide" onClose={onClose} aria-labelledby="entry-title">
       {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "")} opts={opts} value={value} onDone={() => ref.current?.close()} />}
     </dialog>
   );
@@ -105,14 +106,8 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
             <div className="row">
               <div style={{ flexBasis: "100%" }}>
                 <label htmlFor="e-project">Project<span className="req"> *</span></label>
-                <select id="e-project" name="projectId" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={bad("projectId")}>
-                  {value.projectId && !opts.projects.some((p) => p.id === value.projectId) && <option value={value.projectId}>{value.projectName ?? "Other project"}</option>}
-                  {clients.map((c) => (
-                    <optgroup key={c} label={c}>
-                      {opts.projects.filter((p) => p.client === c).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
+                <SearchSelect id="e-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} searchLabel="Search projects"
+                  options={[...(value.projectId && !opts.projects.some((p) => p.id === value.projectId) ? [{ value: value.projectId, label: value.projectName ?? "Other project" }] : []), ...opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))]} />
               </div>
               {phaseField}
               {tagField}

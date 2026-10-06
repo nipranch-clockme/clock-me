@@ -1,3 +1,4 @@
+import TableFilter from "@/components/TableFilter";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
@@ -54,7 +55,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             <span className="note">{rows.length} client{rows.length === 1 ? "" : "s"}. Click a client for its details.</span>
           </div>
           {!rows.length ? <p className="empty">No clients yet. Admins add them on the Projects page.</p> : (
-            <div className="tablebox"><table className="clients">
+            <><TableFilter label="Search clients" placeholder="Search clients…" /><div className="tablebox"><table className="clients">
               <thead><tr><th>Client</th><th>Type</th><th className="num">Hours logged</th><th className="num">Contracted</th><th>Utilisation</th><th className="num">Hours left</th>{thisMonth && <th>Pace this month</th>}</tr></thead>
               <tbody>
                 {rows.map((r) => (
@@ -71,7 +72,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   </tr>
                 ))}
               </tbody>
-            </table></div>
+            </table></div></>
           )}
           {thisMonth && fixed.length > 0 && <p className="note" style={{ margin: "10px 0 0" }}>Pace compares hours logged up to yesterday with the monthly hours spread over this month&apos;s working days (Monday to Friday) so far. Within 10% either way is on pace.</p>}
         </section>

@@ -1,14 +1,14 @@
 "use client";
 import { useRouter } from "next/navigation";
+import SearchSelect from "@/components/SearchSelect";
 
 export default function PersonPicker({ people, current, meId, offset }: { people: { id: string; name: string }[]; current: string; meId: string; offset: number }) {
   const router = useRouter();
   return (
     <div style={{ flex: "0 1 260px" }}>
       <label htmlFor="caluser">Showing</label>
-      <select id="caluser" value={current} onChange={(e) => router.push(`/timesheet?view=cal&w=${offset}${e.target.value !== meId ? `&u=${e.target.value}` : ""}`)}>
-        {people.map((p) => <option key={p.id} value={p.id}>{p.name}{p.id === meId ? " (you)" : ""}</option>)}
-      </select>
+      <SearchSelect id="caluser" value={current} searchLabel="Search people" onChange={(v) => router.push(`/timesheet?view=cal&w=${offset}${v !== meId ? `&u=${v}` : ""}`)}
+        options={people.map((p) => ({ value: p.id, label: p.name + (p.id === meId ? " (you)" : "") }))} />
     </div>
   );
 }

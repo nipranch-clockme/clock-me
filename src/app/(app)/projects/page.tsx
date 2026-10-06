@@ -1,3 +1,4 @@
+import TableFilter from "@/components/TableFilter";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { addedProjectsWhere, canCreateProject, canEditProject, visibleProjectsWhere } from "@/lib/scope";
@@ -64,6 +65,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         )}
         {/* The empty message sits outside the table so it doesn't scroll sideways with it on phones. */}
         {!projects.length ? <p className="empty">{!creator ? "You haven't been added to any projects yet." : sp.client ? "No projects for this client." : "No projects yet."}</p> : (
+          <>
+          <TableFilter label="Search projects" placeholder="Search projects or clients…" />
           <div className="tablebox">
             <table>
               <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
@@ -84,6 +87,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
       {creator && <>

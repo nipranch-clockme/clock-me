@@ -45,7 +45,7 @@ export default function PeopleClient(props: Props) {
           {!shown.length && <tr><td colSpan={6} className="empty">Nobody matches.</td></tr>}
         </tbody>
       </table></div>
-      <dialog ref={ref} onClose={() => { setEditing(null); setInviting(false); }} aria-labelledby="pp-title">
+      <dialog ref={ref} className="wide" onClose={() => { setEditing(null); setInviting(false); }} aria-labelledby="pp-title">
         {open && <PersonForm key={editing?.id ?? "new"} {...props} person={editing} onDone={() => ref.current?.close()} />}
       </dialog>
     </section>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 import { addRow, removeRow } from "./actions";
+import SearchSelect from "@/components/SearchSelect";
 
 export type SheetEntry = {
   id: string; projectId: string; projectName: string; clientName: string; clientColor: string;
@@ -159,20 +160,14 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
         </div>
       )}
 
-      <dialog ref={addRef} aria-labelledby="addrow-title">
+      <dialog ref={addRef} className="narrow" aria-labelledby="addrow-title">
         <div className="panel">
           <div className="row between" style={{ marginBottom: 8 }}><h2 id="addrow-title">Add a project row</h2><button type="button" className="btn sm" onClick={() => addRef.current?.close()}>Close</button></div>
           {available.length ? (
             <form ref={addFormRef} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
               <label htmlFor="addrow-project">Project</label>
-              <select id="addrow-project" name="projectId" required defaultValue="">
-                <option value="" disabled>Choose a project</option>
-                {clients.map((c) => (
-                  <optgroup key={c} label={c}>
-                    {available.filter((p) => p.client === c).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+              <SearchSelect id="addrow-project" name="projectId" required placeholder="Choose a project" searchLabel="Search projects"
+                options={available.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
               {addError && <p className="err-text" role="alert">{addError}</p>}
               <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={busy}>{busy ? "Adding…" : "Add row"}</button></div>
             </form>

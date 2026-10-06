@@ -8,6 +8,7 @@ import { fmtHours, niceStep } from "@/lib/format";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
 import { PageHead, Ifld } from "@/components/ui";
+import SearchSelect from "@/components/SearchSelect";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireUser();
@@ -101,7 +102,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   byDate.forEach((r) => { const k = kOf(toStr(r.date)); B[k] = (B[k] ?? 0) + (r._sum.minutes ?? 0) / 60; });
 
   const sel = (id: (typeof FILTER_KEYS)[number], label: string, all: string, opts: [string, string][]) => (
-    <Ifld id={`rp-${id}`} label={label} name={id} defaultValue={p[id] ?? ""}><option value="">{all}</option>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Ifld>
+    <div className="ifld"><label htmlFor={`rp-${id}`}>{label}</label><SearchSelect id={`rp-${id}`} name={id} defaultValue={p[id] ?? ""} searchLabel={`Search ${label.toLowerCase()}`} options={[{ value: "", label: all }, ...opts.map(([value, label]) => ({ value, label }))]} /></div>
   );
   const nf = FILTER_KEYS.filter((k) => p[k]).length;
 

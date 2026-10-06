@@ -2,6 +2,7 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { saveProject, type FormResult } from "./actions";
+import SearchSelect from "@/components/SearchSelect";
 
 type Opt = { id: string; name: string };
 export type ProjectForm = {
@@ -44,7 +45,7 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
         {creator && <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>}
       </div>
       {creator && !form.clients.length && <p className="alert info">{admin ? "Add a client below before creating a project." : "An admin needs to add a client before projects can be created."}</p>}
-      <dialog ref={ref} onClose={close} aria-labelledby="proj-title">
+      <dialog ref={ref} className="wide" onClose={close} aria-labelledby="proj-title">
         {open && <ProjectEditor key={open} form={form} project={open === "new" ? null : editable.find((p) => p.id === open)!} admin={admin} onDone={() => ref.current?.close()} />}
       </dialog>
     </>
@@ -73,10 +74,8 @@ function ProjectEditor({ form, project, admin, onDone }: { form: ProjectForm; pr
           <div><label htmlFor="p-name">Project name<span className="req"> *</span></label><input id="p-name" name="name" defaultValue={project?.name} required /></div>
           <div>
             <label htmlFor="p-client">Client<span className="req"> *</span></label>
-            <select id="p-client" name="clientId" defaultValue={project?.clientId ?? ""} required>
-              <option value="" disabled>Choose a client</option>
-              {form.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <SearchSelect id="p-client" name="clientId" defaultValue={project?.clientId ?? ""} required placeholder="Choose a client" searchLabel="Search clients"
+              options={form.clients.map((c) => ({ value: c.id, label: c.name }))} />
           </div>
           {!project && (
             <div>

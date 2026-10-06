@@ -5,6 +5,7 @@ import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 import type { SheetEntry } from "./TimesheetGrid";
 import { discardTimer, startTimer, stopTimer, type TimerResult } from "./timer-actions";
+import SearchSelect from "@/components/SearchSelect";
 
 export type RunningTimer = { projectId: string; phaseId: string | null; tagId: string | null; description: string; startedAt: string };
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
@@ -41,10 +42,8 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
           <div className="row">
             <div>
               <label htmlFor="tm-project">Project<span className="req"> *</span></label>
-              <select id="tm-project" name="projectId" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={bad("projectId")}>
-                <option value="">Choose a project</option>
-                {[...new Set(opts.projects.map((p) => p.client))].map((c) => <optgroup key={c} label={c}>{opts.projects.filter((p) => p.client === c).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>)}
-              </select>
+              <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="Choose a project" searchLabel="Search projects"
+                options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
             </div>
             <div>
               <label htmlFor="tm-phase">Phase<span className="req"> *</span></label>

@@ -491,3 +491,23 @@ a.btn,a.btn:hover{text-decoration:none}
 .photoform{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;max-width:360px}
 .photoform p{flex-basis:100%;text-align:right;margin:0}
 @media (max-width:640px){.profile-actions{flex-basis:100%;margin-left:0}.photoform{justify-content:flex-start}.photoform p{text-align:left}}
+
+/* Popups: one sensible width, scroll inside when tall, the page behind them dimmed and blurred */
+dialog{border:0;padding:0;border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:var(--pop);width:min(540px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 32px);overflow:auto;margin:auto}
+dialog.wide{width:min(720px,calc(100vw - 24px))}
+dialog.narrow{width:min(420px,calc(100vw - 24px))}
+dialog::backdrop{background:var(--scrim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+dialog>.panel{border:0;border-radius:0;box-shadow:none;background:transparent;margin:0;padding:20px 22px}
+dialog h2{margin:0;font-size:18px;letter-spacing:-.01em}
+body:has(dialog[open]){overflow:hidden}
+/* Dropdown with a search box */
+.ssel{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
+.ssel-q{width:100%}
+.ssel select[size]{height:auto}
+.ssel-none{margin:0}
+.ifld .ssel{flex-direction:row;align-items:center;gap:0;width:auto}
+.ifld .ssel-q{width:110px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;min-height:32px;font-size:13px}
+.ifld .ssel-none{display:none}
+.tfilter{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.tfilter input{width:min(320px,100%)}
+tr[hidden]{display:none}
