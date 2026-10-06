@@ -1,8 +1,8 @@
 // Visits every tab as each role: allowed tabs must load without errors, others must redirect to the timesheet.
-// The Time audit tab was removed, so /audit must be gone for everyone.
+// The Time audit tab was removed, so /audit must be gone for everyone. The Clients tab is for location managers and admins.
 const {start,login,BASE}=require('./helpers');
-const TABS=['dashboard','timesheet','calendar','approvals','reports','projects','people','import-export','settings'];
-const ALLOWED={MEMBER:['timesheet','calendar','reports','projects'],LEADER:['dashboard','timesheet','calendar','approvals','reports','projects'],PM:['dashboard','timesheet','calendar','reports','projects','import-export'],LOCATION:['dashboard','timesheet','calendar','approvals','reports','projects','people','import-export'],ADMIN:TABS};
+const TABS=['dashboard','clients','timesheet','calendar','approvals','reports','projects','people','import-export','settings'];
+const ALLOWED={MEMBER:['timesheet','calendar','reports','projects'],LEADER:['dashboard','timesheet','calendar','approvals','reports','projects'],PM:['dashboard','timesheet','calendar','reports','projects','import-export'],LOCATION:['dashboard','clients','timesheet','calendar','approvals','reports','projects','people','import-export'],ADMIN:TABS};
 const USERS={MEMBER:'priya@example.com',LEADER:'daniel@example.com',PM:'rosa@example.com',LOCATION:'oliver@example.com',ADMIN:'admin@example.com'};
 (async()=>{const b=await start();let fail=0;
  for(const [role,email] of Object.entries(USERS)){const p=await login(b,email);const nav=(await p.locator('nav a').allInnerTexts()).length;

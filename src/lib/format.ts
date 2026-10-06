@@ -23,3 +23,6 @@ export function parseDuration(v: string): number {
 }
 
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/** A round gap between chart gridlines that gives at most five of them up to max. */
+export const niceStep = (max: number) => [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000].find((s) => max / s <= 5) ?? 100000;

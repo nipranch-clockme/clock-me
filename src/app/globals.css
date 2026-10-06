@@ -180,3 +180,14 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .alert.ok{background:var(--ok-soft,#e6f4ea);color:var(--ok)}
 .seg .segl{border:0;background:transparent;color:var(--muted);font:500 13px var(--body);padding:6px 10px;border-radius:6px;text-decoration:none}.seg .segl[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+/* Clients tab: five summary numbers (three, then two, on smaller screens), contract meters that show the part over the
+   contract in red after a small gap, up and down changes, and a dashed legend mark for the contract line. */
+.stats.spread.five{grid-template-columns:repeat(5,1fr)}
+@media (min-width:641px) and (max-width:980px){.stats.spread.five{grid-template-columns:repeat(3,1fr);row-gap:16px}.stats.spread.five .stat:nth-child(4){padding-left:6px;border-left:0}}
+@media (max-width:640px){.stats.spread.five{grid-template-columns:repeat(2,1fr)}}
+.meter.split{display:flex;gap:2px}
+.meter.split i{border-radius:0}
+table.clients .meter{min-width:120px}
+table.clients td:nth-child(-n+2){white-space:nowrap}
+.t-bad{color:var(--bad);font-weight:600} .t-ok{color:var(--ok)} .t-warn{color:var(--warn)}
+.legend i.dash{background:none;width:16px;height:0;border-top:2px dashed var(--muted);border-radius:0;vertical-align:3px}

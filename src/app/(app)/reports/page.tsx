@@ -4,7 +4,7 @@ import { getSettings } from "@/lib/settings";
 import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { GROUPS, FILTER_KEYS, parseReportParams, reportWhere, reportQuery } from "@/lib/report";
 import { RANGES, addDays, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
-import { fmtHours } from "@/lib/format";
+import { fmtHours, niceStep } from "@/lib/format";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
 
@@ -159,7 +159,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 function BarChart({ keys, values, unit }: { keys: string[]; values: Record<string, number>; unit: string }) {
   const W = 900, H = 240, pl = 44, pr = 8, pt = 12, pb = 26, iw = W - pl - pr, ih = H - pt - pb;
   const max = Math.max(1, ...keys.map((k) => values[k] ?? 0));
-  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 50000].find((s) => max / s <= 5) ?? 100000;
+  const step = niceStep(max);
   const top = Math.ceil(max / step) * step;
   const y = (v: number) => pt + ih - (v / top) * ih;
   const bw = iw / Math.max(1, keys.length), gap = Math.min(6, bw * 0.25), every = Math.ceil(keys.length / 10);

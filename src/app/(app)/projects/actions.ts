@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { logAction } from "@/lib/settings";
 import { canCreateProject, canEditProject } from "@/lib/scope";
+import { perMonth } from "@/lib/clients";
+import type { ClientType } from "@prisma/client";
 
 export type FormResult = { ok: boolean; error?: string } | null;
 const list = (form: FormData, k: string) => form.getAll(k).map(String).filter(Boolean);
@@ -70,15 +72,43 @@ export async function saveProject(_: FormResult, form: FormData): Promise<FormRe
   return { ok: true };
 }
 
+/** A client's type and contracted hours from a form. Hours only apply to fixed clients and must be above 0. */
+function readContract(form: FormData): { type: ClientType; monthlyHours: number | null } | { error: string } {
+  const type = form.get("type") === "FIXED" ? "FIXED" : "FLOATING";
+  if (type === "FLOATING") return { type, monthlyHours: null };
+  const raw = String(form.get("monthlyHours") ?? "").trim(), h = Number(raw);
+  if (!raw || !Number.isFinite(h) || h <= 0) return { error: "Enter the contracted hours per month, more than 0." };
+  if (h > 100000) return { error: "Contracted hours per month must be 100,000 or less." };
+  return { type, monthlyHours: h };
+}
+const contractText = (c: { type: ClientType; monthlyHours: number | null }) => (c.type === "FIXED" && c.monthlyHours ? `fixed monthly hours, ${perMonth(c.monthlyHours)}` : "no commitment");
+
 export async function addClient(_: FormResult, form: FormData): Promise<FormResult> {
   const me = await requireUser();
   if (me.role !== "ADMIN") return { ok: false, error: "Only admins can add clients." };
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Name the client." };
+  const contract = readContract(form);
+  if ("error" in contract) return { ok: false, error: contract.error };
   if (await db.client.findFirst({ where: { name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "That client already exists." };
   const n = await db.client.count();
-  await db.client.create({ data: { name, color: ["s1", "s2", "s3"][n % 3] } });
-  await logAction(me.id, `Added client ${name}`);
+  await db.client.create({ data: { name, color: ["s1", "s2", "s3"][n % 3], ...contract } });
+  await logAction(me.id, `Added client ${name} (${contractText(contract)})`);
   revalidatePath("/projects");
+  revalidatePath("/clients", "layout");
+  return { ok: true };
+}
+
+export async function updateClient(_: FormResult, form: FormData): Promise<FormResult> {
+  const me = await requireUser();
+  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can change clients." };
+  const client = await db.client.findUnique({ where: { id: String(form.get("id") ?? "") } });
+  if (!client) return { ok: false, error: "That client no longer exists." };
+  const contract = readContract(form);
+  if ("error" in contract) return { ok: false, error: contract.error };
+  await db.client.update({ where: { id: client.id }, data: contract });
+  if (contractText(client) !== contractText(contract)) await logAction(me.id, `Changed client ${client.name} to ${contractText(contract)}`);
+  revalidatePath("/projects");
+  revalidatePath("/clients", "layout");
   return { ok: true };
 }

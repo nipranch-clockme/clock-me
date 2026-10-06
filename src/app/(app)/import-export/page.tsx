@@ -24,7 +24,7 @@ export default async function ImportExportPage() {
       <ImportPanel kind="time" title="Import time entries" template={timeTemplate}
         help="Each row is one entry. Required columns: Date, Email, Project, Phase, Hours. Optional: Client (when two clients share a project name), Tag, Description, Start, and any custom field by name." />
       <ImportPanel kind="projects" title="Import projects" template={projTemplate}
-        help={`Required columns: Client, Project. Optional: Phases (separate with ;), Budget hours, Access (Everyone or Restricted), People (emails), Offices, Managers (emails). ${me.role === "ADMIN" ? "New clients are created as needed." : "Clients must already exist; only admins add clients."}`} />
+        help={`Required columns: Client, Project. Optional: Phases (separate with ;), Budget hours, Access (Everyone or Restricted), People (emails), Offices, Managers (emails). ${me.role === "ADMIN" ? "New clients are created as needed, with no commitment. Set fixed monthly hours for them on the Projects page." : "Clients must already exist; only admins add clients."}`} />
     </div>
   );
 }
