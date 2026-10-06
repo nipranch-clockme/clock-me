@@ -530,39 +530,7 @@ tr[hidden]{display:none}
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
-/* Neon: near-black blue, electric cyan and hot pink, lime for good news. Every glow is a stack of box-shadows:
-   a 1px ring in the colour, a tight blur (12-16px) at 50-60% for the bright core, a wide blur (30-50px) at 25-40% for the haze.
-   Text glow is text-shadow: 0 0 10-12px at 45-55%. */
-:root[data-theme="neon"]{
-  color-scheme:dark; --on-accent:#001418;
-  --bg:#07070F; --side:#0A0A16; --card:#0E0E1C; --tile:#14142A; --surface:#111128; --hover:#1B1B38; --track:#2A2A4A;
-  --ink:#EAF6FF; --muted:#9AA6C8; --line:#26264A; --border:#2C2C58; --line2:#3E3E78;
-  --accent:#00E5FF; --accent-hi:#5CF0FF; --link:#4DEBFF; --accent-soft:#06303A; --accent-ink:#8CF3FF;
-  --btn2:#1B1B38; --btn2-hi:#26264A; --seg-on:#2D2D5C; --lilac:#2B1646; --lilac-ink:#E3B8FF;
-  --ok:#39FF88; --ok-soft:#0B2E1C; --warn:#FFC53D; --warn-soft:#33270A; --bad:#FF4D8D; --bad-soft:#3A0F25; --bad-hi:#4A1430;
-  --s1:#00E5FF; --s2:#FF2E97; --s3:#B6FF00; --s4:#8A8FFF; --nb:#3E3E78; --on-s1:#001418; --s5:#39FF88; --s6:#FFC53D; --s7:#B16BFF; --s8:#FF7A45;
-  --t1:#06303A; --t1i:#8CF3FF; --t2:#2B1646; --t2i:#E3B8FF; --t3:#3A0F25; --t3i:#FF9CC4; --t4:#0B2E1C; --t4i:#8CFFB8; --t5:#33270A; --t5i:#FFD66B;
-  --shadow:0 0 0 1px rgba(0,229,255,.08); --pop:0 0 0 1px rgba(0,229,255,.55),0 0 28px rgba(0,229,255,.35),0 24px 60px rgba(0,0,0,.7); --scrim:rgba(4,0,16,.62);
-  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA6C8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-:root[data-theme="neon"] .panel{border-color:rgba(0,229,255,.28);box-shadow:inset 0 0 0 1px rgba(0,229,255,.05),0 0 18px rgba(0,229,255,.10)}
-:root[data-theme="neon"] .btn.primary,:root[data-theme="neon"] .btn.ok{box-shadow:0 0 0 1px rgba(0,229,255,.6),0 0 14px rgba(0,229,255,.55),0 0 34px rgba(0,229,255,.25)}
-:root[data-theme="neon"] .btn.primary:hover:not(:disabled){box-shadow:0 0 0 1px #5CF0FF,0 0 20px rgba(0,229,255,.8),0 0 48px rgba(0,229,255,.4)}
-:root[data-theme="neon"] .btn:not(.primary):not(.ok):hover{box-shadow:0 0 0 1px rgba(255,46,151,.7),0 0 14px rgba(255,46,151,.4)}
-:root[data-theme="neon"] input:focus,:root[data-theme="neon"] select:focus,:root[data-theme="neon"] textarea:focus{box-shadow:0 0 0 1px var(--accent),0 0 14px rgba(0,229,255,.5);outline:none}
-:root[data-theme="neon"] nav.snav a[aria-current="page"]{color:var(--accent);box-shadow:0 0 0 1px rgba(0,229,255,.55),0 0 14px rgba(0,229,255,.35)}
-:root[data-theme="neon"] h1,:root[data-theme="neon"] .sbrand{text-shadow:0 0 12px rgba(0,229,255,.5)}
-:root[data-theme="neon"] .stat b{text-shadow:0 0 10px rgba(0,229,255,.45)}
-:root[data-theme="neon"] dialog{box-shadow:var(--pop)}
-
-/* Theme picker */
-.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-.themecard{position:relative;display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--tile);cursor:pointer}
-.themecard input{position:absolute;opacity:0;inset:0;cursor:pointer}
-.themecard b{font-size:14px}
-.themecard small{color:var(--muted);font-size:12px;line-height:1.35}
-.themecard:hover{border-color:var(--line2)}
-.themecard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-.themecard:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
-.swatch{display:flex;height:34px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin-bottom:6px}
-.swatch i{flex:1}
+/* Theme toggle in the top bar */
+.themebtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:none;border:1px solid var(--border);border-radius:999px;background:var(--tile);color:var(--ink);cursor:pointer;padding:0;margin-left:6px}
+.themebtn:hover{background:var(--hover)}
+.themebtn svg{width:17px;height:17px}

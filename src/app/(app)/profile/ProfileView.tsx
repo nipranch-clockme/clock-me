@@ -1,4 +1,3 @@
-import AppearancePanel from "@/components/AppearancePanel";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { Me } from "@/lib/auth";
@@ -112,8 +111,6 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
           <div><dt>Expected hours per week</dt><dd>{person.weeklyTarget} h</dd></div>
         </dl>
       </section>
-
-      {self && <AppearancePanel />}
 
       <section className="panel full">
         <h3>Utilisation</h3>

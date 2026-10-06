@@ -1,17 +1,16 @@
-// Theme picker: pick each theme under Settings and on My profile, it applies at once and survives a reload.
+// Theme toggle: the button next to the profile picture flips light and dark, applies at once and survives a reload. Settings has no theme picker any more.
 const {start,login,BASE}=require('./helpers');
-let fail=0;const ok=(n,c,x='')=>{console.log((c?'PASS ':'FAIL ')+n+(x?' — '+x:''));if(!c)fail++};
+let fail=0;const ok=(n,c,x='')=>{console.log((c?'PASS ':'FAIL ')+n+(x?' \u2014 '+x:''));if(!c)fail++};
 (async()=>{const b=await start();
- const a=await login(b,'admin@example.com');
- await a.goto(BASE+'/settings');await a.waitForLoadState('networkidle');
- ok('Settings has three themes',(await a.locator('.themecard').count())===3);
- for(const t of ['Dark','Neon','Light']){
-  await a.locator('.themecard',{hasText:t}).first().click();await a.waitForTimeout(150);
-  const id=t.toLowerCase();ok(`${t} applies at once`,(await a.evaluate(()=>document.documentElement.dataset.theme))===id);
-  await a.reload();await a.waitForLoadState('networkidle');
-  ok(`${t} survives a reload`,(await a.evaluate(()=>document.documentElement.dataset.theme))===id&&(await a.locator(`.themecard.on:has-text("${t}")`).count())===1);}
- const m=await login(b,'tom@example.com');
- await m.goto(BASE+'/profile');await m.waitForLoadState('networkidle');
- ok('members can pick a theme on My profile',(await m.locator('.themecard').count())===3);
- ok('no browser errors',a.errs.length===0&&m.errs.length===0,JSON.stringify([...a.errs,...m.errs]));
+ for(const email of ['admin@example.com','tom@example.com']){
+  const a=await login(b,email);const th=()=>a.evaluate(()=>document.documentElement.dataset.theme);
+  await a.goto(BASE+'/timesheet');await a.waitForLoadState('networkidle');
+  ok(`${email}: starts light`,(await th())==='light');
+  ok(`${email}: toggle sits next to the profile picture`,(await a.locator('.who .plink + .themebtn').count())===1);
+  await a.click('.themebtn');await a.waitForTimeout(150);ok(`${email}: dark applies at once`,(await th())==='dark'&&(await a.locator('.themebtn').getAttribute('aria-label'))==='Switch to light theme');
+  await a.reload();await a.waitForLoadState('networkidle');ok(`${email}: dark survives a reload`,(await th())==='dark');
+  await a.click('.themebtn');await a.waitForTimeout(150);ok(`${email}: back to light`,(await th())==='light');
+  ok(`${email}: no browser errors`,a.errs.length===0,JSON.stringify(a.errs));}
+ const a2=await login(b,'admin@example.com');await a2.goto(BASE+'/settings');await a2.waitForLoadState('networkidle');
+ ok('Settings no longer has an Appearance panel',(await a2.locator('h3:text-is("Appearance")').count())===0);
  console.log(fail?`${fail} FAILURES`:'ALL THEME CHECKS PASSED');await b.close();})();
