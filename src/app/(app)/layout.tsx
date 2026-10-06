@@ -1,24 +1,27 @@
 import { requireUser } from "@/lib/auth";
 import { TABS, roleName } from "@/lib/roles";
-import NavLinks from "@/components/NavLinks";
+import AppShell from "@/components/AppShell";
 import Avatar from "@/components/Avatar";
+import TeamStrip from "@/components/TeamStrip";
 import Link from "next/link";
 import { logout } from "../login/actions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await requireUser();
-  const tabs = TABS.filter(([, , roles]) => roles === "all" || roles.includes(me.role)).map(([k, l]) => [k, l] as [string, string]);
+  const allowed = TABS.filter(([k, , roles]) => k !== "calendar" && (roles === "all" || roles.includes(me.role))).map(([k]) => k as string);
+  const who = (
+    <>
+      <Link href="/profile" className="plink" title="My profile" aria-label={`${me.name}, my profile`}>
+        <span className="whot"><b>{me.name}</b><small>{roleName(me.role)} · {me.location.name}</small></span>
+        <Avatar person={me} size={34} />
+      </Link>
+      <form action={logout} className="inline" style={{ marginLeft: 8 }}><button className="btn sm">Sign out</button></form>
+    </>
+  );
   return (
-    <div className="wrap">
-      <header className="bar">
-        <div className="brand"><h1>Clock me</h1></div>
-        <div className="userbox">
-          <span><Link href="/profile" className="melink" title="My profile"><Avatar person={me} size={26} />{me.name}</Link> · {roleName(me.role)} · {me.location.name}</span>
-          <form action={logout}><button className="btn sm">Sign out</button></form>
-        </div>
-      </header>
-      <NavLinks tabs={tabs} />
-      <main>{children}</main>
-    </div>
+    <AppShell allowed={allowed} who={who}>
+      <TeamStrip me={me} />
+      {children}
+    </AppShell>
   );
 }

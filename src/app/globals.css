@@ -1,110 +1,236 @@
 
-/* Layout: app bar with role switch, tab nav, one working area per tab; wide tables and the calendar scroll inside their own box */
+/* Layout: a light grey sidebar with the tabs (a drawer opened from the menu button on phones), a slim top bar with the prototype's
+   role switch and the signed-in person, then the page: a big bold title with the page's main actions on the right, over light grey cards.
+   Tables adapt to the width of their box (tighter, or rows as cards); the week grids scroll inside their own box on a phone */
 :root{
-  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#16202B; --muted:#5D6B7A; --line:#DCE2EA; --line2:#C3CCD8;
-  --accent:#2E4BD6; --accent-soft:#E6EAFB; --run:#C26A05; --run-soft:#FCEFDD;
-  --ok:#1C7C4A; --ok-soft:#E1F3E8; --warn:#A35C00; --warn-soft:#FBEBD3; --bad:#B42335; --bad-soft:#FBE3E6;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#8A94A3; --nb:#B9C3D0;
-  --display:var(--font-display),"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
-  --body:var(--font-body),"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
-  --mono:var(--font-mono),"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --bg:#FFFFFF; --side:#F3F4F5; --card:#F3F4F5; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#E8EAED; --track:#DADDE1;
+  --ink:#1F2328; --muted:#5B6470; --line:#E0E3E7; --border:#DEE0E4; --line2:#C9CDD2;
+  --accent:#0168DA; --accent-hi:#0157B8; --link:#0168DA; --accent-soft:#DCE8FB; --accent-ink:#1F5FB8;
+  --btn2:#E6E8EB; --btn2-hi:#DADDE1; --seg-on:#DADDE1; --lilac:#EEE3FC; --lilac-ink:#6A3DAE;
+  --ok:#276B3C; --ok-soft:#DFF3E4; --warn:#964A0B; --warn-soft:#FDE7D3; --bad:#B42335; --bad-soft:#FBE3E6; --bad-hi:#F7D2D7;
+  --s1:#0168DA; --s2:#F59A3E; --s3:#0B3B75; --s4:#9199A3; --nb:#C9CDD2; --on-s1:#FFFFFF; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
+  --t1:#DCE8FB; --t1i:#1F5FB8; --t2:#EEE3FC; --t2i:#6A3DAE; --t3:#FBE1EC; --t3i:#A3376B; --t4:#DFF3E4; --t4i:#276B3C; --t5:#FDE7D3; --t5i:#964A0B;
+  --shadow:0 1px 2px rgba(16,24,40,.06); --pop:0 16px 40px rgba(16,24,40,.18),0 2px 6px rgba(16,24,40,.08); --scrim:rgba(15,20,28,.42);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%235B6470' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --display:var(--body);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0F151C; --surface:#18212B; --ink:#E6ECF2; --muted:#93A1B0; --line:#2A3644; --line2:#3A4859;
-  --accent:#8EA2FF; --accent-soft:#232E55; --run:#F2A445; --run-soft:#3A2A14;
-  --ok:#5FD08F; --ok-soft:#173326; --warn:#F2B35E; --warn-soft:#3A2A12; --bad:#FF8592; --bad-soft:#3D1C22;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C8796; --nb:#4A5A6E; color-scheme:dark}}
+  --bg:#0F1216; --side:#16191E; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
+  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
+  --accent:#1F6FDB; --accent-hi:#1A62C4; --link:#72AAFF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
+  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
+  --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
+  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
+  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
+  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0F151C; --surface:#18212B; --ink:#E6ECF2; --muted:#93A1B0; --line:#2A3644; --line2:#3A4859;
-  --accent:#8EA2FF; --accent-soft:#232E55; --run:#F2A445; --run-soft:#3A2A14;
-  --ok:#5FD08F; --ok-soft:#173326; --warn:#F2B35E; --warn-soft:#3A2A12; --bad:#FF8592; --bad-soft:#3D1C22;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C8796; --nb:#4A5A6E; color-scheme:dark}
+  --bg:#0F1216; --side:#16191E; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
+  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
+  --accent:#1F6FDB; --accent-hi:#1A62C4; --link:#72AAFF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
+  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
+  --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
+  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
+  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
+  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-inline:16px;padding-block:0 56px}
-.wrap{max-width:1180px;margin:0 auto}
-header.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:18px 10px}
-.brand{display:flex;align-items:baseline;gap:10px}
-.brand h1{font:700 26px/1 var(--display);margin:0;letter-spacing:-.01em}
-.tag{font:500 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line);padding:4px 6px;border-radius:4px}
-.seg{display:inline-flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px}
-.seg button{border:0;background:transparent;color:var(--muted);font:500 13px var(--body);padding:6px 10px;border-radius:6px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
-.who{font-size:13px;color:var(--muted)}
-nav.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:20px}
-nav.tabs button{border:0;background:none;color:var(--muted);font:500 14px var(--body);padding:10px 12px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
-nav.tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-h2{font:700 20px/1.2 var(--display);margin:0 0 4px;text-wrap:balance}
-h3{font:600 12px/1.2 var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 12px}
-.sub{color:var(--muted);margin:0 0 14px;font-size:14px}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);-webkit-font-smoothing:antialiased}
+/* App frame */
+.app{display:grid;grid-template-columns:212px minmax(0,1fr);min-height:100vh}
+.side{background:var(--side);border-right:1px solid var(--border);z-index:40}
+.sidein{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:16px 10px 12px;overflow-y:auto}
+.sbrand{display:flex;align-items:center;gap:9px;padding:2px 8px 14px;font:700 17px/1 var(--body);letter-spacing:-.02em;color:var(--ink)}
+.mark{width:24px;height:24px;flex:none;display:block}
+
+nav.snav{display:flex;flex-direction:column;gap:2px;flex:1 0 auto}
+nav.snav a,nav.snav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink);font:500 13.5px/1.2 var(--body);padding:8px 10px;border-radius:7px;cursor:pointer;text-align:left}
+nav.snav a svg,nav.snav button svg{width:16px;height:16px;flex:none;color:var(--muted)}
+nav.snav a:hover,nav.snav button:hover{background:var(--hover)}
+nav.snav a[aria-current="page"],nav.snav button[aria-current="page"]{background:var(--tile);font-weight:600;box-shadow:var(--shadow)}
+nav.snav a[aria-current="page"] svg,nav.snav button[aria-current="page"] svg{color:var(--accent)}
+nav.snav hr{border:0;border-top:1px solid var(--border);margin:8px 6px;width:auto}
+nav.snav .navend{margin-top:auto} /* Settings stays at the bottom */
+nav.snav hr+.navend{margin-top:auto}
+.sfoot{margin:6px 2px 0;padding:10px 11px;border:1px dashed var(--line2);border-radius:8px;font-size:12px;line-height:1.45;color:var(--muted)}
+.sfoot p{margin:0 0 6px}
+.sfoot b{color:var(--ink);font-weight:600}
+.sfoot .linkbtn{font-size:12px}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 28px 6px;min-height:62px}
+.menubtn,.iconbtn{display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border:0;border-radius:8px;background:none;color:var(--ink);cursor:pointer;padding:0}
+.menubtn:hover,.iconbtn:hover{background:var(--hover)}
+.menubtn svg,.iconbtn svg{width:20px;height:20px}
+.menubtn,.tbrand,.sbrand .sclose{display:none}
+.sbrand .sclose{margin:-6px -4px -6px auto}
+.tbrand{align-items:center;gap:8px;font:700 16px/1 var(--body);letter-spacing:-.02em}
+/* the prototype-only role switch: clearly marked, never part of the real app */
+.proto{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 4px 4px 6px;border:1px dashed var(--line2);border-radius:10px;min-width:0;max-width:100%}
+.ptag{font:600 11px/1 var(--body);color:var(--lilac-ink);background:var(--lilac);padding:5px 7px;border-radius:5px;letter-spacing:.01em}
+.plab{font-size:12px;color:var(--muted)}
+.proto .seg{max-width:100%}
+.who{display:flex;align-items:center;min-width:0;margin-left:auto}
+.who .plink{display:flex;align-items:center;gap:10px;text-decoration:none;padding:3px 3px 3px 10px;border-radius:999px;min-width:0}
+.who .plink:hover{background:var(--hover);color:var(--ink)}
+.whot{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;min-width:0}
+.whot b{font-weight:600;font-size:13px;color:var(--ink);white-space:nowrap}
+.whot small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.who .plink[aria-current] .whot b{color:var(--link)}
+.who .plink[aria-current] .av{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+#view{padding:10px 28px 64px;width:100%;max-width:1360px}
+/* the notice about new sample data, between the top bar and the page and lined up with it */
+.notice{padding:4px 28px 0;width:100%;max-width:1360px}
+.notice .alert{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0}
+.notice .alert p{margin:0;flex:1 1 380px;min-width:0}
+.scrim{display:none}
+/* Page header: big title on the left, main actions on the right */
+.phd{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 20px;margin:4px 0 20px}
+.phd-t{min-width:0;flex:1 1 320px}
+.phd h1{font:700 26px/1.2 var(--body);letter-spacing:-.025em;margin:0}
+.phd h1:focus{outline:none}
+.phd .sub{margin:6px 0 0;max-width:80ch}
+.phd-a{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;min-height:31px}
+.back{margin:0 0 10px}
+.back .linkbtn{font-weight:500;color:var(--muted)}
+.back .linkbtn:hover{color:var(--link)}
+.shd{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:32px 0 6px}
+.shd h2{font-size:20px;margin:0}
+.shd+.note{margin:0 0 16px;max-width:90ch}
+/* Segmented control: a white track, the chosen option filled grey */
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--tile);border:1px solid var(--border);border-radius:7px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--muted);font:500 12px/1.2 var(--body);padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--ink);background:var(--hover)}
+.seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:600}
+/* Timer view: the timer card (fields, big clock, Start / Stop) and the week's entries by day */
+.tmcard{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tmcard .row{flex:1 1 460px;margin:0}
+.tmcard .row>div{flex:1 1 150px!important;min-width:0}.tmcard .row>div:last-child{flex-basis:100%!important}
+.tmctl{display:flex;align-items:center;gap:10px;flex:0 0 auto;margin-left:auto}
+.tmclock{font:600 28px/1 var(--body);font-variant-numeric:tabular-nums;min-width:6ch;text-align:right;margin-right:6px}
+.tmnote{margin:8px 2px 0}
+.tmday{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin:20px 2px 8px}
+.tmrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:0 0 6px;font:inherit;color:inherit;cursor:pointer}
+.tmrow:hover{border-color:var(--accent)}
+.tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
+.tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.tmctl{margin-left:0;width:100%;justify-content:space-between}.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
+/* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
+.phd-tt{display:flex;align-items:center;gap:10px 16px}
+.phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
+.wkwho{display:inline-flex;align-items:center;gap:6px;margin:0 4px}.wkwho b{font-weight:600} /* whose week, when showing someone else's calendar */
+.seg.vt button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:6px 12px}
+.seg.vt svg{width:15px;height:15px;flex:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font:700 18px/1.25 var(--body);letter-spacing:-.015em;margin:0 0 4px;text-wrap:balance}
+h3{font:700 14px/1.3 var(--body);color:var(--ink);margin:0 0 12px}
+.sub{color:var(--muted);margin:0 0 14px;font-size:13.5px}
 .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))}
 .full{grid-column:1/-1}
 .grid.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.grid.max2{grid-template-columns:repeat(auto-fit,minmax(max(min(100%,360px),calc(50% - 8px)),1fr))} /* never more than two cards side by side, so a pair fills the row on wide screens */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;min-width:0}
 .stack{display:flex;flex-direction:column;gap:16px;min-width:0}
-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+/* Card header: bold title, muted detail on the right */
+.ch{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin:0 0 12px}
+.ch>h2,.ch>h3{margin:0;font:700 14px/1.3 var(--body);letter-spacing:0}
+.ch .cd{font-size:13px;color:var(--muted);font-weight:400}
+.ch:has(.fbar){align-items:center}
+label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
 label .req{color:var(--bad)}
-input,select,textarea{width:100%;font:15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
-textarea{font:13px/1.45 var(--mono);min-height:130px;resize:vertical}
-input[type=checkbox],input[type=radio]{width:auto;margin:0 6px 0 0;vertical-align:middle;accent-color:var(--accent)}
-.check{display:flex;align-items:center;font-size:14px;color:var(--ink);font-weight:400;margin:0;padding:3px 0}
-input.err,select.err{border-color:var(--bad);background:var(--bad-soft)}
+input,select,textarea{width:100%;font:14px/1.3 var(--body);color:var(--ink);background-color:var(--tile);border:1px solid var(--line2);border-radius:6px;padding:7px 10px;min-height:34px}
+select{-webkit-appearance:none;appearance:none;background-image:var(--chev);background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
+select:disabled{opacity:.6;cursor:not-allowed}
+input:hover:not(:disabled):not(:focus),select:hover:not(:disabled):not(:focus){border-color:var(--muted)}
+input[type=file]{min-height:0}
+textarea{font:12.5px/1.5 var(--mono);min-height:130px;resize:vertical}
+input[type=checkbox],input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0;vertical-align:middle;accent-color:var(--accent)}
+.check{display:flex;align-items:center;font-size:14px;color:var(--ink);font-weight:400;margin:0;padding:4px 0}
+input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
+/* Compact filter field: label and dropdown in one box, for page and card toolbars */
+.ifld{display:flex;align-items:center;min-width:0;max-width:100%;background:var(--tile);border:1px solid var(--line2);border-radius:6px;padding-left:10px}
+.ifld:hover{border-color:var(--muted)}
+.ifld:focus-within{border-color:var(--accent)}
+.ifld label{margin:0;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
+.ifld select,.ifld input{border:0;background-color:transparent;min-height:32px;width:auto;min-width:0;max-width:240px;padding-left:7px;font-size:13px;font-weight:500;text-overflow:ellipsis}
+.ifld select:focus-visible,.ifld input:focus-visible{outline:none}
+.ifld input[type=date]{padding-right:8px}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;max-width:100%} /* never wider than its box, so a long client name in a dropdown can't push the page sideways */
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .row>div{flex:1 1 150px;min-width:0}
-.row>.seg,.row>.btn{flex:0 0 auto}
+.row>.btn{flex:0 0 auto}
+.row>.seg{flex:0 1 auto} /* shrinks and wraps its buttons rather than running off a narrow screen */
 .between{justify-content:space-between;align-items:center}
-.btn{font:600 14px var(--body);border-radius:6px;padding:9px 14px;cursor:pointer;border:1px solid var(--line2);background:var(--surface);color:var(--ink)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-.btn.ok{color:var(--ok);border-color:var(--ok)}
-.btn.bad{color:var(--bad);border-color:var(--bad)}
-.btn.sm{padding:5px 10px;font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 13px/1.25 var(--body);border-radius:6px;padding:7px 13px;min-height:34px;cursor:pointer;border:1px solid transparent;background:var(--btn2);color:var(--ink);text-align:center}
+.btn:hover:not(:disabled){background:var(--btn2-hi)}
+.btn.primary,.btn.ok{background:var(--accent);color:#fff}
+.btn.primary:hover:not(:disabled),.btn.ok:hover:not(:disabled){background:var(--accent-hi)}
+.btn.bad{background:var(--bad-soft);color:var(--bad)}
+.btn.bad:hover:not(:disabled){background:var(--bad-hi)}
+.btn.sm{padding:4px 10px;min-height:28px;font-size:12px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.linkbtn{background:none;border:0;color:var(--accent);font:600 13px var(--body);cursor:pointer;padding:0}
-.timer{font:500 44px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.running .timer{color:var(--run)}
-.runline{font-size:13px;color:var(--run);background:var(--run-soft);border-radius:6px;padding:6px 10px;margin:0}
-.big{font-size:16px;padding:12px 18px;width:100%}
-.running .big{background:var(--run);border-color:var(--run)}
-.tablebox{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th{font:600 12px var(--body);color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
-.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.linkbtn{background:none;border:0;color:var(--link);font:600 13px var(--body);cursor:pointer;padding:0;border-radius:3px}
+.linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+.tablebox{overflow-x:auto;container-type:inline-size} /* a size container, so tables can change layout by the width of their box */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font:600 12px/1.3 var(--body);color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom-color:var(--line)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
 tfoot td{font-weight:600;border-bottom:0}
-.cell{width:70px;text-align:right;font-family:var(--mono);padding:6px}
-.cell:disabled{background:transparent;border-style:dashed}
-.cellbtn{width:70px;font:14px var(--mono);text-align:right;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer}
-.cellbtn.empty0{color:transparent}
-.cellbtn.lk{background:transparent;border-style:dashed;cursor:default}
-/* Timesheet: one chip per entry in each day cell; the rest of the cell is a button that adds time. */
-table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
-.cellstack{display:flex;flex-direction:column;gap:3px;min-height:34px;height:100%}
-.chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
-.chipbtn:hover{border-color:var(--line2)}
-.addcell{flex:1 1 auto;min-height:26px;width:100%;border:1px dashed transparent;border-radius:6px;background:transparent;color:transparent;font:600 15px var(--body);cursor:pointer}
-.sheetcell.open{cursor:pointer}
-.addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent);background:var(--accent-soft)}
-.sheetcell.locked .cellstack{min-height:0}
-.sheetcell.locked{cursor:default}
-.rowx{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;cursor:pointer}
-.rowx:hover,.rowx:focus-visible{background:var(--bg);color:var(--ink)}
-.sheettip{position:fixed;z-index:50;max-width:min(280px,calc(100vw - 16px));max-height:45vh;overflow:hidden;overflow-wrap:anywhere;background:var(--ink);color:var(--surface);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:none}
-.sheettip div+div{margin-top:3px}
-.sheettip span{display:block;font:600 10px/1.3 var(--body);text-transform:uppercase;letter-spacing:.07em;opacity:.7}
-@media (hover:none){.addcell{color:var(--line2)}}
-.pill{display:inline-block;font:600 11px/1 var(--body);text-transform:uppercase;letter-spacing:.06em;padding:5px 8px;border-radius:99px;white-space:nowrap}
-.p-draft,.p-info{background:var(--accent-soft);color:var(--accent)}
+@container (width<340px){th{white-space:normal} th,td{padding-inline:6px}} /* small phones: tighter cells, so short tables still fit */
+td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-position:right 9px center} td input.cell{font-size:13px;min-height:32px} /* dropdowns inside tables are a little more compact */
+.cell{width:70px;text-align:right;font-variant-numeric:tabular-nums;padding:6px 8px;min-height:30px}
+.cell:disabled{background-color:transparent;border-style:dashed}
+/* Timesheet grid: one row per project; each day cell stacks one chip per entry, and its empty part is a button that adds time */
+.sheet tbody td{vertical-align:top}
+.sheet td.pcell{min-width:190px}
+.sheet th .dh{display:inline-block;padding:3px 7px;margin-right:-7px;border-radius:5px}
+.sheet th .lk{width:11px;height:11px;vertical-align:-1px;color:var(--muted)}
+.sheet th.today .dh{background:var(--lilac);color:var(--lilac-ink)}
+.plabel{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.rmrow{flex:none;width:24px;height:24px;border:1px solid transparent;border-radius:6px;background:none;color:var(--muted);font:500 16px/1 var(--body);cursor:pointer;padding:0}
+.rmrow:hover,.rmrow:focus-visible{border-color:var(--line2);color:var(--bad);background:var(--bad-soft)}
+.sheet td.dc{padding:4px;height:1px;vertical-align:top;min-width:80px}
+.sheet td.dc.open{cursor:pointer}
+.sheet td.dc.lkday{background-color:color-mix(in srgb,var(--line) 55%,transparent)}
+.dcin{display:flex;flex-direction:column;gap:3px;height:100%;min-height:34px}
+.ent{display:block;width:100%;font:600 13px/1.2 var(--body);font-variant-numeric:tabular-nums;text-align:right;padding:6px 8px;border:1px solid var(--border);border-left:4px solid var(--line2);border-radius:6px;background:var(--tile);color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
+.ent:hover{background:var(--accent-soft)}
+.ent.ro{background:transparent;border-style:dashed;border-left-style:solid;box-shadow:none}
+.addcell{flex:1 1 auto;width:100%;min-height:20px;border:1px dashed transparent;border-radius:6px;background:none;color:transparent;font:500 16px/1 var(--body);cursor:pointer;padding:0}
+.addcell:hover,.addcell:focus-visible,.sheet td.dc.open:hover:not(:has(.ent:hover)) .addcell{border-color:var(--line2);color:var(--muted);background:var(--tile)}
+.chiptip{position:fixed;left:0;top:0;z-index:25;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:3px 10px;max-width:min(300px,calc(100vw - 16px));background:var(--ink);color:var(--bg);font-size:12px;line-height:1.4;padding:8px 10px;border-radius:7px;pointer-events:none;box-shadow:var(--pop);overflow-wrap:anywhere}
+.chiptip[hidden]{display:none}
+.chiptip b{font-weight:600;opacity:.7}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 16px;margin:0;font-size:14px}
+.kv dt{font-size:12px;font-weight:500;color:var(--muted);padding-top:2px}
+.kv dd{margin:0;overflow-wrap:anywhere}
+/* Status pills: soft blue, green, orange and red; neutral ones are outlined white */
+.pill{display:inline-block;font:500 12px/1 var(--body);padding:4px 8px;border-radius:5px;white-space:nowrap;vertical-align:1px}
+.pill::first-letter{text-transform:uppercase}
+.p-draft,.p-info{background:var(--accent-soft);color:var(--accent-ink)}
 .p-submitted,.p-warn{background:var(--warn-soft);color:var(--warn)}
 .p-approved,.p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-rejected,.p-bad{background:var(--bad-soft);color:var(--bad)}
-.p-locked{background:var(--line);color:var(--muted)}
-.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;flex:none}
-.meter{height:8px;background:var(--line);border-radius:99px;overflow:hidden;min-width:70px}
+.p-locked{background:var(--tile);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line2)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px;flex:none}
+.meter{height:8px;background:var(--track);border-radius:99px;overflow:hidden;min-width:70px}
 .meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
-.meter i.hi{background:var(--warn)} .meter i.over{background:var(--bad)} .meter i.done{background:var(--ok)}
+.meter i.hi{background:var(--s2)} .meter i.over{background:var(--bad)} .meter i.done{background:var(--ok)}
 .stats{display:flex;flex-wrap:wrap;gap:28px}
-.stat b{display:block;font:500 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
+.stat b{display:block;font:600 26px/1.15 var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .stat span{font-size:12px;color:var(--muted)}
+/* Key numbers as white tiles (the timesheet's week totals) */
+.row>.weeknav{flex:1 1 300px}
+.stats.tiles{gap:8px;justify-content:flex-end}
+.row>.stats.tiles{flex:1 1 250px}
+.stats.tiles .stat{background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:8px 14px;min-width:120px}
+.stats.tiles .stat b{font-size:20px}
 /* Summary numbers in equal columns with a thin line between them. The column count steps with the panel's width so a
    9-character total fits: 5 numbers go 5, 3+2, then the first alone over 2x2; 4 go 4, then 2x2; 3 (.sm) go 3, then 2+1.
    On a phone the numbers shrink to fit. The box is shifted left and clips, hiding the line at the start of each row. */
@@ -122,69 +248,254 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 @container (width<510px){.stats.spread:has(>:nth-child(5)){--n:2}.stats.spread>:first-child:nth-last-child(5){grid-column:1/-1}}
 @container (width<390px){.stats.spread.sm{--p:8px}}
 @container (width<280px){.stats.spread.sm{--n:2;--p:16px}.stats.spread.sm>:last-child{grid-column:1/-1}}
-.weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.weeknav strong{font-family:var(--mono);font-size:14px}
-.note{font-size:13px;color:var(--muted)}
+.weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.weeknav strong{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;margin:0 2px}
+.weeknav>.btn.sm{background:transparent;font-size:19px;font-weight:500;line-height:1;width:30px;padding:0}
+.weeknav>.btn.sm:hover:not(:disabled){background:var(--hover)}
+.weeknav>.btn.sm:disabled{opacity:.3}
+.weeknav .linkbtn{background:var(--btn2);color:var(--ink);font-size:12px;padding:6px 10px;border-radius:6px;margin-right:4px}
+.weeknav .linkbtn:hover{background:var(--btn2-hi);text-decoration:none}
+.note{font-size:12.5px;color:var(--muted)}
 .list{display:flex;flex-direction:column}
 .item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .item:last-child{border-bottom:0}
-.meta{font-size:13px;color:var(--muted)}
-.empty{color:var(--muted);font-size:14px;padding:12px 0}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
-.banner{font-size:13px;color:var(--muted);border:1px dashed var(--line2);border-radius:8px;padding:8px 12px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
-.alert{border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 14px}
-.alert.bad{background:var(--bad-soft);color:var(--bad)} .alert.warn{background:var(--warn-soft);color:var(--warn)} .alert.info{background:var(--accent-soft);color:var(--accent)}
-.cal{position:relative;display:grid;grid-template-columns:52px repeat(7,minmax(90px,1fr));min-width:720px}
-.cal .hd{font:600 12px var(--body);color:var(--muted);padding:6px 4px;border-bottom:1px solid var(--line);text-align:center}
-.cal .hd.today{color:var(--accent)}
+.meta{font-size:12.5px;color:var(--muted)}
+.empty{color:var(--muted);font-size:13.5px;padding:12px 0}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13.5px;font-weight:500;z-index:50;max-width:calc(100% - 32px);box-shadow:var(--pop)}
+.alert{border-radius:8px;padding:10px 12px;font-size:13.5px;margin:0 0 14px}
+.alert.bad{background:var(--bad-soft);color:var(--bad)} .alert.warn{background:var(--warn-soft);color:var(--warn)} .alert.info{background:var(--accent-soft);color:var(--accent-ink)}
+.cal{position:relative;display:grid;grid-template-columns:52px repeat(7,minmax(76px,1fr));min-width:584px}
+.cal .hd{display:flex;flex-direction:column;align-items:center;gap:3px;font:500 11.5px/1.2 var(--body);color:var(--muted);padding:4px 4px 8px;border-bottom:1px solid var(--line);text-align:center}
+.cal .hd .dn{display:grid;place-items:center;min-width:28px;height:28px;padding:0 4px;border-radius:999px;background:var(--btn2);color:var(--ink);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.cal .hd.today{color:var(--lilac-ink)}
+.cal .hd.today .dn{background:var(--lilac);color:var(--lilac-ink)}
 .cal .hrs{position:relative}
-.cal .hrs span{position:absolute;right:6px;font:400 11px var(--mono);color:var(--muted);transform:translateY(-50%)}
-.cal .col{position:relative;border-left:1px solid var(--line);cursor:crosshair;user-select:none;-webkit-user-select:none;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
-.cal .col.locked{cursor:not-allowed;background-color:color-mix(in srgb,var(--line) 35%,transparent)}
+.cal .hrs span{position:absolute;right:8px;font:400 11px var(--body);font-variant-numeric:tabular-nums;color:var(--muted);transform:translateY(-50%)}
+.cal .col{position:relative;border-left:1px solid var(--line);cursor:crosshair;-webkit-user-select:none;user-select:none;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
+.cal .col.locked{cursor:not-allowed;background-color:color-mix(in srgb,var(--line) 45%,transparent)}
+.ev{position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.25;overflow:hidden;background:var(--tile);border:1px solid var(--border);border-left-width:4px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}
+.ev:hover{background:var(--accent-soft)}
+.ev b{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev span{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+/* Drag to add: the block drawn while dragging down (or up) an open day */
+.caldraw{position:absolute;left:3px;right:3px;z-index:2;border-radius:6px;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);pointer-events:none}
+.caldraw span{position:absolute;left:4px;right:4px;top:2px;font:600 11px/1.3 var(--body);font-variant-numeric:tabular-nums;color:var(--link)}
+.caldraw i{font-style:normal;white-space:nowrap}
+.caldraw.short span{left:-3px;right:-3px;top:calc(100% + 3px);padding:1px 5px;border:1px solid var(--accent);border-radius:4px;background:var(--tile)}
+.caldraw.short.above span{top:auto;bottom:calc(100% + 3px)}
+body.caldragging,body.caldragging *{cursor:crosshair!important;user-select:none!important;-webkit-user-select:none!important}
+body.calpen .cal .col.can{touch-action:none} /* see the pen note next to the drag code */
+.chart{position:relative}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font:11px var(--body);font-variant-numeric:tabular-nums}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;line-height:1.45;padding:7px 10px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-100%);z-index:5;box-shadow:var(--pop)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.matrix td,.matrix th{text-align:center} .matrix td:first-child,.matrix th:first-child{text-align:left}
+/* the roles table on a phone: each permission over its five roles, each with the role's name (data-l), so nothing hides off to the side */
+@container (width<620px){
+  .matrix thead{display:none}
+  .matrix,.matrix tbody{display:block}
+  .matrix tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .matrix td{display:flex;flex-direction:column;justify-content:space-between;padding:0;border:0;text-align:left}
+  .matrix td:first-child{display:block;grid-column:1/-1;font-weight:500}
+  .matrix td[data-l]::before{content:attr(data-l);display:block;font:500 11.5px/1.3 var(--body);color:var(--muted);margin-bottom:1px}
+}
+.yes{color:var(--ok);font-weight:600} .part{color:var(--warn);font-size:12.5px} .no{color:var(--muted)}
+.modal{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:calc(48px + env(safe-area-inset-top,0px)) 16px 16px;z-index:45;overflow:auto}
+.modal .panel{width:min(640px,100%);background:var(--tile);border-color:var(--border);border-radius:12px;padding:20px 22px 22px;box-shadow:var(--pop)}
+.modal .panel>.row.between:first-child{align-items:center;margin-bottom:10px}
+.modal h2{font-size:18px;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:2px;font-size:12px;background:var(--tile);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-variant-numeric:tabular-nums}
+.chip .linkbtn{margin-left:4px;color:var(--muted);font-size:14px;line-height:1}
+.chip .linkbtn:hover{color:var(--bad);text-decoration:none}
+.cols2{columns:2 200px;column-gap:20px}
+.ptable td:first-child{min-width:190px} .ptable td:nth-child(5){min-width:130px} .ptable td:nth-child(5) .note{white-space:nowrap}
+/* People: the role and office dropdowns are just wide enough for their longest option */
+.pptable .pname{min-width:0} .pptable select[data-urole]{min-width:150px} .pptable select[data-uloc]{min-width:104px} .pptable th.eh{white-space:normal;min-width:108px}
+/* Tables that turn into cards when their box is too narrow for every column (People, Projects): the header row hides and each row
+   becomes a card. The first cell (who or what) sits on the left with the row's button (td.act) under it, and the other cells become
+   small labelled fields (data-l) in an even grid beside it: 3 across for People, 2 for Projects. In a narrower box the first cell
+   goes across the top with the button at its right, and on a phone People's fields go 2 across */
+@container (width<940px){
+  .ctable thead{display:none}
+  .ctable,.ctable tbody,.ctable td{display:block}
+  .ctable tr{--cc:2;position:relative;display:grid;grid-template-columns:minmax(170px,1.2fr) repeat(var(--cc),minmax(0,1fr));grid-template-rows:auto auto;gap:12px 20px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .pptable tr{--cc:3}
+  .ctable tr:first-child{padding-top:2px}
+  .ctable td{padding:0;border:0;min-width:0!important;text-align:left}
+  .ctable td:first-child{grid-column:1;grid-row:1/-1}
+  .ctable tr:has(>.act:not(:empty))>td:first-child{padding-bottom:38px}
+  .ctable td.act{position:absolute;left:0;bottom:14px}
+  .ctable td.act:empty{display:none}
+  .ctable td[data-l]::before{content:attr(data-l);display:block;font:500 12px/1.3 var(--body);color:var(--muted);margin:0 0 5px}
+  .ctable td select{min-width:0!important;max-width:240px;padding-right:26px;background-position:right 8px center}
+  .pptable td[data-l]{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;line-height:32px} .pptable td[data-l]>.pill{margin-bottom:6px} /* values line up along a row, even under a two-line label */
+}
+@container (width<648px){
+  .ctable tr{grid-template-columns:repeat(var(--cc),minmax(0,1fr));grid-template-rows:none}
+  .ctable td:first-child{grid-column:1/-1;grid-row:auto}
+  .ctable tr:has(>.act:not(:empty))>td:first-child{padding:0 70px 0 0}
+  .ctable td.act{left:auto;right:0;bottom:auto;top:14px}
+  .ctable tr:first-child>td.act{top:2px}
+}
+@container (width<482px){.pptable tr{--cc:2}}
+/* Clients: utilisation is a bar with the percentage under it. As cards the fields go 3 across (2 on a phone), and the ones that don't
+   apply to a no-commitment client hide */
+.cltable td:first-child{min-width:170px} .cltable td.uc{min-width:124px} .cltable td.uc .meter{margin:3px 0 6px}
+@container (width>=940px){.cltable th,.cltable td{padding-inline:8px} .cltable th{white-space:normal;vertical-align:bottom} .cltable .cname{max-width:230px}} /* long headers can take two lines, a long name wraps */
+@container (width<940px){.cltable tr{--cc:3} .cltable td.na{display:none}}
+@container (width>=648px) and (width<940px){.cltable tr:has(>td.pc){grid-template-rows:auto auto auto}} /* a row with a pace has 7 fields: the name runs down all 3 rows */
+@container (width<482px){.cltable tr{--cc:2} .cltable td.pc .pill,.cltable td.pc .nw,.cltable td.nw{white-space:normal} .cltable td.pc .pill{line-height:1.3}} /* on a small phone a long pace or type can wrap */
+.neg{color:var(--bad);font-weight:600;white-space:nowrap}
+.cltable td.na{text-align:center} /* no-commitment clients: one "No contracted hours" across the contract columns */
+.cname{display:flex;align-items:baseline;min-width:0} .cname .plink{min-width:0;overflow-wrap:anywhere} /* a client's dot and name side by side: a long name wraps beside its dot */
+.meter:has(.tick){position:relative} .meter .tick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink);opacity:.6} /* where the hours should be by now */
+.phd h1 .dot{width:12px;height:12px;margin-right:10px;vertical-align:3px}
+@container (width<300px){.ppltable .pname .av{display:none}} /* the smallest phones: hours by person drops the photos so the numbers stay in view */
+/* the add or edit client dialog: each type of client with a line about it under its name */
+fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype legend{font-size:12px;font-weight:500;color:var(--muted);padding:0;margin:0 0 2px}
+.ctype .check{align-items:flex-start;padding:6px 0} .ctype .check input{margin-top:3px} .ctype .check .note{display:block;margin-top:1px}
+/* Dashboard office cards (admins): three to a row when there's room for each card's three numbers, the last row's cards sharing it
+   evenly (w3, half a row each); two to a row on a tablet, the first card across the top when the count is odd; one to a row on a phone and
+   wherever half a row is too narrow for the three numbers side by side (each card keeps them in one row, with one-line labels) */
+.offwrap{container-type:inline-size;min-width:0}
+.offs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.offs>.panel{grid-column:span 2} .offs>.panel.w3{grid-column:span 3}
+@container (width<980px){.offs>.panel,.offs>.panel.w3{grid-column:span 3} .offs>.panel:first-child:nth-last-child(odd){grid-column:1/-1}}
+@container (width<660px){.offs>.panel,.offs>.panel.w3,.offs>.panel:first-child:nth-last-child(odd){grid-column:1/-1}}
+/* Dashboard top performers in a narrow box (phones): the ranking numbers stay in view. The job title line and the target
+   column hide, and the office moves under the name. The table with an office column (.tw) needs more room, so its office moves
+   under the name sooner (as at half a row on a laptop), keeping the target column while there's room for it */
+.toptable .pname{min-width:150px} .toptable .tpo{display:none}
+/* the job title line keeps to one line, so every row is the same height: the team shows after the title only while both fit (otherwise it
+   wraps out of sight, so a line never starts with a dot), and a title too long for the box ends in "…" */
+.toptable .note{line-height:1.25} .toptable .tml{display:flex;flex-wrap:wrap;column-gap:.3em;height:1.25em;overflow:hidden} .toptable .tml>span{white-space:nowrap} .toptable .tml>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@container (width<500px){
+  .toptable.tw .pname{min-width:0;gap:8px} .toptable.tw .pname .note{display:none} .toptable.tw .pname .note.tpo{display:block}
+  .toptable.tw .tpoc{display:none} .toptable.tw th,.toptable.tw td{padding-inline:7px}
+}
+@container (width<430px){
+  .toptable .pname{min-width:0;gap:8px} .toptable .pname .note{display:none}
+  .toptable .tgc{display:none} .toptable th,.toptable td{padding-inline:7px}
+}
+/* the timesheet's empty-week message wraps within the visible box, even while the table scrolls sideways on a phone */
+.sheet td.empty>div{max-width:calc(100cqw - 20px)}
+/* a narrower timesheet (tablets, small laptops): tighter columns, and a day's name and date may stack, so the whole week fits */
+@container (width<820px){.sheet td.pcell{min-width:140px} .sheet td.dc{min-width:0} .sheet th{padding-inline:4px;white-space:normal} .sheet td.num{padding-inline:6px} .sheet .ent{padding-inline:5px}}
+/* import check: dates stay on one line, a long problem wraps inside its pill. On a phone each row stacks its values, each with
+   its column name (data-l), with the check at the right */
+.imptable .pill{white-space:normal;line-height:1.3;min-width:60px}
+@container (width<440px){
+  .imptable thead{display:none}
+  .imptable,.imptable tbody{display:block}
+  .imptable tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .imptable td{grid-column:1;padding:0;border:0;min-width:0}
+  .imptable td:last-child{grid-area:1/2/span 4;align-self:start;max-width:120px;text-align:right}
+  .imptable td[data-l]{display:grid;grid-template-columns:58px minmax(0,1fr);gap:8px;align-items:baseline}
+  .imptable td[data-l]::before{content:attr(data-l);font-size:12px;color:var(--muted)}
+}
+.nw{white-space:nowrap}
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.01em;font-weight:500}
+/* Profiles: a round photo, or initials on a soft tint when there's none (--av sets the size); names that open a profile look like quiet links */
+.av{--av:32px;display:inline-grid;place-items:center;flex:none;width:var(--av);height:var(--av);border-radius:50%;overflow:hidden;background:var(--t1);color:var(--t1i);font:600 calc(var(--av)*.36)/1 var(--body);letter-spacing:.02em;vertical-align:middle;-webkit-user-select:none;user-select:none}
+.av.t2{background:var(--t2);color:var(--t2i)} .av.t3{background:var(--t3);color:var(--t3i)} .av.t4{background:var(--t4);color:var(--t4i)} .av.t5{background:var(--t5);color:var(--t5i)}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av.av-lg{--av:96px;box-shadow:0 0 0 4px var(--tile),0 0 0 5px var(--border)}
+.plink{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.plink:hover{color:var(--link);text-decoration-color:currentColor}
+.pname{display:flex;align-items:center;gap:10px;min-width:180px}
+.aph{display:flex;align-items:center;gap:10px;min-width:0}
+.phead{display:flex;flex-wrap:wrap;align-items:center;gap:16px 22px}
+.phead .pinfo{flex:1 1 260px;min-width:0}
+.phead h2{font-size:24px;letter-spacing:-.02em;margin:0}
+.phead h2:focus{outline:none}
+.pfacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 0}
+.pfacts>div{display:flex;flex-direction:column;background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0}
+.pfacts dt{font-size:12px;font-weight:500;color:var(--muted)}
+.pfacts dd{margin:auto 0 0;padding-top:3px;font-weight:500;overflow-wrap:anywhere} /* pushed to the bottom, so values line up when a label takes two lines */
+.pfacts a{color:var(--link)}
+.ferr{color:var(--bad);font-size:12.5px;margin:4px 0 0}
+.ferr:empty{display:none}
+.legend i.ref{background:none;width:16px;height:0;border-radius:0;border-top:2px dashed var(--muted);vertical-align:3px}
+@media (min-width:1100px){.pfacts{grid-template-columns:1fr 1fr 1fr 1.7fr 1fr 1.1fr}} /* the email gets a wider tile */
+/* Narrower desktops: the top bar stays one line. The role switch gets tighter and the person shows just their name, then just their photo */
+@media (min-width:900px){.top{flex-wrap:nowrap}.proto{flex:0 1 auto}.who{flex:none;max-width:45%}.whot b,.whot small{overflow:hidden;text-overflow:ellipsis;max-width:100%}}
+@media (min-width:900px) and (max-width:1279px){.plab{display:none}.proto .seg button{padding:5px 7px}.whot small{display:none}}
+@media (min-width:900px) and (max-width:1079px){.whot{display:none}}
+/* Tablets and phones: the sidebar becomes a drawer opened from the top bar's menu button */
+@media (max-width:899px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:fixed;inset:0 auto 0 0;width:min(280px,86vw);height:100%;transform:translateX(-102%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s;box-shadow:var(--pop);border-right:0}
+  body.navopen .side{transform:none;visibility:visible;transition:transform .2s ease}
+  body.navopen{overflow:hidden}
+  body.navopen .scrim{display:block;position:fixed;inset:0;background:var(--scrim);z-index:35}
+  .sbrand .sclose{display:inline-grid}
+  .sidein{height:100%}
+  .menubtn{display:inline-grid;margin-left:-6px}
+  .tbrand{display:flex}
+  .top{padding:10px 16px 4px;gap:8px 10px}
+  .proto{order:3;flex:1 1 100%}
+  .whot{display:none}
+  #view{padding:8px 16px 56px}
+  .notice{padding:4px 16px 0}
+}
+@media (max-width:560px){
+  .phd{margin-bottom:16px}
+  .phd h1{font-size:23px}
+  .phd-a{justify-content:flex-start}
+  .phd-tt{flex-wrap:wrap}.phd-tt .seg.vt{flex:1 1 100%} .seg.vt button{flex:1 1 0;min-height:40px;padding:8px 12px} /* phones: the view toggle goes full width under the title, with taller buttons that are easy to tap */
+  .ifld{flex:1 1 auto}
+  .ifld select,.ifld input{max-width:none;flex:1 1 auto}
+  .panel{padding:14px}
+  .av.av-lg{--av:64px}.phead{gap:14px 16px}.phead .pinfo{flex-basis:180px}.phead h2{font-size:22px}.pfacts{grid-template-columns:repeat(2,minmax(0,1fr))}.pfacts .pf-wide,.pfacts .pf-x{grid-column:1/-1}.pfacts .pf-wide{order:1}
+  .modal .panel{padding:16px}
+  .stats.tiles .stat{flex:1 1 0;min-width:0}
+}
+@media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
+@media (prefers-reduced-motion:reduce){.side{transition:none!important}}
+.tsd summary{cursor:pointer}@media(min-width:701px){.tsd summary{display:inline}.tsd[open]>div{display:inline-flex!important;margin:0 0 0 8px!important}}
+
+/* ---- app-only rules (real app) ---- */
+:root{--run:var(--ok);--run-soft:var(--ok-soft)}
+nav.snav a{text-decoration:none}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.timer{font:500 44px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.running .timer{color:var(--run)}
+.runline{font-size:13px;color:var(--run);background:var(--run-soft);border-radius:6px;padding:6px 10px;margin:0}
+.big{font-size:16px;padding:12px 18px;width:100%}
+.running .big{background:var(--run);border-color:var(--run)}
+.cellbtn{width:70px;font:14px var(--mono);text-align:right;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer}
+.cellbtn.empty0{color:transparent}
+.cellbtn.lk{background:transparent;border-style:dashed;cursor:default}
+/* Timesheet: one chip per entry in each day cell; the rest of the cell is a button that adds time. */
+table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
+.cellstack{display:flex;flex-direction:column;gap:3px;min-height:34px;height:100%}
+.chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
+.chipbtn:hover{border-color:var(--line2)}
+.sheetcell.open{cursor:pointer}
+.addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent);background:var(--accent-soft)}
+.sheetcell.locked .cellstack{min-height:0}
+.sheetcell.locked{cursor:default}
+.rowx{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;cursor:pointer}
+.rowx:hover,.rowx:focus-visible{background:var(--bg);color:var(--ink)}
+.sheettip{position:fixed;z-index:50;max-width:min(280px,calc(100vw - 16px));max-height:45vh;overflow:hidden;overflow-wrap:anywhere;background:var(--ink);color:var(--surface);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:none}
+.sheettip div+div{margin-top:3px}
+.sheettip span{display:block;font:600 10px/1.3 var(--body);text-transform:uppercase;letter-spacing:.07em;opacity:.7}
+.banner{font-size:13px;color:var(--muted);border:1px dashed var(--line2);border-radius:8px;padding:8px 12px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
 .dragsel{position:absolute;left:3px;right:3px;z-index:3;border-radius:5px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);pointer-events:none}
 .draglabel{position:absolute;z-index:4;white-space:nowrap;background:var(--accent);color:var(--surface);font:600 12px/1.2 var(--body);padding:3px 7px;border-radius:5px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .cal.dragging .ev{pointer-events:none}
-.ev{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 6px;font-size:12px;line-height:1.25;overflow:hidden;background:var(--surface);border:1px solid var(--line2);border-left-width:4px;cursor:pointer;color:var(--ink)}
-.ev b{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ev span{color:var(--muted);font-family:var(--mono);font-size:11px}
-.chart{position:relative}
-.chart svg{width:100%;height:auto;display:block}
-.chart text{fill:var(--muted);font:11px var(--mono)}
-.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-100%);z-index:5}
-.legend{display:flex;gap:16px;font-size:13px;color:var(--muted);margin:6px 0 0}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-.matrix td,.matrix th{text-align:center} .matrix td:first-child,.matrix th:first-child{text-align:left}
-.yes{color:var(--ok);font-weight:600} .part{color:var(--warn);font-size:13px} .no{color:var(--muted)}
-.modal{position:fixed;inset:0;background:rgba(10,15,22,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) 16px 16px;z-index:15;overflow:auto}
-.modal .panel{width:min(640px,100%)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
-.cols2{columns:2 200px;column-gap:20px}
-@media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
-
-a{color:var(--accent)}
-.nav-link{display:inline-block;color:var(--muted);font:500 14px var(--body);padding:10px 12px;border-bottom:2px solid transparent;text-decoration:none;white-space:nowrap}
-.nav-link[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
-.btn{display:inline-block;text-decoration:none;line-height:1.3}
 .login{max-width:400px;margin:10vh auto 0}
 .err-text{color:var(--bad);font-size:13px;margin:6px 0 0}
-details.panel>summary{cursor:pointer;font-weight:600}
-dialog{border:0;padding:0;background:transparent;max-width:min(640px,calc(100% - 32px));width:100%}
-dialog::backdrop{background:rgba(10,15,22,.45)}
 .inline{display:inline}
 form.inline{display:inline}
-.userbox{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
-a.chip{text-decoration:none;color:var(--ink)}
-a.chip[aria-current="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-.alert.ok{background:var(--ok-soft,#e6f4ea);color:var(--ok)}
-.seg .segl{border:0;background:transparent;color:var(--muted);font:500 13px var(--body);padding:6px 10px;border-radius:6px;text-decoration:none}.seg .segl[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 /* Clients tab: five summary numbers (three, then two, on smaller screens), contract meters that show the part over the
    contract in red after a small gap, up and down changes, and a dashed legend mark for the contract line. */
 .stats.spread.five{grid-template-columns:repeat(5,1fr)}
-@media (min-width:641px) and (max-width:980px){.stats.spread.five{grid-template-columns:repeat(3,1fr);row-gap:16px}.stats.spread.five .stat:nth-child(4){padding-left:6px;border-left:0}}
-@media (max-width:640px){.stats.spread.five{grid-template-columns:repeat(2,1fr)}}
 .meter.split{display:flex;gap:2px}
 .meter.split i{border-radius:0}
 table.clients .meter{min-width:120px}
