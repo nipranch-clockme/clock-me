@@ -166,7 +166,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
           {available.length ? (
             <form ref={addFormRef} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
               <label htmlFor="addrow-project">Project</label>
-              <SearchSelect id="addrow-project" name="projectId" required placeholder="Choose a project" searchLabel="Search projects"
+              <SearchSelect id="addrow-project" name="projectId" required alwaysList placeholder="Choose a project" searchLabel="Search projects"
                 options={available.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
               {addError && <p className="err-text" role="alert">{addError}</p>}
               <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={busy}>{busy ? "Adding…" : "Add row"}</button></div>

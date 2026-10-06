@@ -503,7 +503,8 @@ body:has(dialog[open]){overflow:hidden}
 /* Dropdown with a search box */
 .ssel{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
 .ssel-q{width:100%}
-.ssel select[size]{height:auto}
+.ssel select[size]{height:auto;background-image:none;padding:4px}
+.ssel select[size] option,.ssel select[size] optgroup{padding:4px 8px}
 .ssel-none{margin:0}
 .ifld .ssel{flex-direction:row;align-items:center;gap:0;width:auto}
 .ifld .ssel-q{width:110px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;min-height:32px;font-size:13px}

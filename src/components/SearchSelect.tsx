@@ -9,10 +9,10 @@ export type SearchOption = { value: string; label: string; group?: string; disab
  * Short lists (under `minToSearch` options) skip the search box.
  */
 export default function SearchSelect({
-  id, name, options, value, defaultValue = "", onChange, placeholder, className, required, disabled, minToSearch = 7, searchLabel = "Search",
+  id, name, options, value, defaultValue = "", onChange, placeholder, className, required, disabled, minToSearch = 7, searchLabel = "Search", alwaysList = false,
 }: {
   id: string; name?: string; options: SearchOption[]; value?: string; defaultValue?: string; onChange?: (v: string) => void;
-  placeholder?: string; className?: string; required?: boolean; disabled?: boolean; minToSearch?: number; searchLabel?: string;
+  placeholder?: string; className?: string; required?: boolean; disabled?: boolean; minToSearch?: number; searchLabel?: string; alwaysList?: boolean;
 }) {
   const [own, setOwn] = useState(value ?? defaultValue);
   const [q, setQ] = useState("");
@@ -29,15 +29,15 @@ export default function SearchSelect({
   const count = shown.filter((o) => o.value !== cur && o.value !== "").length;
   return (
     <div className="ssel">
-      {options.length >= minToSearch && (
+      {(alwaysList || options.length >= minToSearch) && (
         <input id={sid} type="search" className="ssel-q" value={q} placeholder={`${searchLabel}…`} aria-label={`${searchLabel} ${(placeholder ?? "").replace(/^Choose an? /i, "")}`.trim()}
-          autoComplete="off" onChange={(e) => { e.stopPropagation(); setQ(e.target.value); }}
+          autoComplete="off" autoFocus={alwaysList} onChange={(e) => { e.stopPropagation(); setQ(e.target.value); }}
           onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
       )}
       <select id={id} name={name} className={className} required={required} disabled={disabled} value={cur}
-        size={needle ? Math.min(6, Math.max(2, shown.length)) : undefined} hidden={!!needle && count === 0}
+        size={alwaysList ? 8 : needle ? Math.min(6, Math.max(2, shown.length)) : undefined} hidden={!!needle && count === 0}
         onChange={(e) => { setOwn(e.target.value); setQ(""); onChange?.(e.target.value); }}>
-        {placeholder && <option value="" disabled>{placeholder}</option>}
+        {placeholder && !alwaysList && <option value="" disabled>{placeholder}</option>}
         {groups.map((g) => g
           ? <optgroup key={g} label={g}>{shown.filter((o) => (o.group ?? "") === g).map(row)}</optgroup>
           : shown.filter((o) => !o.group).map(row))}
