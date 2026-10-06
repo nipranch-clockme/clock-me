@@ -10,7 +10,6 @@ datasource db {
 enum Role {
   MEMBER
   LEADER
-  PM
   LOCATION
   ADMIN
 }
@@ -49,6 +48,7 @@ model Team {
   location   Location            @relation(fields: [locationId], references: [id])
   users      User[]
   access     ProjectTeamAccess[]
+  clients    Client[]
 
   @@unique([name, locationId])
 }
@@ -81,6 +81,7 @@ model User {
   managing       ProjectManager[]
   access         ProjectUserAccess[]
   audit          AuditLog[]
+  timer          TimerRun?
 }
 
 /// A person's profile picture: a 256x256 JPEG made in the browser. Kept apart from User so lists of people don't load it.
@@ -92,12 +93,39 @@ model ProfilePhoto {
 }
 
 model Client {
-  id           String     @id @default(cuid())
-  name         String     @unique
-  color        String     @default("s1")
-  type         ClientType @default(FLOATING)
+  id           String          @id @default(cuid())
+  name         String          @unique
+  color        String          @default("s1")
+  type         ClientType      @default(FLOATING)
   monthlyHours Float? // contracted hours per month, for FIXED clients only
   projects     Project[]
+  teamId       String? // the team that looks after this client
+  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  contacts     ClientContact[]
+}
+
+// People at the client who are the points of contact.
+model ClientContact {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name     String
+  email    String @default("")
+  phone    String @default("")
+  sort     Int    @default(0)
+
+  @@index([clientId])
+}
+
+// A running timer: one per person. Stopping it adds the time entries.
+model TimerRun {
+  userId      String   @id
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  phaseId     String?
+  tagId       String?
+  description String   @default("")
+  startedAt   DateTime @default(now())
 }
 
 model Project {

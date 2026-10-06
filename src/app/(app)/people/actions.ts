@@ -11,7 +11,7 @@ import { issueLinkToken, INVITE_HOURS, RESET_HOURS } from "@/lib/tokens";
 import { DUP_EMPLOYEE_ID, isDupEmployeeId, profileChanges, readProfileFields } from "@/lib/profile";
 
 export type PeopleResult = { ok: boolean; error?: string; link?: string; message?: string } | null;
-const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "PM", "LOCATION", "ADMIN"];
+const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "LOCATION", "ADMIN"];
 
 /** Location managers manage their own office and can't hand out admin or location manager roles. */
 const checkScope = (me: Me, locationId: string, role: Role) => manageError(me, locationId, role);
@@ -24,7 +24,7 @@ async function readPerson(form: FormData, personId?: string) {
   if (!ROLE_VALUES.includes(role)) return { error: "Choose a role." };
   if (!(await db.location.findUnique({ where: { id: locationId } }))) return { error: "Choose an office." };
   if (teamId && !(await db.team.findFirst({ where: { id: teamId, locationId } }))) return { error: "That team isn't in the chosen office." };
-  if ((role === "LEADER" || role === "PM") && !teamId) return { error: "Team leaders and project managers need a team." };
+  if (role === "LEADER" && !teamId) return { error: "Team/Project Managers need a team." };
   const f = await readProfileFields(form, personId);
   if ("error" in f) return { error: f.error };
   return { data: { role, locationId, teamId, ...f.data, title: String(form.get("title") ?? "").trim() } };

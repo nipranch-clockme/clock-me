@@ -1,13 +1,12 @@
 import type { Prisma, Role } from "@prisma/client";
 import type { Me } from "./auth";
 
-/** Whose entries this person may see: own (member), own team (leader, PM), own office (location manager), everyone (admin). */
+/** Whose entries this person may see: own (member), own team (team/project manager), own office (location manager), everyone (admin). */
 export function visibleUsersWhere(me: Me): Prisma.UserWhereInput {
   switch (me.role) {
     case "ADMIN": return {};
     case "LOCATION": return { locationId: me.locationId };
-    case "LEADER":
-    case "PM": return me.teamId ? { teamId: me.teamId } : { id: me.id };
+    case "LEADER": return me.teamId ? { teamId: me.teamId } : { id: me.id };
     default: return { id: me.id };
   }
 }
