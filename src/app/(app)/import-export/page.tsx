@@ -7,8 +7,8 @@ import Link from "next/link";
 export default async function ImportExportPage() {
   const me = await requireTab("import-export");
   const extra = (await db.customField.findMany({ orderBy: { sort: "asc" } })).map((f) => f.name);
-  const timeTemplate = [["Date", "Email", "Client", "Project", "Phase", "Tag", "Description", "Start", "Hours", ...extra], ["2026-09-28", "priya@example.com", "Bluebird Health", "Brand refresh", "Concept", "Design", "Logo options", "09:00", "1.5", ...extra.map(() => "")]];
-  const projTemplate = [["Client", "Project", "Phases", "Budget hours", "Access", "People", "Offices", "Managers"], ["Bluebird Health", "Annual report", "Research;Design;Delivery", "120", "Everyone", "", "", ""], ["Internal", "Office move", "Planning;Move", "", "Restricted", "", "London", ""]];
+  const timeTemplate = [["Date", "Email", "Client", "Project", "Phase", "Tag", "Description", "Start", "Hours", ...extra], ["2026-09-28", "priya@example.com", "Bluebird Health", "Brand refresh", "Submission 1", "CAD", "Floor plan drawings", "09:00", "1.5", ...extra.map(() => "")]];
+  const projTemplate = [["Client", "Project", "Phases", "Budget hours", "Access", "People", "Offices", "Managers"], ["Bluebird Health", "Annual report", "Submission 1;Submission 2;Submission 3", "120", "Everyone", "", "", ""], ["Internal", "Office move", "Ongoing", "", "Restricted", "", "PNQ", ""]];
   return (
     <div className="grid g2">
       <section className="panel full">

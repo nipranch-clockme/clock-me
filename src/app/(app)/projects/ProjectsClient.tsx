@@ -12,7 +12,7 @@ export type EditableProject = {
   id: string; name: string; clientId: string; phases: string[]; budget: number | null; access: "PUBLIC" | "RESTRICTED"; archived: boolean;
   locs: string[]; teams: string[]; users: string[]; managers: string[];
 };
-const DEFAULT_PHASES = ["Discovery", "Design", "Build", "Launch", "Support"];
+const DEFAULT_PHASES = ["Submission 1", "Submission 2", "Submission 3", "Submission 4", "Submission 5"];
 
 export default function ProjectsClient({ creator, form, editable, count, admin }: { creator: boolean; canImport: boolean; form: ProjectForm; editable: EditableProject[]; count: number; admin: boolean }) {
   const sp = useSearchParams();

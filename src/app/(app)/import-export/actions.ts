@@ -123,7 +123,7 @@ async function checkProjects(me: Me, text: string) {
     const dup = projects.some((p) => p.client.name.toLowerCase() === r.client.toLowerCase() && p.name.toLowerCase() === r.project.toLowerCase()) || seen.has(key);
     seen.add(key);
     const budget = r["budget hours"] ? Number(r["budget hours"]) : null;
-    const phases = (r.phases || "Discovery;Design;Build;Launch;Support").split(";").map((x) => x.trim()).filter(Boolean);
+    const phases = (r.phases || "Submission 1;Submission 2;Submission 3;Submission 4;Submission 5").split(";").map((x) => x.trim()).filter(Boolean);
     const restricted = /^(restricted|private)$/i.test(r.access ?? "");
     const people = (r.people ?? "").split(";").map((x) => x.trim().toLowerCase()).filter(Boolean);
     const offices = (r.offices ?? "").split(";").map((x) => x.trim().toLowerCase()).filter(Boolean);
