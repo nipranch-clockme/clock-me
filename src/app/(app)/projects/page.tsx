@@ -92,19 +92,6 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       </section>
       {creator && <>
         <section className="panel">
-          <h3>Clients</h3>
-          <div className="list">{clients.map((c) => {
-            const h = contractOf(c), count = `${c._count.projects} project${c._count.projects === 1 ? "" : "s"}`;
-            return (
-              <div className="item" key={c.id}>
-                <div><span className="dot" style={{ background: `var(--${c.color})` }} />{contracts ? <Link href={`/clients/${c.id}`}>{c.name}</Link> : c.name}{contracts && <div className="meta">{h ? `${clientTypeName("FIXED")}, ${perMonth(h)}` : clientTypeName("FLOATING")}</div>}</div>
-                <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}><span className="note">{count}</span>{me.role === "ADMIN" && <EditClient teams={teamOpts} client={{ id: c.id, name: c.name, type: c.type, monthlyHours: c.monthlyHours, teamId: c.teamId, contacts: c.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</div>
-              </div>
-            );
-          })}</div>
-          {me.role === "ADMIN" ? <ClientForm teams={teamOpts} /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
-        </section>
-        <section className="panel">
           <h3>Phase templates</h3>
           <div className="list">{templates.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.phases.join(" → ")}</div></div></div>)}</div>
           <p className="note" style={{ margin: "10px 0 0" }}>Pick a template when you create a project to fill in its phases.{me.role === "ADMIN" ? " Add or remove templates in Settings." : ""}</p>

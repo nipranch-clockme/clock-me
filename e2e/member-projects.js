@@ -64,7 +64,7 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
 
   // a project manager still sees clients, templates and every visible project
   const r=await login(b,'rosa@example.com');await r.goto(BASE+'/projects');await r.waitForLoadState('networkidle');
-  ok('project manager still sees Clients and Phase templates',!!(await r.$('h3:text-is("Clients")'))&&!!(await r.$('h3:text-is("Phase templates")')));
+  ok('project manager sees Phase templates; clients are on the Clients tab',!(await r.$('h3:text-is("Clients")'))&&!!(await r.$('h3:text-is("Phase templates")')));
   ok('project manager still sees public projects',(await r.textContent('main')).includes(names.public));
  }finally{
   sql(`delete from "Project" where id like '${t}%'`);

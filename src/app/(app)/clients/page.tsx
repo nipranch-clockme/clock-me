@@ -54,7 +54,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             <h3 style={{ margin: 0 }}>Clients</h3>
             <span className="note">{rows.length} client{rows.length === 1 ? "" : "s"}. Click a client for its details.</span>
           </div>
-          {!rows.length ? <p className="empty">No clients yet. Admins add them on the Projects page.</p> : (
+          {!rows.length ? <p className="empty">No clients yet. Admins add them with the Add client button.</p> : (
             <><TableFilter label="Search clients" placeholder="Search clients…" /><div className="tablebox"><table className="clients">
               <thead><tr><th>Client</th><th>Type</th><th className="num">Hours logged</th><th className="num">Contracted</th><th>Utilisation</th><th className="num">Hours left</th>{thisMonth && <th>Pace this month</th>}</tr></thead>
               <tbody>
