@@ -9,7 +9,7 @@ export default function ForgotPage() {
   const email = emailConfigured();
   return (
     <div className="login">
-      <div className="brand" style={{ marginBottom: 20 }}><h1>Clock me</h1></div>
+      <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
       <section className="panel">
         <h2>Forgot your password?</h2>
         {email ? (

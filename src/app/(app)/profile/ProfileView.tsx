@@ -116,7 +116,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
         <h3>Utilisation</h3>
         <AutoForm className="row" key={range}>
           <div style={{ flex: "0 1 220px" }}><label htmlFor="pr-range">Period</label><select id="pr-range" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Utilisation is hours logged divided by expected hours. Expected hours per week are spread over Monday to Friday, up to yesterday, from {self ? "your" : "their"} first day in Clock me.</p></div>
+          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Utilisation is hours logged divided by expected hours. Expected hours per week are spread over Monday to Friday, up to yesterday, from {self ? "your" : "their"} first day in The Time Sink.</p></div>
         </AutoForm>
         <div className="stats spread five" style={{ marginTop: 16 }}>
           <div className="stat"><b>{tg ? pct(utilisation(m, tg)) : "–"}</b><span>utilisation</span></div>

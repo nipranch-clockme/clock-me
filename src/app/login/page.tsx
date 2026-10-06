@@ -9,7 +9,7 @@ export default async function LoginPage() {
   if ((await db.user.count()) === 0) redirect("/setup"); // brand-new install
   return (
     <div className="login">
-      <div className="brand" style={{ marginBottom: 20 }}><h1>Clock me</h1></div>
+      <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
       <section className="panel">
         <h2>Sign in</h2>
         <p className="sub">Use the email your admin invited you with.</p>

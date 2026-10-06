@@ -70,8 +70,8 @@ export async function requestReset(_: string | null, form: FormData): Promise<st
     const token = live?.token ?? (await issueLinkToken(user.id, SELF_RESET_HOURS));
     const hours = live ? Math.max(1, Math.floor((live.expires.getTime() - Date.now()) / 3600_000)) : SELF_RESET_HOURS;
     await db.user.update({ where: { id: user.id }, data: { resetSentAt: new Date() } });
-    const action = user.passwordHash ? "reset your Clock me password" : "set up your Clock me account";
-    await sendEmail(user.email, user.passwordHash ? "Reset your Clock me password" : "Set up your Clock me account", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to ${action}. If it was you, choose a password here within the next ${hours === 1 ? "hour" : `${hours} hours`}: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
+    const action = user.passwordHash ? "reset your The Time Sink password" : "set up your The Time Sink account";
+    await sendEmail(user.email, user.passwordHash ? "Reset your The Time Sink password" : "Set up your The Time Sink account", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to ${action}. If it was you, choose a password here within the next ${hours === 1 ? "hour" : `${hours} hours`}: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
   }
   return RESET_MESSAGE;
 }

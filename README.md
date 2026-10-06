@@ -1,4 +1,4 @@
-# Clock me
+# The Time Sink
 
 Time tracking for a company of about 100 people across several offices. People add time in a weekly
 timesheet or a calendar, submit the week, and their leader approves it. Managers see reports and a
@@ -76,7 +76,7 @@ Reminders are only written to the server log.
 
 To turn email on:
 1. Create a free account at [resend.com](https://resend.com) and verify your company's email domain.
-2. In Vercel, add `RESEND_API_KEY` and `EMAIL_FROM` (for example `Clock me <timesheets@yourcompany.com>`).
+2. In Vercel, add `RESEND_API_KEY` and `EMAIL_FROM` (for example `The Time Sink <timesheets@yourcompany.com>`).
 3. For reminder emails, also add `CRON_SECRET` with any long random string (40 or more letters and numbers).
    Vercel sends it with the daily reminder call so nobody else can trigger it.
 4. Redeploy.

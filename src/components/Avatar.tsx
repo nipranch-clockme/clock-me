@@ -4,10 +4,12 @@ const initials = (name: string) => {
 };
 
 /** A person's profile picture, or a circle with their initials when they haven't added one. */
+const tint = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return (h % 5) + 1; };
+
 export default function Avatar({ person, size = 40, alt = "" }: { person: { id: string; name: string; photoAt: Date | null }; size?: number; alt?: string }) {
-  const style = { width: size, height: size, fontSize: Math.round(size * 0.38) };
+  const style = { "--av": `${size}px` } as React.CSSProperties;
   return person.photoAt
     // The address changes with each new picture, so browsers can keep a copy without showing an old one.
-    ? <img className="avatar" src={`/profile/${person.id}/photo?v=${person.photoAt.getTime()}`} alt={alt} width={size} height={size} style={style} />
-    : <span className="avatar" role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} style={style}>{initials(person.name)}</span>;
+    ? <span className="av" style={style} aria-hidden={alt ? undefined : true}><img src={`/profile/${person.id}/photo?v=${person.photoAt.getTime()}`} alt={alt} /></span>
+    : <span className={`av t${tint(person.id)}`} role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} style={style}>{initials(person.name)}</span>;
 }

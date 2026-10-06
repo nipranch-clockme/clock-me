@@ -40,7 +40,7 @@ export async function setupAdmin(_: SetupState, form: FormData): Promise<SetupSt
       await tx.settings.update({ where: { id: 1 }, data: { timeZone } });
       const loc = await tx.location.upsert({ where: { name: office }, update: {}, create: { name: office } });
       const user = await tx.user.create({ data: { name, email, title: "Administrator", role: "ADMIN", weeklyTarget: 0, locationId: loc.id, passwordHash } });
-      await tx.auditLog.create({ data: { userId: user.id, action: `Set up Clock me and created the ${office} office`, targetUserId: user.id } });
+      await tx.auditLog.create({ data: { userId: user.id, action: `Set up The Time Sink and created the ${office} office`, targetUserId: user.id } });
       return user.id;
     }, { isolationLevel: "Serializable", timeout: 20000 });
   } catch (e) {

@@ -7,7 +7,7 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], weight: ["500", "700"]
 const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-body", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
 
-export const metadata: Metadata = { title: "Clock me", description: "Time tracking" };
+export const metadata: Metadata = { title: "The Time Sink", description: "Time tracking" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
