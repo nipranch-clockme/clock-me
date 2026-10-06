@@ -10,20 +10,19 @@ It covers time tracking and performance only. There is no billing.
 
 | Tab | Who sees it | What it does |
 |---|---|---|
-| Dashboard | Leaders, project managers, location managers, admins | Productivity (hours ÷ target) per office, a 12-month trend, and the top 5 performers per office and across all offices |
-| Clients | Location managers, admins | A client dashboard. Pick a period (this month, last month, this or last quarter, this year, the last 12 months) to see the hours logged on each client, and for clients with fixed monthly hours: contracted hours, utilisation (hours ÷ contracted hours), hours left, and this month's pace. Clients with no commitment show the change on the previous period. Click a client for its hours by month against the contract, and its hours by project, phase and person |
-| Timesheet | Everyone | Week view with one row per project. Add a project row, then click a day to add time with its phase, tag and description. Hover over an entry to see its details. "Copy last week" brings last week's projects (not their hours). Submit for approval, and cancel the submission to make changes until it's approved |
-| Calendar | Everyone | Week view by time of day. Click a slot to add an hour, or drag down a day to add exactly the time spent. Managers can view their people's calendars |
-| Approvals | Leaders, location managers, admins | Approve or send back submitted weeks, and remind people who haven't submitted |
+| Dashboard | Team/Project Managers, location managers, admins | Productivity (hours ÷ target) per office, a 12-month trend and the top 5 per office. Location managers also see a card for each team in their office. Names link to profiles |
+| Clients | Location managers, admins (admins add and edit clients) | A client dashboard. Pick a period (this month, last month, this or last quarter, this year, the last 12 months) to see the hours logged on each client, and for clients with fixed monthly hours: contracted hours, utilisation (hours ÷ contracted hours), hours left, and this month's pace. Clients with no commitment show the change on the previous period. Click a client for its hours by month against the contract, and its hours by project, phase and person | Each client has a team and points of contact.
+| Timesheet | Everyone | Three views in one place: **Timesheet** (week, one row per project, click a day to add time), **Calendar** (by time of day; click or drag to add) and **Timer** (start, stop and it adds the time). Submit the week from the top of the page |
+| Approvals | Team/Project Managers, location managers, admins | Approve or send back submitted weeks, open *Review Time* for a detailed list, and remind people who haven't submitted |
 | Reports | Everyone (limited to what they can see) | Filters for date range (including all time), person, team, client, project, tag, phase, description and office. Includes a chart, a breakdown table and CSV export |
 | Projects | Everyone (team members see only the projects they have been added to, read only, without the clients and phase templates lists) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people. Admins add clients and set each one's type: *Fixed monthly hours* (with the hours agreed per month) or *No commitment* (work as it comes) |
 | People | Location managers, admins | Invite people, set roles, office, team and weekly target. Create password reset links. Add offices and teams |
-| Import & export | Project managers, location managers, admins | CSV import of time entries and projects, with a check of every row before anything is saved. CSV export of time, projects and people |
+| Import & export | Team/Project Managers, location managers, admins | CSV import of time entries and projects, with a check of every row before anything is saved. CSV export of time, projects and people |
 | Settings | Admins | Time format (7.50 or 7:30), required fields, lock date, reminders, tags, phase templates, custom fields |
 
 What each role can see:
 - **Team member:** only their own time.
-- **Team leader and project manager:** their own team in their own office.
+- **Team/Project Manager:** their own team in their own office.
 - **Location manager:** every team in their office.
 - **Admin:** the whole company.
 
@@ -35,6 +34,8 @@ How the Clients tab counts:
 - **Utilisation** is the hours logged on all of the client's projects (archived ones included) divided by contracted hours. Over 100% is shown in red as over contract.
 - **Pace** (this month only) compares the hours logged up to yesterday with the monthly hours spread over this month's working days (Monday to Friday) so far. Within 10% either way is on pace.
 - **Change** compares a period with the one before it. A period that's still running is compared with the same number of days of the previous one.
+
+See [docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md) for day-to-day running and handover.
 
 ## Putting it online (free to start)
 
