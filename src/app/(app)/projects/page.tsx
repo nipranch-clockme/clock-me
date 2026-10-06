@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { addedProjectsWhere, canCreateProject, canEditProject, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
-import { Pill } from "@/components/ui";
+import { PageHead, Pill } from "@/components/ui";
 import ProjectsClient from "./ProjectsClient";
 import ClientForm, { EditClient } from "./ClientForm";
 import { clientTypeName, contractOf, perMonth } from "@/lib/clients";
@@ -49,6 +49,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   }));
 
   return (
+    <>
+      <PageHead title="Projects" sub="Projects, phases and who can log time on them." />
     <div className="grid g2">
       <section className="panel full">
         <Suspense><ProjectsClient creator={creator} canImport={canTab("import-export", me.role)} form={formData} editable={editable} count={projects.length} admin={me.role === "ADMIN"} /></Suspense>
@@ -105,5 +107,6 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </section>
       </>}
     </div>
+    </>
   );
 }

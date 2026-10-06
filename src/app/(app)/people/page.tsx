@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/ui";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { ROLES } from "@/lib/roles";
@@ -19,6 +20,8 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   const myLocations = admin ? locations : locations.filter((l) => l.id === me.locationId);
   await getSettings(); // sets the company time zone for "today"
   return (
+    <>
+      <PageHead title="People" sub="Offices, teams and the people in them." />
     <div className="grid g2">
       {welcome && (
         <section className="panel full" role="status">
@@ -47,5 +50,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
       </section>
     </div>
+    </>
   );
 }

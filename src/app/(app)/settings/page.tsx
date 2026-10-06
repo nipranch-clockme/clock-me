@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/ui";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
@@ -17,6 +18,8 @@ export default async function SettingsPage() {
   const used = new Map(tagUse.map((t) => [t.tagId, t._count]));
   const mark = (v: string) => (v === "y" ? <span className="yes">✓</span> : v === "n" ? <span className="no">–</span> : <span className="part">{v}</span>);
   return (
+    <>
+      <PageHead title="Settings" sub="Company-wide options." />
     <div className="grid g2">
       <GeneralForm zones={Intl.supportedValuesOf("timeZone")} s={{ timeZone: settings.timeZone, timeFormat: settings.timeFormat, requireTag: settings.requireTag, requireDescription: settings.requireDescription, lockBefore: settings.lockBeforeStr ?? "", dailyMinimum: settings.dailyMinimum, remindSubmit: settings.remindSubmit, remindSubmitDay: settings.remindSubmitDay, remindDaily: settings.remindDaily, remindApprovers: settings.remindApprovers }} emailOn={!!process.env.RESEND_API_KEY} cronOn={!!process.env.CRON_SECRET} />
       <section className="panel">
@@ -59,5 +62,6 @@ export default async function SettingsPage() {
         <p className="note" style={{ margin: "8px 0 0" }}>Set each person&apos;s role on the People page.</p>
       </section>
     </div>
+    </>
   );
 }

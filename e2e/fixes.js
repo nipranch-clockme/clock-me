@@ -12,8 +12,8 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
  const b=await start();
  const email=`copytest${process.pid}@example.com`;
  const proj=sql(`select id from "Project" where name='Patient portal'`);
- const build=sql(`select id from "Phase" where "projectId"='${proj}' and name='Build'`);
- const tag=sql(`select id from "Tag" where name='Development'`);
+ const build=sql(`select id from "Phase" where "projectId"='${proj}' and name='Submission 1'`);
+ const tag=sql(`select id from "Tag" where name='CAD'`);
  const priya=sql(`select "locationId"||'|'||"teamId"||'|'||"passwordHash" from "User" where email='priya@example.com'`).split('|');
  const uid='copytest'+process.pid, retired='retired'+process.pid;
  try{

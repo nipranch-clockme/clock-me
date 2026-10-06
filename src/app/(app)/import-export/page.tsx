@@ -1,3 +1,4 @@
+import { PageHead } from "@/components/ui";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { scopeLabel } from "@/lib/scope";
@@ -10,6 +11,8 @@ export default async function ImportExportPage() {
   const timeTemplate = [["Date", "Email", "Client", "Project", "Phase", "Tag", "Description", "Start", "Hours", ...extra], ["2026-09-28", "priya@example.com", "Bluebird Health", "Brand refresh", "Submission 1", "CAD", "Floor plan drawings", "09:00", "1.5", ...extra.map(() => "")]];
   const projTemplate = [["Client", "Project", "Phases", "Budget hours", "Access", "People", "Offices", "Managers"], ["Bluebird Health", "Annual report", "Submission 1;Submission 2;Submission 3", "120", "Everyone", "", "", ""], ["Internal", "Office move", "Ongoing", "", "Restricted", "", "PNQ", ""]];
   return (
+    <>
+      <PageHead title="Import and export" sub="Move time and projects in or out as CSV files." />
     <div className="grid g2">
       <section className="panel full">
         <h3>Export</h3>
@@ -26,5 +29,6 @@ export default async function ImportExportPage() {
       <ImportPanel kind="projects" title="Import projects" template={projTemplate}
         help={`Required columns: Client, Project. Optional: Phases (separate with ;), Budget hours, Access (Everyone or Restricted), People (emails), Offices, Managers (emails). ${me.role === "ADMIN" ? "New clients are created as needed, with no commitment. Set fixed monthly hours for them on the Projects page." : "Clients must already exist; only admins add clients."}`} />
     </div>
+    </>
   );
 }

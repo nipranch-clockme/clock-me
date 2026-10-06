@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
@@ -67,7 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th><th className="num">Target h</th></tr></thead>
       <tbody>
         {top(list).map((r, i) => (
-          <tr key={r.id}><td className="num">{i + 1}</td><td>{r.name}<div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{pct(r.prod)}</td><td className="num">{f(r.m)}</td><td className="num">{f(r.tg)}</td></tr>
+          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{pct(r.prod)}</td><td className="num">{f(r.m)}</td><td className="num">{f(r.tg)}</td></tr>
         ))}
         {!list.length && <tr><td colSpan={6} className="empty">Nobody to show.</td></tr>}
       </tbody>

@@ -44,14 +44,14 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   ok('add dialog asks phase, tag, duration and description, and no Ticket ID',['Phase','Tag','Duration','Description'].every(x=>labels.includes(x))&&!labels.includes('Ticket ID'),labels.join(', '));
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForSelector('dialog[open] [role=alert]');
   ok('phase is required',/Phase/.test(await p.textContent('dialog[open] [role=alert]')));
-  await p.selectOption('#e-phase',{label:'Build'});await p.selectOption('#e-tag',{label:'Development'});await p.fill('#e-dur','2');await p.fill('#e-desc','API work');
+  await p.selectOption('#e-phase',{label:'Submission 1'});await p.selectOption('#e-tag',{label:'CAD'});await p.fill('#e-dur','2');await p.fill('#e-desc','API work');
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForSelector('dialog[open]',{state:'detached'}).catch(()=>{});await p.waitForSelector('tr:has-text("Patient portal") button.chipbtn');
   ok('chip appears in the day cell',(await p.textContent('tr:has-text("Patient portal") button.chipbtn'))==='2.00');
   ok('remove button hides once the row has time',!(await p.isVisible('button[aria-label="Remove Patient portal row"]')));
 
   // second entry in the same cell starts after the first
   await p.click(`tr:has-text("Patient portal") button.addcell[aria-label*="Wed"]`);await p.waitForSelector('dialog[open] #e-phase');
-  await p.selectOption('#e-phase',{label:'Design'});await p.selectOption('#e-tag',{label:'Design'});await p.fill('#e-dur','1:30');await p.fill('#e-desc','Screens');
+  await p.selectOption('#e-phase',{label:'Submission 2'});await p.selectOption('#e-tag',{label:'ENG'});await p.fill('#e-dur','1:30');await p.fill('#e-desc','Screens');
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForFunction(()=>document.querySelectorAll('button.chipbtn').length===2);
   ok('two entries stack in one cell',(await p.$$eval('button.chipbtn',bs=>bs.map(b=>b.textContent))).join(',')==='2.00,1.50');
   ok('second entry starts where the first ends',sql(`select string_agg("startMin"::text, ',' order by "startMin") from "TimeEntry" where "userId"='${uid}'`)==='540,660');
@@ -59,7 +59,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   // hover shows details
   await p.hover('button.chipbtn >> nth=0');await p.waitForSelector('.sheettip');
   const tip=await p.textContent('.sheettip');
-  ok('hover shows phase, tag and description',/Build/.test(tip)&&/Development/.test(tip)&&/API work/.test(tip),tip);
+  ok('hover shows phase, tag and description',/Submission 1/.test(tip)&&/CAD/.test(tip)&&/API work/.test(tip),tip);
   const box=await p.$eval('.sheettip',e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight});
   ok('tooltip is fully on screen',box);
   await p.mouse.move(5,5);await p.waitForSelector('.sheettip',{state:'detached'});
@@ -90,10 +90,10 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
 
   // a day that starts early: new time follows the last entry, not 09:00
   const fri=addDays(ws,4);
-  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values('${uid}e','${uid}','${proj}',(select id from "Phase" where "projectId"='${proj}' and name='Build'),(select id from "Tag" where name='Development'),'${fri}',360,120,'early')`);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values('${uid}e','${uid}','${proj}',(select id from "Phase" where "projectId"='${proj}' and name='Submission 1'),(select id from "Tag" where name='CAD'),'${fri}',360,120,'early')`);
   await p.reload();await p.waitForLoadState('networkidle');
   await p.click(`tr:has-text("Patient portal") button.addcell[aria-label*="Fri"]`);await p.waitForSelector('dialog[open] #e-phase');
-  await p.selectOption('#e-phase',{label:'Build'});await p.selectOption('#e-tag',{label:'Development'});await p.fill('#e-dur','1');await p.fill('#e-desc','after early');
+  await p.selectOption('#e-phase',{label:'Submission 1'});await p.selectOption('#e-tag',{label:'CAD'});await p.fill('#e-dur','1');await p.fill('#e-desc','after early');
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForFunction(()=>[...document.querySelectorAll('button.chipbtn')].length>=3);
   ok('time after an early entry starts at 08:00',sql(`select "startMin" from "TimeEntry" where "userId"='${uid}' and description='after early'`)==='480');
 

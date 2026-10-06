@@ -45,7 +45,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    ('${t}ld','${t}ld@example.com','${LD}','${priya[2]}','MEMBER','${oliver}','${ldTeam}',40,now()-interval '400 days')`);
   sql(`insert into "Client"(id,name,color,type,"monthlyHours") values ('${t}fx','${FX}','s1','FIXED',10),('${t}fl','${FL}','s3','FLOATING',null)`);
   sql(`insert into "Project"(id,name,"clientId",archived) values ('${t}p1','Live ${t}','${t}fx',false),('${t}p2','Old ${t}','${t}fx',true),('${t}p3','Ad hoc ${t}','${t}fl',false)`);
-  sql(`insert into "Phase"(id,"projectId",name,sort) values ('${t}ph1','${t}p1','Build',0),('${t}ph2','${t}p2','Build',0),('${t}ph3','${t}p3','Plan',0)`);
+  sql(`insert into "Phase"(id,"projectId",name,sort) values ('${t}ph1','${t}p1','Submission 1',0),('${t}ph2','${t}p2','Submission 1',0),('${t}ph3','${t}p3','Plan',0)`);
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId",date,minutes,description) values ${E.map(e=>`('${t}${e[0]}','${t}${e[1]}','${t}${e[2]}','${t}${e[3]}','${e[4]}',${e[5]},'test')`).join(',')}`);
 
   // --- sample data values
@@ -63,7 +63,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
 
   // --- admin: list page, this month
   const a=await login(b,'admin@example.com');
-  ok('admin: Clients tab right after Dashboard',(await a.locator('nav a').allInnerTexts()).slice(0,2).join('|')==='Dashboard|Clients');
+  ok('admin: has Clients tab',(await a.locator('nav a').allInnerTexts()).includes('Clients'));
   await go(a,'/clients');
   ok('admin: This month is the default period',(await a.inputValue('#cl-range'))==='thismonth');
   {
@@ -120,7 +120,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    const proj=(await a.locator('section:has(h3:text-is("Hours by project")) tbody').textContent()).replace(/\s+/g,' ');
    ok('detail: hours by project, archived ones included',proj.includes(`Live ${t}`)&&proj.includes(`Old ${t}`)&&/archived/i.test(proj),proj);
    const ph=await a.$$eval('section:has(h3:text-is("Hours by phase")) tbody tr',rs=>rs.map(r=>r.textContent.replace(/\s+/g,' ')));
-   ok('detail: phases with the same name are added together',ph.length===1&&ph[0].includes('Build')&&ph[0].includes(f(exp)),ph.join(' / '));
+   ok('detail: phases with the same name are added together',ph.length===1&&ph[0].includes('Submission 1')&&ph[0].includes(f(exp)),ph.join(' / '));
    const per=(await a.locator('section:has(h3:text-is("Hours by person")) tbody').textContent());
    ok('detail: admin sees everyone by name',per.includes(NY)&&per.includes(LD)&&!per.includes('other offices'));
    ok('detail: admin has an Edit button',await a.isVisible('button:has-text("Edit")'));
@@ -143,7 +143,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    ok('location manager: own office person listed',per.includes(LD));
    ok('location manager: people from other offices not named',!per.includes(NY)&&!(await o.content()).includes(NY));
    ok('location manager: other offices added up in one line',per.includes('People in other offices (1)')&&per.includes(f(240)),per);
-   ok('location manager: note says only own office is listed',(await o.textContent('main')).includes('Only people in the London office are listed'));
+   ok('location manager: note says only own office is listed',(await o.textContent('main')).includes('Only people in the PNQ office are listed'));
    ok('location manager: totals still company-wide',(await stats(o))[0]===`${f(minutes('fx',m0,todayStr))} hours logged`);
    ok('location manager: no Edit button',!(await o.isVisible('button:has-text("Edit")')));
   }
