@@ -147,7 +147,7 @@ input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
 .between{justify-content:space-between;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 13px/1.25 var(--body);border-radius:6px;padding:7px 13px;min-height:34px;cursor:pointer;border:1px solid transparent;background:var(--btn2);color:var(--ink);text-align:center}
 .btn:hover:not(:disabled){background:var(--btn2-hi)}
-.btn.primary,.btn.ok{background:var(--accent);color:#fff}
+.btn.primary,.btn.ok{background:var(--accent);color:var(--on-accent,#fff)}
 .btn.primary:hover:not(:disabled),.btn.ok:hover:not(:disabled){background:var(--accent-hi)}
 .btn.bad{background:var(--bad-soft);color:var(--bad)}
 .btn.bad:hover:not(:disabled){background:var(--bad-hi)}
@@ -507,8 +507,115 @@ body:has(dialog[open]){overflow:hidden}
 .ssel select[size] option,.ssel select[size] optgroup{padding:4px 8px}
 .ssel-none{margin:0}
 .ifld .ssel{flex-direction:row;align-items:center;gap:0;width:auto}
-.ifld .ssel-q{width:110px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;min-height:32px;font-size:13px}
+.ifld .ssel-q{width:84px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;min-height:32px;font-size:13px}
 .ifld .ssel-none{display:none}
 .tfilter{display:flex;align-items:center;gap:10px;margin:0 0 10px}
 .tfilter input{width:min(320px,100%)}
 tr[hidden]{display:none}
+
+/* ===== Themes: the picker (Settings, My profile) sets data-theme on <html>. Light is the default and lives in :root above. ===== */
+:root[data-theme="light"]{color-scheme:light}
+
+/* Dark: near-black slate, a calm blue accent, text at about 14:1 contrast so long days stay readable */
+:root[data-theme="dark"]{
+  color-scheme:dark; --on-accent:#fff;
+  --bg:#0F1216; --side:#14181D; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
+  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
+  --accent:#2F7BE5; --accent-hi:#4A8FF0; --link:#7DB0FF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
+  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
+  --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
+  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
+  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
+  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Neon: near-black blue, electric cyan and hot pink, lime for good news. Every glow is a stack of box-shadows:
+   a 1px ring in the colour, a tight blur (12-16px) at 50-60% for the bright core, a wide blur (30-50px) at 25-40% for the haze.
+   Text glow is text-shadow: 0 0 10-12px at 45-55%. */
+:root[data-theme="neon"]{
+  color-scheme:dark; --on-accent:#001418;
+  --bg:#07070F; --side:#0A0A16; --card:#0E0E1C; --tile:#14142A; --surface:#111128; --hover:#1B1B38; --track:#2A2A4A;
+  --ink:#EAF6FF; --muted:#9AA6C8; --line:#26264A; --border:#2C2C58; --line2:#3E3E78;
+  --accent:#00E5FF; --accent-hi:#5CF0FF; --link:#4DEBFF; --accent-soft:#06303A; --accent-ink:#8CF3FF;
+  --btn2:#1B1B38; --btn2-hi:#26264A; --seg-on:#2D2D5C; --lilac:#2B1646; --lilac-ink:#E3B8FF;
+  --ok:#39FF88; --ok-soft:#0B2E1C; --warn:#FFC53D; --warn-soft:#33270A; --bad:#FF4D8D; --bad-soft:#3A0F25; --bad-hi:#4A1430;
+  --s1:#00E5FF; --s2:#FF2E97; --s3:#B6FF00; --s4:#8A8FFF; --nb:#3E3E78; --on-s1:#001418; --s5:#39FF88; --s6:#FFC53D; --s7:#B16BFF; --s8:#FF7A45;
+  --t1:#06303A; --t1i:#8CF3FF; --t2:#2B1646; --t2i:#E3B8FF; --t3:#3A0F25; --t3i:#FF9CC4; --t4:#0B2E1C; --t4i:#8CFFB8; --t5:#33270A; --t5i:#FFD66B;
+  --shadow:0 0 0 1px rgba(0,229,255,.08); --pop:0 0 0 1px rgba(0,229,255,.55),0 0 28px rgba(0,229,255,.35),0 24px 60px rgba(0,0,0,.7); --scrim:rgba(4,0,16,.62);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA6C8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+:root[data-theme="neon"] .panel{border-color:rgba(0,229,255,.28);box-shadow:inset 0 0 0 1px rgba(0,229,255,.05),0 0 18px rgba(0,229,255,.10)}
+:root[data-theme="neon"] .btn.primary,:root[data-theme="neon"] .btn.ok{box-shadow:0 0 0 1px rgba(0,229,255,.6),0 0 14px rgba(0,229,255,.55),0 0 34px rgba(0,229,255,.25)}
+:root[data-theme="neon"] .btn.primary:hover:not(:disabled){box-shadow:0 0 0 1px #5CF0FF,0 0 20px rgba(0,229,255,.8),0 0 48px rgba(0,229,255,.4)}
+:root[data-theme="neon"] .btn:not(.primary):not(.ok):hover{box-shadow:0 0 0 1px rgba(255,46,151,.7),0 0 14px rgba(255,46,151,.4)}
+:root[data-theme="neon"] input:focus,:root[data-theme="neon"] select:focus,:root[data-theme="neon"] textarea:focus{box-shadow:0 0 0 1px var(--accent),0 0 14px rgba(0,229,255,.5);outline:none}
+:root[data-theme="neon"] nav.snav a[aria-current="page"]{color:var(--accent);box-shadow:0 0 0 1px rgba(0,229,255,.55),0 0 14px rgba(0,229,255,.35)}
+:root[data-theme="neon"] h1,:root[data-theme="neon"] .sbrand{text-shadow:0 0 12px rgba(0,229,255,.5)}
+:root[data-theme="neon"] .stat b{text-shadow:0 0 10px rgba(0,229,255,.45)}
+:root[data-theme="neon"] dialog{box-shadow:var(--pop)}
+
+/* Minimal: black on white, grey for everything secondary, one muted brick accent for anything that needs attention. No shadows, square corners, type does the work. */
+:root[data-theme="minimal"]{
+  color-scheme:light; --on-accent:#fff;
+  --bg:#FFFFFF; --side:#FFFFFF; --card:#FFFFFF; --tile:#F5F5F5; --surface:#FFFFFF; --hover:#EFEFEF; --track:#D9D9D9;
+  --ink:#000000; --muted:#4D4D4D; --line:#E2E2E2; --border:#D0D0D0; --line2:#8C8C8C;
+  --accent:#111111; --accent-hi:#000000; --link:#000000; --accent-soft:#EDEDED; --accent-ink:#111111;
+  --btn2:#F0F0F0; --btn2-hi:#E2E2E2; --seg-on:#E2E2E2; --lilac:#EDEDED; --lilac-ink:#111111;
+  --ok:#111111; --ok-soft:#EDEDED; --warn:#8A4B2A; --warn-soft:#F3ECE8; --bad:#9A2B2B; --bad-soft:#F6E9E9; --bad-hi:#EFD7D7;
+  --s1:#111111; --s2:#8A8A8A; --s3:#444444; --s4:#B5B5B5; --nb:#C8C8C8; --on-s1:#FFFFFF; --s5:#6B6B6B; --s6:#2B2B2B; --s7:#9C9C9C; --s8:#A0522D;
+  --t1:#EDEDED; --t1i:#111111; --t2:#E2E2E2; --t2i:#111111; --t3:#F3ECE8; --t3i:#8A4B2A; --t4:#F0F0F0; --t4i:#222222; --t5:#F3ECE8; --t5i:#8A4B2A;
+  --shadow:none; --pop:0 12px 32px rgba(0,0,0,.2); --scrim:rgba(0,0,0,.4);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%234D4D4D' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+:root[data-theme="minimal"] .panel,:root[data-theme="minimal"] dialog,:root[data-theme="minimal"] .btn,:root[data-theme="minimal"] input,:root[data-theme="minimal"] select,:root[data-theme="minimal"] textarea,:root[data-theme="minimal"] .ifld{border-radius:3px}
+:root[data-theme="minimal"] .panel{border-color:var(--border)}
+:root[data-theme="minimal"] h1{font-weight:800;letter-spacing:-.03em}
+:root[data-theme="minimal"] nav.snav a[aria-current="page"]{background:#111;color:#fff;box-shadow:none}
+:root[data-theme="minimal"] nav.snav a[aria-current="page"] svg{color:#fff}
+:root[data-theme="minimal"] .side{border-right-color:#111}
+
+/* Glass: a deep violet, magenta and blue backdrop with frosted panels.
+   Cards: rgba(255,255,255,.14), backdrop-filter blur(18px) saturate(150%), border 1px solid rgba(255,255,255,.32).
+   Sidebar: rgba(255,255,255,.10), blur(24px), border rgba(255,255,255,.22). Popups: rgba(30,20,70,.55), blur(28px), border rgba(255,255,255,.35).
+   The blur sits on a ::before layer so tooltips and popups inside a card still position against the screen. */
+:root[data-theme="glass"]{
+  color-scheme:dark; --on-accent:#0B1030;
+  --bg:#1B1648; --side:rgba(255,255,255,.10); --card:rgba(255,255,255,.14); --tile:rgba(255,255,255,.12); --surface:rgba(34,24,84,.92); --hover:rgba(255,255,255,.16); --track:rgba(255,255,255,.22);
+  --ink:#FFFFFF; --muted:#D9D6F4; --line:rgba(255,255,255,.22); --border:rgba(255,255,255,.32); --line2:rgba(255,255,255,.45);
+  --accent:#9BE7FF; --accent-hi:#C4F1FF; --link:#B8EEFF; --accent-soft:rgba(155,231,255,.2); --accent-ink:#E2F8FF;
+  --btn2:rgba(255,255,255,.18); --btn2-hi:rgba(255,255,255,.28); --seg-on:rgba(255,255,255,.28); --lilac:rgba(196,160,255,.25); --lilac-ink:#F0E4FF;
+  --ok:#8CF5B5; --ok-soft:rgba(60,200,120,.25); --warn:#FFD27A; --warn-soft:rgba(255,190,70,.25); --bad:#FFB0C0; --bad-soft:rgba(255,90,130,.28); --bad-hi:rgba(255,90,130,.4);
+  --s1:#9BE7FF; --s2:#FFB36B; --s3:#C4A0FF; --s4:#B8BCD8; --nb:rgba(255,255,255,.4); --on-s1:#0B1030; --s5:#7CF2D2; --s6:#8CF5B5; --s7:#E0B0FF; --s8:#FF9CC4;
+  --t1:rgba(155,231,255,.22); --t1i:#E2F8FF; --t2:rgba(196,160,255,.25); --t2i:#F0E4FF; --t3:rgba(255,130,180,.25); --t3i:#FFD0E3; --t4:rgba(60,200,120,.25); --t4i:#C9FADB; --t5:rgba(255,190,70,.25); --t5i:#FFE6B0;
+  --shadow:none; --pop:0 20px 50px rgba(8,4,40,.5); --scrim:rgba(14,8,50,.45);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%23D9D6F4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+:root[data-theme="glass"] body{background:radial-gradient(900px 640px at 8% -5%,#9d174d 0%,transparent 62%),radial-gradient(900px 700px at 100% 10%,#075985 0%,transparent 58%),radial-gradient(1000px 800px at 35% 105%,#5b21b6 0%,transparent 62%),linear-gradient(135deg,#1e1b4b,#2e1065 50%,#0c2a5e);background-attachment:fixed;text-shadow:0 1px 2px rgba(8,4,40,.35)}
+:root[data-theme="glass"] .side{-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);border-right:1px solid rgba(255,255,255,.22)}
+:root[data-theme="glass"] .panel{position:relative;isolation:isolate;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);box-shadow:0 8px 32px rgba(8,4,40,.25)}
+:root[data-theme="glass"] .panel::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%)}
+:root[data-theme="glass"] dialog{background:rgba(30,20,70,.55);border:1px solid rgba(255,255,255,.35);-webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%)}
+:root[data-theme="glass"] dialog>.panel{background:transparent;border:0;box-shadow:none}
+:root[data-theme="glass"] dialog>.panel::before{display:none}
+:root[data-theme="glass"] input,:root[data-theme="glass"] select,:root[data-theme="glass"] textarea,:root[data-theme="glass"] .ifld{background-color:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);color:#fff}
+:root[data-theme="glass"] ::placeholder{color:rgba(255,255,255,.65)}
+:root[data-theme="glass"] select:not([size]) option,:root[data-theme="glass"] select:not([size]) optgroup{color:#111;background:#fff;text-shadow:none}
+:root[data-theme="glass"] select[size]{background-color:transparent}
+:root[data-theme="glass"] select[size] option,:root[data-theme="glass"] select[size] optgroup{color:#fff;background:transparent}
+:root[data-theme="glass"] select[size] option:checked{background:rgba(155,231,255,.35)}
+:root[data-theme="glass"] .btn.primary{box-shadow:0 4px 18px rgba(155,231,255,.35)}
+:root[data-theme="glass"] .tablebox{background:transparent}
+
+/* Theme picker */
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.themecard{position:relative;display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--tile);cursor:pointer}
+.themecard input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.themecard b{font-size:14px}
+.themecard small{color:var(--muted);font-size:12px;line-height:1.35}
+.themecard:hover{border-color:var(--line2)}
+.themecard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.themecard:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.swatch{display:flex;height:34px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin-bottom:6px}
+.swatch i{flex:1}
+:root[data-theme="glass"] .ifld select,:root[data-theme="glass"] .ifld input{background-color:transparent}

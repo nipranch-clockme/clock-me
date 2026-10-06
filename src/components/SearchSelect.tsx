@@ -30,7 +30,7 @@ export default function SearchSelect({
   return (
     <div className="ssel">
       {(alwaysList || options.length >= minToSearch) && (
-        <input id={sid} type="search" className="ssel-q" value={q} placeholder={`${searchLabel}…`} aria-label={`${searchLabel} ${(placeholder ?? "").replace(/^Choose an? /i, "")}`.trim()}
+        <input id={sid} type="search" className="ssel-q" value={q} placeholder="Search…" aria-label={`${searchLabel} ${(placeholder ?? "").replace(/^Choose an? /i, "")}`.trim()}
           autoComplete="off" autoFocus={alwaysList} onChange={(e) => { e.stopPropagation(); setQ(e.target.value); }}
           onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
       )}

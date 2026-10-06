@@ -1,3 +1,4 @@
+import AppearancePanel from "@/components/AppearancePanel";
 import { PageHead } from "@/components/ui";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
     <>
       <PageHead title="Settings" sub="Company-wide options." />
     <div className="grid g2">
+      <AppearancePanel />
       <GeneralForm zones={Intl.supportedValuesOf("timeZone")} s={{ timeZone: settings.timeZone, timeFormat: settings.timeFormat, requireTag: settings.requireTag, requireDescription: settings.requireDescription, lockBefore: settings.lockBeforeStr ?? "", dailyMinimum: settings.dailyMinimum, remindSubmit: settings.remindSubmit, remindSubmitDay: settings.remindSubmitDay, remindDaily: settings.remindDaily, remindApprovers: settings.remindApprovers }} emailOn={!!process.env.RESEND_API_KEY} cronOn={!!process.env.CRON_SECRET} />
       <section className="panel">
         <h3>Tags</h3>
