@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 import type { Me } from "./auth";
 
 /** Whose entries this person may see: own (member), own team (leader, PM), own office (location manager), everyone (admin). */
@@ -21,6 +21,19 @@ export function approverUsersWhere(me: Me): Prisma.UserWhereInput | null {
     default: return null;
   }
 }
+
+/** Why this person can't manage someone in that office with that role, or null when they can. Admins manage everyone.
+ *  Location managers manage their own office, but not admins or location managers. */
+export function manageError(me: Me, locationId: string, role: Role): string | null {
+  if (me.role === "ADMIN") return null;
+  if (me.role !== "LOCATION") return "You don't have permission to do that.";
+  if (locationId !== me.locationId) return "You can only manage people in your own office.";
+  if (role === "ADMIN" || role === "LOCATION") return "Only admins can make someone an admin or location manager.";
+  return null;
+}
+/** Who may change someone's employee ID, joining date, expected hours and (besides the person) profile picture:
+ *  the same people who edit them on the People page. */
+export const canManagePerson = (me: Me, p: { locationId: string; role: Role }) => !manageError(me, p.locationId, p.role);
 
 export const scopeLabel = (me: Me) =>
   me.role === "ADMIN" ? "Whole company"

@@ -35,7 +35,7 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
         <div>
           <h3>Targets and reminders</h3>
           <div style={{ maxWidth: 220 }}><label htmlFor="st-min">Daily minimum (hours)</label><input id="st-min" name="dailyMinimum" type="number" min="0" max="24" step="0.5" defaultValue={s.dailyMinimum} /></div>
-          <p className="note" style={{ margin: "4px 0 10px" }}>Weekly targets are set per person on the People page.</p>
+          <p className="note" style={{ margin: "4px 0 10px" }}>Expected hours per week are set for each person on the People page or their profile.</p>
           <label className="check"><input type="checkbox" name="remindSubmit" defaultChecked={s.remindSubmit} /> Remind people to submit their timesheet on</label>
           <select name="remindSubmitDay" defaultValue={s.remindSubmitDay} aria-label="Reminder day" style={{ maxWidth: 200, marginLeft: 24 }}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select>
           <p className="note" style={{ margin: "2px 0 0 24px" }}>On Monday or Tuesday it&apos;s about the week that just ended; on other days, the current week.</p>

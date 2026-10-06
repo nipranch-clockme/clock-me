@@ -3,33 +3,31 @@ import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab, type Me } from "@/lib/auth";
+import { manageError } from "@/lib/scope";
 import { logAction } from "@/lib/settings";
 import { roleName } from "@/lib/roles";
 import { sendEmail, appUrl } from "@/lib/email";
 import { issueLinkToken, INVITE_HOURS, RESET_HOURS } from "@/lib/tokens";
+import { DUP_EMPLOYEE_ID, isDupEmployeeId, profileChanges, readProfileFields } from "@/lib/profile";
 
 export type PeopleResult = { ok: boolean; error?: string; link?: string; message?: string } | null;
 const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "PM", "LOCATION", "ADMIN"];
 
 /** Location managers manage their own office and can't hand out admin or location manager roles. */
-function checkScope(me: Me, locationId: string, role: Role): string | null {
-  if (me.role === "ADMIN") return null;
-  if (locationId !== me.locationId) return "You can only manage people in your own office.";
-  if (role === "ADMIN" || role === "LOCATION") return "Only admins can make someone an admin or location manager.";
-  return null;
-}
+const checkScope = (me: Me, locationId: string, role: Role) => manageError(me, locationId, role);
 
-async function readPerson(form: FormData) {
+/** `personId` is who's being edited (none for an invite), so their own employee ID doesn't count as taken. */
+async function readPerson(form: FormData, personId?: string) {
   const role = String(form.get("role")) as Role;
   const locationId = String(form.get("locationId") ?? "");
   const teamId = String(form.get("teamId") ?? "") || null;
-  const target = parseFloat(String(form.get("weeklyTarget") ?? "40"));
   if (!ROLE_VALUES.includes(role)) return { error: "Choose a role." };
   if (!(await db.location.findUnique({ where: { id: locationId } }))) return { error: "Choose an office." };
   if (teamId && !(await db.team.findFirst({ where: { id: teamId, locationId } }))) return { error: "That team isn't in the chosen office." };
   if ((role === "LEADER" || role === "PM") && !teamId) return { error: "Team leaders and project managers need a team." };
-  if (isNaN(target) || target < 0 || target > 80) return { error: "Weekly target should be between 0 and 80 hours." };
-  return { data: { role, locationId, teamId, weeklyTarget: target, title: String(form.get("title") ?? "").trim() } };
+  const f = await readProfileFields(form, personId);
+  if ("error" in f) return { error: f.error };
+  return { data: { role, locationId, teamId, ...f.data, title: String(form.get("title") ?? "").trim() } };
 }
 
 export async function invitePerson(_: PeopleResult, form: FormData): Promise<PeopleResult> {
@@ -43,7 +41,13 @@ export async function invitePerson(_: PeopleResult, form: FormData): Promise<Peo
   const scopeErr = checkScope(me, p.data.locationId, p.data.role);
   if (scopeErr) return { ok: false, error: scopeErr };
   if (await db.user.findUnique({ where: { email } })) return { ok: false, error: "Someone with that email already has an account." };
-  const created = await db.user.create({ data: { name, email, ...p.data } });
+  let created;
+  try {
+    created = await db.user.create({ data: { name, email, ...p.data } });
+  } catch (e) {
+    if (isDupEmployeeId(e)) return { ok: false, error: DUP_EMPLOYEE_ID };
+    throw e;
+  }
   const link = `${appUrl()}/invite/${await issueLinkToken(created.id, INVITE_HOURS)}`;
   const r = await sendEmail(email, "You're invited to Clock me", `Hi ${name.split(" ")[0]},\n\n${me.name} invited you to Clock me, where you'll log your time.\nSet your password here within 7 days: ${link}`);
   await logAction(me.id, `Invited ${name} (${email}) as ${roleName(p.data.role)}`, created.id);
@@ -56,9 +60,11 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
   const id = String(form.get("id"));
   const person = await db.user.findUnique({ where: { id } });
   if (!person) return { ok: false, error: "Person not found." };
-  const p = await readPerson(form);
+  const scopeErr0 = checkScope(me, person.locationId, person.role);
+  if (scopeErr0) return { ok: false, error: scopeErr0 };
+  const p = await readPerson(form, id);
   if ("error" in p) return { ok: false, error: p.error };
-  const scopeErr = checkScope(me, person.locationId, person.role) ?? checkScope(me, p.data.locationId, p.data.role);
+  const scopeErr = checkScope(me, p.data.locationId, p.data.role);
   if (scopeErr) return { ok: false, error: scopeErr };
   const active = form.get("active") === "on";
   if (id === me.id && (!active || p.data.role !== me.role)) return { ok: false, error: "You can't change your own role or deactivate yourself. Ask another admin." };
@@ -66,19 +72,25 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
   // A role, office or status change cancels any open invite or reset link (a new one can be made),
   // and deactivating someone signs them out everywhere.
   const sensitive = person.role !== p.data.role || person.locationId !== p.data.locationId || person.active !== active;
-  await db.user.update({
-    where: { id },
-    data: { ...p.data, name, active, ...(sensitive ? { inviteToken: null, inviteExpires: null } : {}), ...(person.active && !active ? { sessionVersion: { increment: 1 } } : {}) },
-  });
+  try {
+    await db.user.update({
+      where: { id },
+      data: { ...p.data, name, active, ...(sensitive ? { inviteToken: null, inviteExpires: null } : {}), ...(person.active && !active ? { sessionVersion: { increment: 1 } } : {}) },
+    });
+  } catch (e) {
+    if (isDupEmployeeId(e)) return { ok: false, error: DUP_EMPLOYEE_ID };
+    throw e;
+  }
   const changes = [
     person.role !== p.data.role && `role to ${roleName(p.data.role)}`,
-    person.weeklyTarget !== p.data.weeklyTarget && `weekly target to ${p.data.weeklyTarget} h`,
+    ...profileChanges(person, p.data),
     person.locationId !== p.data.locationId && "office",
     person.teamId !== p.data.teamId && "team",
     person.active !== active && (active ? "reactivated" : "deactivated"),
   ].filter(Boolean);
   await logAction(me.id, `Updated ${name}${changes.length ? `: ${changes.join(", ")}` : ""}`, id);
   revalidatePath("/people");
+  revalidatePath(`/profile/${id}`);
   return { ok: true };
 }
 

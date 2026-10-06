@@ -13,7 +13,7 @@ type Cell = "y" | "n" | string;
 export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Add own time in timesheet and calendar", { MEMBER: "y", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
   ["See own reports", { MEMBER: "y", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
-  ["See other people's entries, reports and dashboard", { MEMBER: "n", LEADER: "Own team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
+  ["See other people's entries, reports, profiles and dashboard", { MEMBER: "n", LEADER: "Own team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Approve or send back timesheets", { MEMBER: "n", LEADER: "Own team", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Create projects (blank or from a phase template)", { MEMBER: "n", LEADER: "y", PM: "y", LOCATION: "y", ADMIN: "y" }],
   ["Edit projects and who can see them", { MEMBER: "n", LEADER: "Ones they manage", PM: "Ones they manage", LOCATION: "Ones they manage", ADMIN: "All" }],
@@ -21,7 +21,8 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Set a client's type and contracted hours per month", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
   ["See the client dashboard (hours and contract use for every client)", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Yes, people in own office only", ADMIN: "y" }],
   ["Import and export CSV", { MEMBER: "Export own", LEADER: "Export team", PM: "Own team", LOCATION: "Own office", ADMIN: "y" }],
-  ["Invite people, set targets", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
+  ["Invite people, set expected hours, employee IDs and joining dates", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "Own office", ADMIN: "y" }],
+  ["Change profile pictures", { MEMBER: "Own", LEADER: "Own", PM: "Own", LOCATION: "Own office", ADMIN: "y" }],
   ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", PM: "n", LOCATION: "n", ADMIN: "y" }],
 ];
 

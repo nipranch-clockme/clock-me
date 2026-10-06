@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { TABS, roleName } from "@/lib/roles";
 import NavLinks from "@/components/NavLinks";
+import Avatar from "@/components/Avatar";
+import Link from "next/link";
 import { logout } from "../login/actions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -11,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="bar">
         <div className="brand"><h1>Clock me</h1></div>
         <div className="userbox">
-          <span>{me.name} · {roleName(me.role)} · {me.location.name}</span>
+          <span><Link href="/profile" className="melink" title="My profile"><Avatar person={me} size={26} />{me.name}</Link> · {roleName(me.role)} · {me.location.name}</span>
           <form action={logout}><button className="btn sm">Sign out</button></form>
         </div>
       </header>

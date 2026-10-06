@@ -68,7 +68,11 @@ model User {
   location       Location            @relation(fields: [locationId], references: [id])
   teamId         String?
   team           Team?               @relation(fields: [teamId], references: [id])
-  weeklyTarget   Float               @default(40)
+  weeklyTarget   Float               @default(40) // "Expected hours per week" on screen
+  employeeId     String?             @unique // the company's own ID for the person; also kept unique ignoring case by the app
+  joiningDate    DateTime?           @db.Date // when they joined the company, shown as years of experience
+  photoAt        DateTime? // when their profile picture last changed; null when they have none
+  photo          ProfilePhoto?
   active         Boolean             @default(true)
   createdAt      DateTime            @default(now())
   entries        TimeEntry[]
@@ -77,6 +81,14 @@ model User {
   managing       ProjectManager[]
   access         ProjectUserAccess[]
   audit          AuditLog[]
+}
+
+/// A person's profile picture: a 256x256 JPEG made in the browser. Kept apart from User so lists of people don't load it.
+model ProfilePhoto {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Bytes
+  updatedAt DateTime @updatedAt
 }
 
 model Client {

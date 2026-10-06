@@ -97,3 +97,11 @@ export function workdaysSoFar(a: string, b: string) {
 
 /** Days from a to b (0 when they're the same day). */
 export const daysBetween = (a: string, b: string) => Math.round((toDate(b).getTime() - toDate(a).getTime()) / 864e5);
+
+/** Working days (Mon to Fri) in [a, b], counting only days before today. */
+export function workdayDates(a: string, b: string) {
+  const end = b < today() ? b : addDays(today(), -1);
+  const out: string[] = [];
+  for (let d = a; d <= end; d = addDays(d, 1)) if (dow(d) < 5) out.push(d);
+  return out;
+}

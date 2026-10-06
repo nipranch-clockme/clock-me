@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { approverUsersWhere, scopeLabel } from "@/lib/scope";
@@ -58,7 +59,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             return (
               <div className="item" style={{ flexWrap: "wrap" }} key={s.id}>
                 <div style={{ minWidth: 0, flex: "1 1 300px" }}>
-                  <strong>{s.user.name}</strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
+                  <strong><Link className="plink" href={`/profile/${s.userId}`}>{s.user.name}</Link></strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
                   <div className="meta">{f(total)} of {f(s.user.weeklyTarget * 60)} h target {total < s.user.weeklyTarget * 60 && <Pill tone="warn">Under target</Pill>}</div>
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
@@ -75,7 +76,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       <section className="panel">
         <h3>Not submitted for {weekLabel(lastWeek)}</h3>
         <div className="list">
-          {late.map((u) => <div className="item" key={u.id}><div>{u.name}<div className="meta">{u.title} · {u.location.name}</div></div><RemindButton userId={u.id} week={lastWeek} /></div>)}
+          {late.map((u) => <div className="item" key={u.id}><div><Link className="plink" href={`/profile/${u.id}`}>{u.name}</Link><div className="meta">{u.title} · {u.location.name}</div></div><RemindButton userId={u.id} week={lastWeek} /></div>)}
           {!late.length && <div className="empty">Everyone submitted.</div>}
         </div>
       </section>
