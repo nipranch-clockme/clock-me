@@ -7,12 +7,15 @@ import { RANGES, addDays, longDate, monday, today, toDate, toStr, shortDate } fr
 import { fmtHours, niceStep } from "@/lib/format";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
+import { PageHead, Ifld } from "@/components/ui";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireUser();
   const settings = await getSettings();
   const f = (m: number) => fmtHours(m, settings.timeFormat);
-  const p = parseReportParams(await searchParams, me);
+  const raw = await searchParams;
+  const p = parseReportParams(raw, me);
+  const fromApprovals = raw.ref === "approvals";
   const scope = { user: visibleUsersWhere(me) };
 
   // Dropdown options first: only what this person can see.
@@ -44,6 +47,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     db.timeEntry.groupBy({ by: ["userId", "projectId", "phaseId", "tagId"], where, _sum: { minutes: true }, _count: true }),
     db.timeEntry.groupBy({ by: ["date"], where, _sum: { minutes: true }, orderBy: { date: "asc" } }),
   ]);
+  const CAP = 500;
+  const detailRows = p.detail
+    ? await db.timeEntry.findMany({ where, orderBy: [{ date: "desc" }, { startMin: "desc" }], take: CAP, include: { user: { select: { id: true, name: true } }, project: { select: { name: true } }, phase: { select: { name: true } }, tag: { select: { name: true } } } })
+    : [];
   const phases = combos.length ? await db.phase.findMany({ where: { id: { in: [...new Set(combos.map((c) => c.phaseId).filter(Boolean))] as string[] } }, select: { id: true, name: true } }) : [];
   const U = new Map(people.map((u) => [u.id, u])), P = new Map(scopeProjects.map((x) => [x.id, x])), T = new Map(tags.map((t) => [t.id, t.name])), PH = new Map(phases.map((x) => [x.id, x.name]));
   const dupProjectName = (name: string) => scopeProjects.filter((x) => x.name === name).length > 1;
@@ -94,34 +101,53 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   byDate.forEach((r) => { const k = kOf(toStr(r.date)); B[k] = (B[k] ?? 0) + (r._sum.minutes ?? 0) / 60; });
 
   const sel = (id: (typeof FILTER_KEYS)[number], label: string, all: string, opts: [string, string][]) => (
-    <div><label htmlFor={`rp-${id}`}>{label}</label><select id={`rp-${id}`} name={id} defaultValue={p[id] ?? ""}><option value="">{all}</option>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+    <Ifld id={`rp-${id}`} label={label} name={id} defaultValue={p[id] ?? ""}><option value="">{all}</option>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Ifld>
   );
   const nf = FILTER_KEYS.filter((k) => p[k]).length;
 
   return (
     <>
-      <section className="panel" style={{ marginBottom: 16 }}>
-        <AutoForm className="row" key={reportQuery(p)}>
-          <div><label htmlFor="rp-range">Date range</label><select id="rp-range" name="range" defaultValue={p.range}>{RANGES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          {p.range === "custom" && <>
-            <div><label htmlFor="rp-from">From</label><input type="date" id="rp-from" name="from" defaultValue={from} min="2000-01-01" /></div>
-            <div><label htmlFor="rp-to">To</label><input type="date" id="rp-to" name="to" defaultValue={to} /></div>
-          </>}
-          <div><label htmlFor="rp-group">Group by</label><select id="rp-group" name="group" defaultValue={p.group}>{GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          {people.length > 1 && sel("person", "Person", "Everyone", people.map((u) => [u.id, u.name]))}
-          {teams.length > 1 && sel("team", "Team", "All teams", teams)}
-          {sel("client", "Client", "All clients", clients)}
-          {sel("project", "Project", "All projects", projOpts)}
-          {sel("tag", "Tag", "All tags", tags.map((t) => [t.id, t.name]))}
-          {sel("phase", "Phase", "All phases", phaseNames.map((x) => [x.name, x.name]))}
-          {sel("desc", "Description", "Any description", descOpts.map((d) => [d, d.length > 60 ? d.slice(0, 57) + "…" : d]))}
-          {me.role === "ADMIN" && sel("location", "Location", "All offices", locations.map((l) => [l.id, l.name]))}
+      <PageHead title="Reports"
+        actions={<>
+          {fromApprovals && <Link className="btn" href="/approvals">Back to Approvals</Link>}
           {nf > 0 && <Link className="btn" href={`/reports?${reportQuery({ range: p.range, from: p.from, to: p.to, group: p.group })}`}>Clear {nf} filter{nf > 1 ? "s" : ""}</Link>}
-          <a className="btn" href={`/reports/export?${reportQuery(p)}`}>Export CSV</a>
+          <a className="btn primary" href={`/reports/export?${reportQuery(p)}`}>Export CSV</a>
+        </>}
+        sub={`Showing: ${scopeLabel(me)} · ${longDate(shownFrom)} to ${longDate(shownTo)}`} />
+      <AutoForm key={reportQuery(p)}>
+        <section className="panel" style={{ marginBottom: 12, borderLeft: "4px solid var(--accent)" }}>
+          <div className="fbar">
+            <Ifld id="rp-range" label="Date range" name="range" defaultValue={p.range}>{RANGES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
+            {p.range === "custom" && <>
+              <div className="ifld"><label htmlFor="rp-from">From</label><input type="date" id="rp-from" name="from" defaultValue={from} min="2000-01-01" /></div>
+              <div className="ifld"><label htmlFor="rp-to">To</label><input type="date" id="rp-to" name="to" defaultValue={to} /></div>
+            </>}
+          </div>
+        </section>
+        <section className="panel" style={{ marginBottom: 16 }}>
+          <div className="fbar">
+            {p.detail && <input type="hidden" name="detail" value="1" />}
+            {fromApprovals && <input type="hidden" name="ref" value="approvals" />}
+            <div className="ifld"><label>View</label>
+              <div className="seg" role="group" aria-label="Report view" title={p.group === "project" ? undefined : "Available when Group by is Project"} style={p.group === "project" ? undefined : { opacity: 0.45 }}>
+                {p.group === "project"
+                  ? <><Link href={`/reports?${reportQuery(p, { detail: undefined, ref: fromApprovals ? "approvals" : undefined })}`} aria-pressed={!p.detail}>Overview</Link><Link href={`/reports?${reportQuery(p, { detail: "1", ref: fromApprovals ? "approvals" : undefined })}`} aria-pressed={!!p.detail}>Detailed</Link></>
+                  : <><button type="button" disabled style={{ cursor: "not-allowed" }} aria-pressed="true">Overview</button><button type="button" disabled style={{ cursor: "not-allowed" }}>Detailed</button></>}
+              </div>
+            </div>
+            <Ifld id="rp-group" label="Group by" name="group" defaultValue={p.group}>{GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
+            {people.length > 1 && sel("person", "Person", "Everyone", people.map((u) => [u.id, u.name]))}
+            {teams.length > 1 && sel("team", "Team", "All teams", teams)}
+            {sel("client", "Client", "All clients", clients)}
+            {sel("project", "Project", "All projects", projOpts)}
+            {sel("tag", "Tag", "All tags", tags.map((t) => [t.id, t.name]))}
+            {sel("phase", "Phase", "All phases", phaseNames.map((x) => [x.name, x.name]))}
+            {sel("desc", "Description", "Any description", descOpts.map((d) => [d, d.length > 60 ? d.slice(0, 57) + "…" : d]))}
+            {me.role === "ADMIN" && sel("location", "Location", "All offices", locations.map((l) => [l.id, l.name]))}
+          </div>
           <noscript><button className="btn">Apply</button></noscript>
-        </AutoForm>
-        <p className="note" style={{ margin: "10px 0 0" }}>Showing: {scopeLabel(me)} · {longDate(shownFrom)} to {longDate(shownTo)}</p>
-      </section>
+        </section>
+      </AutoForm>
       <div className="grid">
         <section className="panel full">
           <div className="stats spread">
@@ -135,22 +161,42 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <h3>Hours over time</h3>
           <BarChart keys={keys} values={B} unit={unit} />
         </section>
+        {p.detail ? (
+          <section className="panel full">
+            <div className="ch"><h3>All entries</h3><span className="cd">{entryCount.toLocaleString("en-US")} {entryCount === 1 ? "entry" : "entries"}{entryCount > CAP ? `, showing the latest ${CAP}` : ""}</span></div>
+            <div className="tablebox"><table>
+              <thead><tr><th>Date</th><th>Person</th><th>Project</th><th>Phase</th><th>Tag</th><th>Description</th><th className="num">Hours</th></tr></thead>
+              <tbody>
+                {detailRows.map((e) => (
+                  <tr key={e.id}>
+                    <td data-l="Date">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
+                    <td data-l="Person"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
+                    <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tag">{e.tag?.name ?? ""}</td><td data-l="Description">{e.description}</td>
+                    <td className="num" data-l="Hours">{f(e.minutes)}</td>
+                  </tr>
+                ))}
+                {!detailRows.length && <tr><td colSpan={7} className="empty">No time in this range.</td></tr>}
+              </tbody>
+            </table></div>
+          </section>
+        ) : (
         <section className="panel full">
-          <h3>By {groupLabel.toLowerCase()}</h3>
-          <div className="tablebox"><table>
-            <thead><tr><th>{groupLabel}</th><th className="num">Hours</th><th className="num">People</th><th style={{ width: "35%" }}>Share of hours</th></tr></thead>
-            <tbody>
-              {rows.map(([k, g]) => (
-                <tr key={k}>
-                  <td>{p.group === "person" && U.has(k) ? <Link className="plink" href={`/profile/${k}`}>{g.label}</Link> : g.label}</td>
-                  <td className="num">{f(g.m)}</td><td className="num">{g.people.size}</td>
-                  <td><div className="meter"><i style={{ width: `${(g.m / maxG) * 100}%` }} /></div><div className="note">{total ? ((g.m / total) * 100).toFixed(1) : 0}%</div></td>
-                </tr>
-              ))}
-              {!rows.length && <tr><td colSpan={4} className="empty">No time in this range.</td></tr>}
-            </tbody>
-          </table></div>
-        </section>
+            <h3>By {groupLabel.toLowerCase()}</h3>
+            <div className="tablebox"><table>
+              <thead><tr><th>{groupLabel}</th><th className="num">Hours</th><th className="num">People</th><th style={{ width: "35%" }}>Share of hours</th></tr></thead>
+              <tbody>
+                {rows.map(([k, g]) => (
+                  <tr key={k}>
+                    <td>{p.group === "person" && U.has(k) ? <Link className="plink" href={`/profile/${k}`}>{g.label}</Link> : g.label}</td>
+                    <td className="num">{f(g.m)}</td><td className="num">{g.people.size}</td>
+                    <td><div className="meter"><i style={{ width: `${(g.m / maxG) * 100}%` }} /></div><div className="note">{total ? ((g.m / total) * 100).toFixed(1) : 0}%</div></td>
+                  </tr>
+                ))}
+                {!rows.length && <tr><td colSpan={4} className="empty">No time in this range.</td></tr>}
+              </tbody>
+            </table></div>
+          </section>
+        )}
       </div>
     </>
   );

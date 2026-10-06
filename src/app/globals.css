@@ -503,3 +503,4 @@ table.clients td:nth-child(-n+2){white-space:nowrap}
 .t-bad{color:var(--bad);font-weight:600} .t-ok{color:var(--ok)} .t-warn{color:var(--warn)}
 .legend i.dash{background:none;width:16px;height:0;border-top:2px dashed var(--muted);border-radius:0;vertical-align:3px}
 .brand{display:flex;align-items:baseline;gap:10px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
+a.btn,a.btn:hover{text-decoration:none}

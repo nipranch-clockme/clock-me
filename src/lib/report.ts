@@ -8,13 +8,14 @@ export const GROUPS: [string, string][] = [
   ["location", "Location"], ["tag", "Tag"], ["phase", "Phase"], ["month", "Month"],
 ];
 export const FILTER_KEYS = ["person", "team", "client", "project", "tag", "phase", "desc", "location"] as const;
-export type ReportParams = { range: string; from?: string; to?: string; group: string } & Partial<Record<(typeof FILTER_KEYS)[number], string>>;
+export type ReportParams = { range: string; from?: string; to?: string; group: string; detail?: string } & Partial<Record<(typeof FILTER_KEYS)[number], string>>;
 
 export function parseReportParams(sp: Record<string, string | string[] | undefined>, me: Me): ReportParams {
   const s = (k: string) => { const v = sp[k]; return typeof v === "string" && v ? v : undefined; };
   const p: ReportParams = { range: s("range") ?? "thismonth", group: GROUPS.some((g) => g[0] === s("group")) ? s("group")! : "project" };
   if (p.range === "custom") { p.from = isDateStr(s("from")) ? s("from") : undefined; p.to = isDateStr(s("to")) ? s("to") : undefined; }
   for (const k of FILTER_KEYS) p[k] = s(k);
+  if (s("detail") === "1" && p.group === "project") p.detail = "1"; // the Detailed view goes with Group by Project
   if (me.role !== "ADMIN") p.location = undefined; // only admins filter by office
   return p;
 }

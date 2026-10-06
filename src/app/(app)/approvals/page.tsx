@@ -5,7 +5,7 @@ import { approverUsersWhere, scopeLabel } from "@/lib/scope";
 import { getSettings } from "@/lib/settings";
 import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
-import { Pill } from "@/components/ui";
+import { PageHead, Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
 import { trackingStarts } from "@/lib/startDates";
@@ -18,7 +18,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const where = approverUsersWhere(me);
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   if (!where) {
-    return <section className="panel"><h2>Approvals</h2><p className="empty">Project managers don&apos;t approve timesheets. Team leaders, location managers and admins do.</p></section>;
+    return <section className="panel"><h2>Approvals</h2><p className="empty">Only Team/Project Managers, location managers and admins approve timesheets.</p></section>;
   }
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
@@ -41,12 +41,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const late = people.filter((u) => !submitted.has(u.id) && starts.get(u.id)! <= addDays(lastWeek, 4));
 
   return (
-    <div className="grid">
+    <>
+    <PageHead title="Approvals" sub={scopeLabel(me)} actions={pending.length > 1 ? <form action={approveAll}>{pending.map((s) => <input key={s.id} type="hidden" name="sheet" value={`${s.id}|${s.updatedAt.toISOString()}`} />)}<button className="btn ok">Approve all</button></form> : null} />
+    <div className="grid max2">
       <section className="panel full">
-        <div className="row between">
-          <div><h2>Waiting for your approval</h2><p className="sub">{scopeLabel(me)} · {pending.length} timesheet{pending.length === 1 ? "" : "s"}</p></div>
-          {pending.length > 1 && <form action={approveAll}>{pending.map((s) => <input key={s.id} type="hidden" name="sheet" value={`${s.id}|${s.updatedAt.toISOString()}`} />)}<button className="btn ok">Approve all</button></form>}
-        </div>
+        <div className="ch"><h2>Waiting for your approval</h2><span className="cd">{pending.length} timesheet{pending.length === 1 ? "" : "s"}</span></div>
         {stale && <p className="alert warn" role="status">{staleText(stale.status, stale.user.name, weekLabel(toStr(stale.weekStart)))}</p>}
         {skipped > 0 && <p className="alert warn" role="status">{skipped === 1 ? "One timesheet was" : `${skipped} timesheets were`} changed, cancelled or handled by someone else after you opened this page, so {skipped === 1 ? "it wasn't" : "they weren't"} approved. Check the list below.</p>}
         <div className="list">
@@ -64,6 +63,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>
+                  <Link className="btn sm" href={`/reports?range=custom&from=${ws}&to=${we}&person=${s.userId}&group=project&ref=approvals`}>Review Time</Link>
                   <form action={approve}><input type="hidden" name="id" value={s.id} /><input type="hidden" name="v" value={s.updatedAt.toISOString()} /><button className="btn ok sm">Approve</button></form>
                   <SendBack id={s.id} v={s.updatedAt.toISOString()} />
                 </div>
@@ -86,5 +86,6 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         <p className="note" style={{ margin: 0 }}>{me.role === "ADMIN" ? "Change this in Settings." : "Only admins can change the lock date."}</p>
       </section>
     </div>
+    </>
   );
 }
