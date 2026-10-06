@@ -5,20 +5,23 @@ import { getSettings } from "@/lib/settings";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
 import { PACE, clientPeriod, clientTypeName, contractOf, minutesByClient, paceOf, perMonth } from "@/lib/clients";
-import { Pill } from "@/components/ui";
-import { ChangeText, ContractMeter, PeriodPicker } from "./parts";
+import { PageHead, Pill } from "@/components/ui";
+import { AddClientButton } from "../projects/ClientForm";
+import { clientTeamOptions } from "@/lib/clientTeams";
+import { teamLabelOf } from "@/lib/clientTeams";
+import { ChangeText, ContractMeter, PeriodPicker, periodNote } from "./parts";
 
 // Client dashboard for location managers and admins. Contracts are company-wide, so every number here counts everyone's
 // time on the client, whoever is looking.
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const sp = await searchParams;
-  await requireTab("clients");
+  const me = await requireTab("clients");
   const settings = await getSettings(); // also sets the company time zone, which decides the period's dates
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const per = clientPeriod(sp.range);
   const thisMonth = per.key === "thismonth";
   const [clients, now, before, soFar] = await Promise.all([
-    db.client.findMany({ orderBy: { name: "asc" } }),
+    db.client.findMany({ orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
     minutesByClient(per.from, per.to),
     minutesByClient(per.prevFrom, per.prevTo),
     thisMonth ? minutesByClient(per.from, completeEnd(per.to)) : new Map<string, number>(),
@@ -34,7 +37,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <section className="panel" style={{ marginBottom: 16 }}><PeriodPicker per={per} id="cl-range" /></section>
+      <PageHead title="Clients" actions={<><PeriodPicker per={per} id="cl-range" />{me.role === "ADMIN" && <AddClientButton teams={await clientTeamOptions()} />}</>} sub={periodNote(per)} />
       <div className="grid">
         <section className="panel full">
           <div className="stats spread five">
@@ -56,7 +59,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.c.id}>
-                    <td><span className="dot" style={{ background: `var(--${r.c.color})` }} /><Link href={`/clients/${r.c.id}?range=${per.key}`}>{r.c.name}</Link></td>
+                    <td><span className="dot" style={{ background: `var(--${r.c.color})` }} /><Link href={`/clients/${r.c.id}?range=${per.key}`}>{r.c.name}</Link>{r.c.team && <div className="note">{teamLabelOf(r.c.team)}</div>}</td>
                     <td>{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{perMonth(r.monthly)}</div>}</td>
                     <td className="num">{f(r.m)}</td>
                     {r.monthly ? <>

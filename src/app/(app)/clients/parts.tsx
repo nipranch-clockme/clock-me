@@ -2,21 +2,20 @@ import { pct } from "@/lib/format";
 import { CLIENT_PERIODS, change, type ClientPeriod } from "@/lib/clients";
 import { longDate } from "@/lib/dates";
 import AutoForm from "@/components/AutoForm";
-import { Pill } from "@/components/ui";
+import { Ifld, Pill } from "@/components/ui";
 
-/** Period picker for the Clients tab, with the dates it covers and how the numbers are worked out. */
-export function PeriodPicker({ per, id, contract = true }: { per: ClientPeriod; id: string; contract?: boolean }) {
+/** The dates a period covers and how the numbers are worked out (shown under the page title). */
+export function periodNote(per: ClientPeriod, contract = true) {
   const n = per.months.length;
   const months = n > 1 ? `the monthly hours times the ${n} months in this period${per.current ? ", with this month counted in full" : ""}` : per.current ? "one full month of the monthly hours, even though the month isn't over" : "one month of the monthly hours";
+  return `${longDate(per.from)} to ${longDate(per.to)}. Hours count time logged by everyone in the company on the client's projects, archived ones included.${contract ? ` Contracted hours are ${months}. Utilisation is hours logged divided by contracted hours.` : ""}`;
+}
+
+/** Period picker for the Clients tab. */
+export function PeriodPicker({ per, id }: { per: ClientPeriod; id: string; contract?: boolean }) {
   return (
-    <AutoForm className="row" key={per.key}>
-      <div style={{ flex: "0 1 220px" }}><label htmlFor={id}>Period</label><select id={id} name="range" defaultValue={per.key}>{CLIENT_PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-      <div style={{ flex: "2 1 300px" }}>
-        <p className="note" style={{ margin: 0 }}>
-          {longDate(per.from)} to {longDate(per.to)}. Hours count time logged by everyone in the company on the client&apos;s projects, archived ones included.
-          {contract && ` Contracted hours are ${months}. Utilisation is hours logged divided by contracted hours.`}
-        </p>
-      </div>
+    <AutoForm className="phd-a" key={per.key}>
+      <Ifld id={id} label="Period" name="range" defaultValue={per.key}>{CLIENT_PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
     </AutoForm>
   );
 }

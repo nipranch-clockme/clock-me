@@ -22,13 +22,14 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       include: { client: true, phases: { orderBy: { sort: "asc" } }, managers: { include: { user: true } }, locations: { include: { location: true } }, teams: { include: { team: { include: { location: true } } } }, users: { include: { user: true } } },
       orderBy: [{ archived: "asc" }, { client: { name: "asc" } }, { name: "asc" }],
     }),
-    creator ? db.client.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { projects: true } } } }) : [],
+    creator ? db.client.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { projects: true } }, contacts: { orderBy: { sort: "asc" } } } }) : [],
     creator ? db.phaseTemplate.findMany({ orderBy: { name: "asc" } }) : [],
     creator ? db.location.findMany({ orderBy: { name: "asc" } }) : [],
     creator ? db.team.findMany({ include: { location: true }, orderBy: [{ name: "asc" }] }) : [],
     creator ? db.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, role: true } }) : [],
     db.timeEntry.groupBy({ by: ["projectId"], _sum: { minutes: true } }),
   ]);
+  const teamOpts = teams.map((t) => ({ id: t.id, label: `${t.name} team, ${t.location.name}` }));
   const used = Object.fromEntries(usage.map((u) => [u.projectId, (u._sum.minutes ?? 0) / 60]));
   // Client types and contracted hours show to the people who have the Clients tab; admins can change them.
   const contracts = canTab("clients", me.role);
@@ -91,11 +92,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
             return (
               <div className="item" key={c.id}>
                 <div><span className="dot" style={{ background: `var(--${c.color})` }} />{contracts ? <Link href={`/clients/${c.id}`}>{c.name}</Link> : c.name}{contracts && <div className="meta">{h ? `${clientTypeName("FIXED")}, ${perMonth(h)}` : clientTypeName("FLOATING")}</div>}</div>
-                <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}><span className="note">{count}</span>{me.role === "ADMIN" && <EditClient client={{ id: c.id, name: c.name, type: c.type, monthlyHours: c.monthlyHours }} />}</div>
+                <div className="row" style={{ flex: "0 0 auto", alignItems: "center" }}><span className="note">{count}</span>{me.role === "ADMIN" && <EditClient teams={teamOpts} client={{ id: c.id, name: c.name, type: c.type, monthlyHours: c.monthlyHours, teamId: c.teamId, contacts: c.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</div>
               </div>
             );
           })}</div>
-          {me.role === "ADMIN" ? <ClientForm /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
+          {me.role === "ADMIN" ? <ClientForm teams={teamOpts} /> : <p className="note" style={{ margin: "10px 0 0" }}>Only admins can add clients.</p>}
         </section>
         <section className="panel">
           <h3>Phase templates</h3>

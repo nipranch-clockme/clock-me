@@ -81,6 +81,17 @@ function readContract(form: FormData): { type: ClientType; monthlyHours: number 
   if (h > 100000) return { error: "Contracted hours per month must be 100,000 or less." };
   return { type, monthlyHours: h };
 }
+/** The team that looks after the client (optional) and its points of contact (any number, each with a name). */
+async function readTeamAndContacts(form: FormData): Promise<{ teamId: string | null; contacts: { name: string; email: string; phone: string }[] } | { error: string }> {
+  const teamId = String(form.get("teamId") ?? "") || null;
+  if (teamId && !(await db.team.findUnique({ where: { id: teamId } }))) return { error: "Choose one of the listed teams." };
+  const names = form.getAll("contactName"), emails = form.getAll("contactEmail"), phones = form.getAll("contactPhone");
+  const contacts = names.map((n, i) => ({ name: String(n).trim().slice(0, 80), email: String(emails[i] ?? "").trim().slice(0, 120), phone: String(phones[i] ?? "").trim().slice(0, 30) })).filter((c) => c.name || c.email || c.phone);
+  if (contacts.some((c) => !c.name)) return { error: "Each contact needs a name." };
+  if (contacts.some((c) => c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email))) return { error: "Check the contact email addresses." };
+  if (contacts.length > 20) return { error: "Add up to 20 contacts." };
+  return { teamId, contacts };
+}
 const contractText = (c: { type: ClientType; monthlyHours: number | null }) => (c.type === "FIXED" && c.monthlyHours ? `fixed monthly hours, ${perMonth(c.monthlyHours)}` : "no commitment");
 
 export async function addClient(_: FormResult, form: FormData): Promise<FormResult> {
@@ -90,9 +101,11 @@ export async function addClient(_: FormResult, form: FormData): Promise<FormResu
   if (!name) return { ok: false, error: "Name the client." };
   const contract = readContract(form);
   if ("error" in contract) return { ok: false, error: contract.error };
+  const tc = await readTeamAndContacts(form);
+  if ("error" in tc) return { ok: false, error: tc.error };
   if (await db.client.findFirst({ where: { name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "That client already exists." };
   const n = await db.client.count();
-  await db.client.create({ data: { name, color: ["s1", "s2", "s3"][n % 3], ...contract } });
+  await db.client.create({ data: { name, color: ["s1", "s2", "s3", "s8", "s6"][n % 5], ...contract, teamId: tc.teamId, contacts: { create: tc.contacts.map((c, sort) => ({ ...c, sort })) } } });
   await logAction(me.id, `Added client ${name} (${contractText(contract)})`);
   revalidatePath("/projects");
   revalidatePath("/clients", "layout");
@@ -106,8 +119,15 @@ export async function updateClient(_: FormResult, form: FormData): Promise<FormR
   if (!client) return { ok: false, error: "That client no longer exists." };
   const contract = readContract(form);
   if ("error" in contract) return { ok: false, error: contract.error };
-  await db.client.update({ where: { id: client.id }, data: contract });
+  const tc = await readTeamAndContacts(form);
+  if ("error" in tc) return { ok: false, error: tc.error };
+  await db.$transaction([
+    db.client.update({ where: { id: client.id }, data: { ...contract, teamId: tc.teamId } }),
+    db.clientContact.deleteMany({ where: { clientId: client.id } }),
+    db.clientContact.createMany({ data: tc.contacts.map((c, sort) => ({ ...c, sort, clientId: client.id })) }),
+  ]);
   if (contractText(client) !== contractText(contract)) await logAction(me.id, `Changed client ${client.name} to ${contractText(contract)}`);
+  if ((client.teamId ?? null) !== tc.teamId) await logAction(me.id, `Changed the team for client ${client.name}`);
   revalidatePath("/projects");
   revalidatePath("/clients", "layout");
   return { ok: true };

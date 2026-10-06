@@ -9,9 +9,10 @@ import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
 import { PACE, change, clientPeriod, clientTypeName, contractOf, minutesByClient, paceOf, perMonth } from "@/lib/clients";
 import TrendChart from "@/components/TrendChart";
-import { Dot, Pill } from "@/components/ui";
+import { Dot, PageHead, Pill } from "@/components/ui";
+import { clientTeamOptions, teamLabelOf } from "@/lib/clientTeams";
 import { EditClient } from "../../projects/ClientForm";
-import { ContractMeter, PeriodPicker, ShareTable } from "../parts";
+import { ContractMeter, PeriodPicker, ShareTable, periodNote } from "../parts";
 
 // One client: totals for the period, hours by month against the contract, and hours by project, phase and person.
 // Every total counts the whole company. Location managers only see their own office's people listed by name.
@@ -20,7 +21,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const me = await requireTab("clients");
   const settings = await getSettings(); // also sets the company time zone, which decides the period's dates
   const f = (m: number) => fmtHours(m, settings.timeFormat);
-  const client = await db.client.findUnique({ where: { id } });
+  const client = await db.client.findUnique({ where: { id }, include: { team: { include: { location: true } }, contacts: { orderBy: { sort: "asc" } } } });
   if (!client) notFound();
   const per = clientPeriod(sp.range);
   const monthly = contractOf(client);
@@ -66,17 +67,10 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <section className="panel" style={{ marginBottom: 16 }}>
-        <div className="row between" style={{ marginBottom: 12 }}>
-          <div>
-            <Link href={`/clients?range=${per.key}`} className="note">← All clients</Link>
-            <h2 style={{ margin: "6px 0 2px" }}><Dot color={client.color} />{client.name}</h2>
-            <p className="note" style={{ margin: 0 }}>{monthly ? `${clientTypeName("FIXED")}, ${perMonth(monthly)}` : clientTypeName("FLOATING")}</p>
-          </div>
-          {me.role === "ADMIN" && <EditClient client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours }} />}
-        </div>
-        <PeriodPicker per={per} id="cd-range" contract={!!monthly} />
-      </section>
+      <p className="back"><Link href={`/clients?range=${per.key}`} className="linkbtn">‹ Back to Clients</Link></p>
+      <PageHead title={<><Dot color={client.color} />{client.name}</>}
+        actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
+        sub={`${monthly ? `${clientTypeName("FIXED")}, ${perMonth(monthly)}` : clientTypeName("FLOATING")}. ${periodNote(per, !!monthly)}`} />
       <div className="grid g2">
         <section className="panel full">
           {monthly ? <>
@@ -96,6 +90,15 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
               <div className="stat"><b>{byUser.length}</b><span>{byUser.length === 1 ? "person" : "people"} with time</span></div>
             </div>
           )}
+        </section>
+        <section className="panel full">
+          <h3>Team and contacts</h3>
+          <div className="cols2">
+            <div><div className="note">Team</div><div>{client.team ? teamLabelOf(client.team) : <span className="note">No team assigned</span>}</div></div>
+            <div><div className="note">Points of contact</div>
+              {client.contacts.length ? client.contacts.map((c) => <div key={c.id} style={{ marginBottom: 6 }}><b>{c.name}</b>{c.email && <> <a href={`mailto:${c.email}`}>{c.email}</a></>}{c.phone && <> <span className="note">{c.phone}</span></>}</div>) : <span className="note">No contacts added</span>}
+            </div>
+          </div>
         </section>
         <section className="panel full">
           <h3>Hours by month, last 12 full months</h3>
