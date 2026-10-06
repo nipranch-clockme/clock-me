@@ -102,9 +102,9 @@ nav.snav hr+.navend{margin-top:auto}
 .shd+.note{margin:0 0 16px;max-width:90ch}
 /* Segmented control: a white track, the chosen option filled grey */
 .seg{display:inline-flex;flex-wrap:wrap;background:var(--tile);border:1px solid var(--border);border-radius:7px;padding:2px;gap:2px}
-.seg button{border:0;background:transparent;color:var(--muted);font:500 12px/1.2 var(--body);padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
-.seg button:hover{color:var(--ink);background:var(--hover)}
-.seg button[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:600}
+.seg button,.seg a{text-decoration:none;border:0;background:transparent;color:var(--muted);font:500 12px/1.2 var(--body);padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.seg button:hover,.seg a:hover{color:var(--ink);background:var(--hover)}
+.seg button[aria-pressed="true"],.seg a[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:600}
 /* Timer view: the timer card (fields, big clock, Start / Stop) and the week's entries by day */
 .tmcard{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
@@ -123,7 +123,7 @@ nav.snav hr+.navend{margin-top:auto}
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
 .wkwho{display:inline-flex;align-items:center;gap:6px;margin:0 4px}.wkwho b{font-weight:600} /* whose week, when showing someone else's calendar */
-.seg.vt button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:6px 12px}
+.seg.vt button,.seg.vt a{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:6px 12px}
 .seg.vt svg{width:15px;height:15px;flex:none}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 h2{font:700 18px/1.25 var(--body);letter-spacing:-.015em;margin:0 0 4px;text-wrap:balance}
@@ -422,7 +422,7 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
 @media (min-width:1100px){.pfacts{grid-template-columns:1fr 1fr 1fr 1.7fr 1fr 1.1fr}} /* the email gets a wider tile */
 /* Narrower desktops: the top bar stays one line. The role switch gets tighter and the person shows just their name, then just their photo */
 @media (min-width:900px){.top{flex-wrap:nowrap}.proto{flex:0 1 auto}.who{flex:none;max-width:45%}.whot b,.whot small{overflow:hidden;text-overflow:ellipsis;max-width:100%}}
-@media (min-width:900px) and (max-width:1279px){.plab{display:none}.proto .seg button{padding:5px 7px}.whot small{display:none}}
+@media (min-width:900px) and (max-width:1279px){.plab{display:none}.proto .seg button,.seg a{padding:5px 7px}.whot small{display:none}}
 @media (min-width:900px) and (max-width:1079px){.whot{display:none}}
 /* Tablets and phones: the sidebar becomes a drawer opened from the top bar's menu button */
 @media (max-width:899px){
@@ -445,7 +445,7 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
   .phd{margin-bottom:16px}
   .phd h1{font-size:23px}
   .phd-a{justify-content:flex-start}
-  .phd-tt{flex-wrap:wrap}.phd-tt .seg.vt{flex:1 1 100%} .seg.vt button{flex:1 1 0;min-height:40px;padding:8px 12px} /* phones: the view toggle goes full width under the title, with taller buttons that are easy to tap */
+  .phd-tt{flex-wrap:wrap}.phd-tt .seg.vt{flex:1 1 100%} .seg.vt button,.seg.vt a{flex:1 1 0;min-height:40px;padding:8px 12px} /* phones: the view toggle goes full width under the title, with taller buttons that are easy to tap */
   .ifld{flex:1 1 auto}
   .ifld select,.ifld input{max-width:none;flex:1 1 auto}
   .panel{padding:14px}

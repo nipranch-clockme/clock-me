@@ -16,3 +16,8 @@ export const PageHead = ({ title, actions, sub, beside }: { title: React.ReactNo
     {actions ? <div className="phd-a">{actions}</div> : null}
   </div>
 );
+
+/** A compact filter: the label and its dropdown in one box. */
+export const Ifld = ({ id, label, children, ...rest }: { id: string; label: string; children: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <div className="ifld"><label htmlFor={id}>{label}</label><select id={id} {...rest}>{children}</select></div>
+);

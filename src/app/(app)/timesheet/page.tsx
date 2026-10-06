@@ -2,19 +2,24 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { entryOptions } from "@/lib/entryOptions";
-import { missingFields } from "@/lib/entries";
+import { isDayLocked, missingFields } from "@/lib/entries";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
-import { Pill, statusTone } from "@/components/ui";
+import { PageHead, Pill, statusTone } from "@/components/ui";
+import CalendarView from "./CalendarView";
+import TimerView from "./TimerView";
+import { ICONS } from "@/components/icons";
 import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
 import { cancelSubmission, copyLastWeek, submitWeek } from "./actions";
 import Link from "next/link";
 
-export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ w?: string; missing?: string; cancelled?: string; copied?: string; last?: string; skipped?: string }> }) {
+export default async function TimesheetPage({ searchParams }: { searchParams: Promise<{ view?: string; u?: string; w?: string; missing?: string; cancelled?: string; copied?: string; last?: string; skipped?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
-  const offset = Math.min(0, parseInt(sp.w ?? "0") || 0);
+  const view = sp.view === "cal" || sp.view === "timer" ? sp.view : "sheet";
+  const rawOffset = parseInt(sp.w ?? "0") || 0;
+  const offset = view === "cal" ? rawOffset : Math.min(0, rawOffset); // the calendar can look ahead
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
   const [rows, sheet, opts, savedRows] = await Promise.all([
@@ -41,17 +46,43 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   for (const r of savedRows) if (open.has(r.projectId)) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
   for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
   const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
-  const back = `/timesheet${offset ? `?w=${offset}` : ""}`;
+  const href = (v: string, w: number, u?: string) => {
+    const q = new URLSearchParams();
+    if (v !== "sheet") q.set("view", v);
+    if (w) q.set("w", String(w));
+    if (u) q.set("u", u);
+    return `/timesheet${q.size ? `?${q}` : ""}`;
+  };
+  const back = href(view, offset);
   const copied = Number(sp.copied ?? 0), lastCount = Number(sp.last ?? 0), skipped = Number(sp.skipped ?? 0);
 
+  const run = view === "timer" ? await db.timerRun.findUnique({ where: { userId: me.id } }) : null;
+  const blocked = view === "timer" ? await isDayLocked(me.id, today(), settings) : null;
+  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null));
+  const others = view === "cal" && !!sp.u && sp.u !== me.id;
+  const toggle = (
+    <div className="seg vt" role="group" aria-label="Timesheet view">
+      {([["sheet", "Timesheet"], ["cal", "Calendar"], ["timer", "Timer"]] as const).map(([k, l]) => (
+        <Link key={k} href={href(k, k === "cal" ? offset : Math.min(0, offset))} aria-pressed={view === k} replace><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[k === "sheet" ? "sheet" : k === "cal" ? "cal" : "timer"] }} />{l}</Link>
+      ))}
+    </div>
+  );
+  const submitBtn = others ? null : canCancel ? (
+    <form action={cancelSubmission}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Cancel submission</button></form>
+  ) : (
+    <form action={submitWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn primary" disabled={statusLocked || !rows.length}>Submit for approval</button></form>
+  );
+
   return (
+    <>
+    <PageHead title="Timesheet" beside={toggle} actions={submitBtn} />
     <section className="panel">
       <div className="row between" style={{ marginBottom: 14 }}>
         <div className="weeknav">
-          <Link className="btn sm" href={`/timesheet?w=${offset - 1}`} aria-label="Previous week">‹</Link>
+          <Link className="btn sm" href={href(view, offset - 1)} aria-label="Previous week">‹</Link>
           <strong>{weekLabel(ws)}</strong>
-          {offset < 0 ? <Link className="btn sm" href={`/timesheet?w=${offset + 1}`} aria-label="Next week">›</Link> : <span className="btn sm" aria-disabled="true" style={{ opacity: 0.45 }}>›</span>}
-          {offset !== 0 && <Link className="linkbtn" href="/timesheet">This week</Link>}
+          {view === "cal" || offset < 0 ? <Link className="btn sm" href={href(view, offset + 1)} aria-label="Next week">›</Link> : <span className="btn sm" aria-disabled="true" style={{ opacity: 0.45 }}>›</span>}
+          {offset !== 0 && <Link className="linkbtn" href={href(view, 0)}>This week</Link>}
           <Pill tone={statusTone(status)}>{status.toLowerCase()}</Pill>
           {dates.some(adminLocked) && <Pill tone="locked">Locked period</Pill>}
         </div>
@@ -60,6 +91,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <div className="stat"><b>{me.weeklyTarget ? Math.round((total / 60 / me.weeklyTarget) * 100) : 0}%</b><span>of {me.weeklyTarget} h target</span></div>
         </div>
       </div>
+      {view === "sheet" && <>
       {sp.copied != null && (
         <p className={skipped ? "alert warn" : "alert info"} role="status">
           {copied ? `Copied ${copied} ${copied === 1 ? "project" : "projects"} from last week. Click a day to add your hours.`
@@ -83,21 +115,15 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       )}
       <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
-        )} footerRight={canCancel ? (
-          <form action={cancelSubmission}>
-            <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
-            <button className="btn">Cancel submission</button>
-          </form>
-        ) : (
-          <form action={submitWeek}>
-            <input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} />
-            <button className="btn ok" disabled={statusLocked || !rows.length}>Submit for approval</button>
-          </form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
         {statusLocked ? `This week can't be changed${status === "SUBMITTED" ? " while it waits for approval" : ""}. Click an entry to see its details, or hover over it to see its phase, tag and description.`
           : `Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}
       </p>
+      </>}
+      {view === "cal" && <CalendarView me={me} settings={settings} offset={offset} u={sp.u} />}
+      {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagId: run.tagId, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
     </section>
+    </>
   );
 }

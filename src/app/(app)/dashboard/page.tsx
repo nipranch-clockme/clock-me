@@ -8,9 +8,10 @@ import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
 import AutoForm from "@/components/AutoForm";
 import TrendChart from "@/components/TrendChart";
+import { PageHead, Ifld } from "@/components/ui";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
-const OFFCOL = ["s1", "s2", "s3", "s4"];
+const OFFCOL = ["s1", "s2", "s8", "s3", "s6"];
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
@@ -33,10 +34,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const rows: Row[] = users.map((u) => { const m = byUser.get(u.id) ?? 0, tg = b >= a ? target(u, a, b) : 0; return { id: u.id, name: u.name, title: u.title, team: u.team?.name ?? "No team", locationId: u.locationId, m, tg, prod: tg ? m / tg : 0 }; });
   const locs = [...new Map(users.map((u) => [u.locationId, u.location])).values()].sort((x, y) => x.name.localeCompare(y.name));
   const allLocs = await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true } });
-  const colorOf = (id: string) => OFFCOL[Math.max(0, allLocs.findIndex((l) => l.id === id)) % 4];
+  const colorOf = (id: string) => OFFCOL[Math.max(0, allLocs.findIndex((l) => l.id === id)) % OFFCOL.length];
   const all = sum(rows);
   const top = (list: Row[]) => [...list].sort((x, y) => (rank === "total" ? y.m - x.m : y.prod - x.prod)).slice(0, 5);
   const multiOffice = locs.length > 1;
+  // Location managers also see a card for each team in their office (the cards add up to the office total).
+  const teamMap = new Map<string, Row[]>();
+  if (me.role === "LOCATION") for (const r of rows) teamMap.set(r.team, [...(teamMap.get(r.team) ?? []), r]);
+  const teamCards = [...teamMap.entries()].sort((x, y) => Number(x[0] === "Operations") - Number(y[0] === "Operations") || x[0].localeCompare(y[0]));
 
   // Monthly productivity per office, last 12 full months
   const firstMonth = addMonths(today().slice(0, 7), -12);
@@ -71,13 +76,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <section className="panel" style={{ marginBottom: 16 }}>
-        <AutoForm className="row" key={range + rank}>
-          <div><label htmlFor="ds-range">Period</label><select id="ds-range" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          <div><label htmlFor="ds-rank">Rank performers by</label><select id="ds-rank" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></select></div>
-          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours. Each person&apos;s weekly target is spread over Monday to Friday, up to yesterday, from the day they started. People with a target of 0 are left out.</p></div>
-        </AutoForm>
-      </section>
+      <PageHead title="Dashboard"
+        actions={<AutoForm className="phd-a" key={range + rank}>
+          <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
+          <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
+        </AutoForm>}
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far). People with a target of 0 are left out.`} />
       <div className="grid g2">
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
@@ -89,6 +93,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <div className="stat"><b>{all.n}</b><span>people</span></div>
           </div>
         </section>
+        {me.role === "LOCATION" && teamCards.length > 0 && (
+          <div className="full offwrap">
+            <div className="ch" style={{ margin: "0 0 8px" }}><h3>Teams in {me.location.name}</h3><span className="cd">{PERIODS.find((p) => p[0] === range)![1]}</span></div>
+            <div className="offs">
+              {teamCards.map(([t, list], i) => {
+                const o = sum(list);
+                return (
+                  <section className={`panel${i >= teamCards.length - ({ 2: 2, 1: 4 }[teamCards.length % 3] ?? 0) ? " w3" : ""}`} key={t}>
+                    <div className="ch"><h3><span className="dot" style={{ background: `var(--${OFFCOL[i % OFFCOL.length]})` }} />{t} team</h3><span className="cd">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
+                    <div className="stat" style={{ margin: "4px 0 10px" }}><b>{pct(o.prod)}</b><span>team productivity</span></div>
+                    <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
+                    <div className="stats spread sm" style={{ marginTop: 14 }}>
+                      <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
+                      <div className="stat"><b>{f(o.tg)}</b><span>target hours</span></div>
+                      <div className="stat"><b>{f(o.avg)}</b><span>per person</span></div>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {me.role === "ADMIN" && locs.map((l) => {
           const o = sum(rows.filter((r) => r.locationId === l.id));
           return (

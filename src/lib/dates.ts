@@ -26,6 +26,12 @@ export function setCompanyTimeZone(tz: string) {
 export function localDate(d: Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: companyTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
+/** Minutes since midnight, company time, of a moment in time. */
+export function localMinutes(d: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: companyTimeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d);
+  const get = (t: string) => Number(parts.find((x) => x.type === t)?.value ?? 0);
+  return get("hour") * 60 + get("minute");
+}
 export function today() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: companyTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
