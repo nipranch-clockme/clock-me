@@ -59,7 +59,7 @@ async function TimeOffList({ me, show: showParam, today: t, lock }: { me: Me; sh
   return (
     <section className="panel full">
       <div className="row between" style={{ marginBottom: 10 }}>
-        <AutoForm className="row" key={show}>
+        <AutoForm className="phd-a" key={show}>
           <Ifld id="to-show" label="Show" name="show" defaultValue={show}>{SHOW.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
         </AutoForm>
         <div className="row" style={{ flex: "0 1 auto" }}>
@@ -111,7 +111,7 @@ async function Holidays({ me, office: officeParam, year: yearParam, today: t, lo
   return (
     <section className="panel full">
       <div className="row between" style={{ marginBottom: 10 }}>
-        <AutoForm className="row" key={office.id + year}>
+        <AutoForm className="phd-a" key={office.id + year}>
           <input type="hidden" name="view" value="holidays" />
           {admin
             ? <Ifld id="ho-sel" label="Office" name="office" defaultValue={office.id}>{offices.map((o) => <option key={o.id} value={o.id}>{o.name} ({n.get(o.id) ?? 0})</option>)}</Ifld>

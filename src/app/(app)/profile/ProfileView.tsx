@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { canManagePerson } from "@/lib/scope";
 import { roleName } from "@/lib/roles";
 import Link from "next/link";
-import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
+import { addDays, dow, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { loadExpected } from "@/lib/timeoff";
 import { PERIODS, periodOf, periodDays, utilisation, last12Months, monthlyMinutes, monthlyUtilisation } from "@/lib/utilisation";
@@ -55,7 +55,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   const m = perDay.reduce((s, r) => s + (r._sum.minutes ?? 0), 0);
   const tg = ex(person, a, b);
   const workdays = ex.dates(person, a, b); // working days that count: public holidays and time off are not workdays
-  const worked = new Set([...workdays, ...[...byDay].filter(([, v]) => v > 0).map(([d]) => d)]); // plus any day time was logged anyway
+  const worked = new Set([...workdays, ...[...byDay].filter(([d, v]) => v > 0 && dow(d) < 5).map(([d]) => d)]); // plus a weekday off that time was logged on anyway (weekends stay out, as before)
   const cut = ex.breakdown(person, a, b);
   const trend = monthlyUtilisation([person], months, ex, mm);
 
