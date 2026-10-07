@@ -5,6 +5,11 @@ import { getSettings } from "@/lib/settings";
 import { PERMISSIONS, ROLES } from "@/lib/roles";
 import { GeneralForm, TagForm, TemplateForm, FieldForm, Confirm } from "./SettingsForms";
 import { removeField, removeTag, removeTemplate, toggleFieldRequired } from "./actions";
+import DemoData from "./DemoData";
+import { demoStatus } from "@/lib/demoData";
+
+// Adding the demo data works through the page in short steps; this lets each step run for up to a minute.
+export const maxDuration = 60;
 
 export default async function SettingsPage() {
   await requireTab("settings");
@@ -15,6 +20,7 @@ export default async function SettingsPage() {
     db.customField.findMany({ orderBy: { sort: "asc" } }),
     db.timeEntry.groupBy({ by: ["tagId"], _count: true }),
   ]);
+  const demo = await demoStatus();
   const used = new Map(tagUse.map((t) => [t.tagId, t._count]));
   const mark = (v: string) => (v === "y" ? <span className="yes">✓</span> : v === "n" ? <span className="no">–</span> : <span className="part">{v}</span>);
   return (
@@ -53,6 +59,7 @@ export default async function SettingsPage() {
         ))}{!fields.length && <div className="empty">No custom fields.</div>}</div>
         <FieldForm />
       </section>
+      <DemoData initial={demo} />
       <section className="panel full">
         <h3>What each role can do</h3>
         <div className="tablebox"><table className="matrix">

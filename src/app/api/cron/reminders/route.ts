@@ -4,6 +4,7 @@ import { approverUsersWhere, escalatedSheetsWhere } from "@/lib/scope";
 import { addDays, dow, longDate, monday, today, toDate, weekLabel } from "@/lib/dates";
 import { sendEmail, appUrl } from "@/lib/email";
 import { trackingStarts } from "@/lib/startDates";
+import { DEMO_DOMAIN } from "@/lib/demoDomain";
 
 // Runs once a day (see vercel.json). Vercel calls it with "Authorization: Bearer $CRON_SECRET".
 export async function GET(req: Request) {
@@ -12,7 +13,8 @@ export async function GET(req: Request) {
   const s = await getSettings();
   const t = today();
   const sent = { submit: 0, daily: 0, approvers: 0 };
-  const people = await db.user.findMany({ where: { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } } });
+  // Demo people (see Settings) are made up, so they never get reminders
+  const people = await db.user.findMany({ where: { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 }, NOT: { email: { endsWith: "@" + DEMO_DOMAIN, mode: "insensitive" } } } });
   const starts = await trackingStarts(people);
   const link = `${appUrl()}/timesheet`;
 

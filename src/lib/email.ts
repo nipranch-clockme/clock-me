@@ -1,8 +1,10 @@
+import { isDemoEmail } from "./demoDomain";
 // Sends email through Resend when RESEND_API_KEY is set. Without it, emails are only written to the server log,
 // so reminders work end to end in development and can be switched on later by adding the key.
 export const emailConfigured = () => !!process.env.RESEND_API_KEY;
 
 export async function sendEmail(to: string, subject: string, text: string): Promise<{ sent: boolean; error?: string }> {
+  if (isDemoEmail(to)) return { sent: false, error: "This is a demo person, so no email was sent" }; // made-up addresses never get mail
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.log(`[email not configured] To: ${to} | ${subject}\n${text}`);
