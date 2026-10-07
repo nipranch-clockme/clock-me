@@ -13,7 +13,7 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Add own time in timesheet and calendar", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
   ["See own reports", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
   ["See other people's entries, reports, profiles and dashboard", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
-  ["Approve or send back timesheets", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
+  ["Approve or send back timesheets", { MEMBER: "n", LEADER: "Own team, own included", LOCATION: "Own office, if really needed", ADMIN: "Everyone, if really needed" }],
   ["Create projects (blank or from a phase template)", { MEMBER: "n", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
   ["Edit projects and who can see them", { MEMBER: "n", LEADER: "Ones they manage", LOCATION: "Ones they manage", ADMIN: "All" }],
   ["Create clients, tags and phase templates", { MEMBER: "n", LEADER: "n", LOCATION: "n", ADMIN: "y" }],

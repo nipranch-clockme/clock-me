@@ -13,7 +13,7 @@ It covers time tracking and performance only. There is no billing.
 | Dashboard | Team/Project Managers, location managers, admins | Productivity (hours ÷ target) per office, a 12-month trend and the top 5 per office. Location managers also see a card for each team in their office. Names link to profiles |
 | Clients | Location managers, admins (admins add and edit clients) | A client dashboard. Pick a period (this month, last month, this or last quarter, this year, the last 12 months) to see the hours logged on each client, and for clients with fixed monthly hours: contracted hours, utilisation (hours ÷ contracted hours), hours left, and this month's pace. Clients with no commitment show the change on the previous period. Click a client for its hours by month against the contract, and its hours by project, phase and person | Each client has a team and points of contact.
 | Timesheet | Everyone | Three views in one place: **Timesheet** (week, one row per project, click a day to add time), **Calendar** (by time of day; click or drag to add) and **Timer** (start, stop and it adds the time). Submit the week from the top of the page |
-| Approvals | Team/Project Managers, location managers, admins | Approve or send back submitted weeks, open *Review Time* for a detailed list, and remind people who haven't submitted |
+| Approvals | Team/Project Managers, location managers, admins | Approve or send back submitted weeks, open *Review Time* for a detailed list, and remind people who haven't submitted. Team/Project Managers approve their team and themselves. Location managers and admins see first the weeks that need them (a team with no manager, or a week waiting more than 3 days) and the rest below, only if really needed |
 | Reports | Everyone (limited to what they can see) | Filters for date range (including all time), person, team, client, project, tag, phase, description and office. Includes a chart, a breakdown table and CSV export |
 | Projects | Everyone (team members see only the projects they have been added to, read only, without the clients and phase templates lists) | Create projects from phase templates and choose who can see them: everyone, or chosen offices, teams and people. Admins add clients and set each one's type: *Fixed monthly hours* (with the hours agreed per month) or *No commitment* (work as it comes) |
 | People | Location managers, admins | Invite people, set roles, office, team and weekly target. Create password reset links. Add offices and teams |
@@ -22,7 +22,7 @@ It covers time tracking and performance only. There is no billing.
 
 What each role can see:
 - **Team member:** only their own time.
-- **Team/Project Manager:** their own team in their own office.
+- **Team/Project Manager:** their own team in their own office. They approve their team's timesheets and their own.
 - **Location manager:** every team in their office.
 - **Admin:** the whole company.
 

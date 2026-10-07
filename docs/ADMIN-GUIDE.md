@@ -20,7 +20,7 @@ Move all three into accounts the company owns (not one person's personal login) 
 5. Settings: choose time format, required fields, lock date, tags and phase templates.
 
 ## Roles
-Team Member (own time), Team/Project Manager (own team), Location Manager (own office), Admin (everyone).
+Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
 
 ## Pilot, then roll out
 Run one office for 1 to 2 weeks. Check that people submit, managers approve, and Reports match expectations. Then add one office at a time.

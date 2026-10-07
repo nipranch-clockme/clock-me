@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { approverUsersWhere } from "@/lib/scope";
+import { approverUsersWhere, escalatedSheetsWhere } from "@/lib/scope";
 import { addDays, dow, longDate, monday, today, toDate, weekLabel } from "@/lib/dates";
 import { sendEmail, appUrl } from "@/lib/email";
 import { trackingStarts } from "@/lib/startDates";
@@ -42,7 +42,8 @@ export async function GET(req: Request) {
     for (const a of approvers) {
       const where = approverUsersWhere(a);
       if (!where) continue;
-      const n = await db.timesheet.count({ where: { status: "SUBMITTED", user: where } });
+      // Location managers and admins only hear about weeks that need them; Team/Project Managers hear about every week in their team.
+      const n = await db.timesheet.count({ where: { status: "SUBMITTED", user: where, ...(a.role === "LEADER" ? {} : escalatedSheetsWhere()) } });
       if (!n) continue;
       await sendEmail(a.email, `${n} timesheet${n > 1 ? "s" : ""} waiting for your approval`, `Hi ${a.name.split(" ")[0]},\n\n${n} timesheet${n > 1 ? "s are" : " is"} waiting for you: ${appUrl()}/approvals`);
       sent.approvers++;

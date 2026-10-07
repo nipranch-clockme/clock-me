@@ -11,12 +11,13 @@ export function visibleUsersWhere(me: Me): Prisma.UserWhereInput {
   }
 }
 
-/** Whose timesheets this person approves. Never their own. */
+/** Whose timesheets this person approves. A Team/Project Manager approves their own team, themselves included. Location managers and admins
+ *  can approve anyone in their office or company (never their own), but it's the managers' job first: see escalatedSheetsWhere. */
 export function approverUsersWhere(me: Me): Prisma.UserWhereInput | null {
   switch (me.role) {
     case "ADMIN": return { id: { not: me.id } };
     case "LOCATION": return { locationId: me.locationId, id: { not: me.id } };
-    case "LEADER": return me.teamId ? { teamId: me.teamId, id: { not: me.id } } : null;
+    case "LEADER": return me.teamId ? { teamId: me.teamId } : null;
     default: return null;
   }
 }
@@ -78,3 +79,19 @@ export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
 
 export const canCreateProject = (me: Me) => me.role !== "MEMBER";
 export const canEditProject = (me: Me, managerIds: string[]) => me.role === "ADMIN" || (me.role !== "MEMBER" && managerIds.includes(me.id));
+
+/** Days a submitted week may wait for its Team/Project Manager before location managers and admins are asked to step in. */
+export const ESCALATE_DAYS = 3;
+
+/** Submitted weeks that location managers and admins really need to handle: the person's team has no Team/Project Manager who can approve
+ *  (managers' and admins' own weeks, people without a team), or the week has waited longer than ESCALATE_DAYS. */
+export function escalatedSheetsWhere(now = new Date()): Prisma.TimesheetWhereInput {
+  const cutoff = new Date(now.getTime() - ESCALATE_DAYS * 86400000);
+  return {
+    OR: [
+      { user: { teamId: null } },
+      { user: { team: { users: { none: { role: "LEADER", active: true, passwordHash: { not: null } } } } } },
+      { updatedAt: { lt: cutoff } },
+    ],
+  };
+}

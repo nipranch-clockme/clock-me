@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
-import { approverUsersWhere, scopeLabel } from "@/lib/scope";
+import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, scopeLabel } from "@/lib/scope";
 import { getSettings } from "@/lib/settings";
 import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -26,6 +26,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
+  // Team/Project Managers approve their own team first. Location managers and admins see the weeks that really need them up top
+  // (nobody on the team can approve, or the week has waited more than ESCALATE_DAYS) and the rest below, still approvable.
+  const escalatedIds = me.role === "LEADER" || !pending.length ? null : new Set((await db.timesheet.findMany({ where: { id: { in: pending.map((s) => s.id) }, ...escalatedSheetsWhere() }, select: { id: true } })).map((x) => x.id));
+  const mine = escalatedIds ? pending.filter((s) => escalatedIds.has(s.id)) : pending;
+  const others = escalatedIds ? pending.filter((s) => !escalatedIds.has(s.id)) : [];
   // After an Approve or Approve all that didn't go through (see actions.ts), say why.
   const stale = sp.stale ? await db.timesheet.findFirst({ where: { id: sp.stale, user: where }, include: { user: true } }) : null;
   const skipped = Math.max(0, Math.floor(Number(sp.skipped) || 0));
@@ -40,16 +45,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const starts = await trackingStarts(people);
   const late = people.filter((u) => !submitted.has(u.id) && starts.get(u.id)! <= addDays(lastWeek, 4));
 
-  return (
-    <>
-    <PageHead title="Approvals" sub={scopeLabel(me)} actions={pending.length > 1 ? <form action={approveAll}>{pending.map((s) => <input key={s.id} type="hidden" name="sheet" value={`${s.id}|${s.updatedAt.toISOString()}`} />)}<button className="btn ok">Approve all</button></form> : null} />
-    <div className="grid max2">
-      <section className="panel full">
-        <div className="ch"><h2>Waiting for your approval</h2><span className="cd">{pending.length} timesheet{pending.length === 1 ? "" : "s"}</span></div>
-        {stale && <p className="alert warn" role="status">{staleText(stale.status, stale.user.name, weekLabel(toStr(stale.weekStart)))}</p>}
-        {skipped > 0 && <p className="alert warn" role="status">{skipped === 1 ? "One timesheet was" : `${skipped} timesheets were`} changed, cancelled or handled by someone else after you opened this page, so {skipped === 1 ? "it wasn't" : "they weren't"} approved. Check the list below.</p>}
-        <div className="list">
-          {pending.map((s) => {
+  const item = (s: (typeof pending)[number]) => {
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
@@ -69,10 +65,29 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                 </div>
               </div>
             );
-          })}
-          {!pending.length && <div className="empty">All caught up. Nothing to approve.</div>}
+          };
+
+  return (
+    <>
+    <PageHead title="Approvals" sub={scopeLabel(me)} actions={mine.length > 1 ? <form action={approveAll}>{mine.map((s) => <input key={s.id} type="hidden" name="sheet" value={`${s.id}|${s.updatedAt.toISOString()}`} />)}<button className="btn ok">Approve all</button></form> : null} />
+    <div className="grid max2">
+      <section className="panel full">
+        <div className="ch"><h2>Waiting for your approval</h2><span className="cd">{mine.length} timesheet{mine.length === 1 ? "" : "s"}</span></div>
+        {me.role === "LEADER" ? <p className="note" style={{ margin: "0 0 10px" }}>You approve your own team's timesheets, your own included.</p> : <p className="note" style={{ margin: "0 0 10px" }}>Team/Project Managers approve their own teams. These are the weeks that need you: nobody on the team can approve, or the week has waited more than {ESCALATE_DAYS} days.</p>}
+        {stale && <p className="alert warn" role="status">{staleText(stale.status, stale.user.name, weekLabel(toStr(stale.weekStart)))}</p>}
+        {skipped > 0 && <p className="alert warn" role="status">{skipped === 1 ? "One timesheet was" : `${skipped} timesheets were`} changed, cancelled or handled by someone else after you opened this page, so {skipped === 1 ? "it wasn't" : "they weren't"} approved. Check the list below.</p>}
+        <div className="list">
+          {mine.map(item)}
+          {!mine.length && <div className="empty">{others.length ? "Nothing here needs you." : "All caught up. Nothing to approve."}</div>}
         </div>
       </section>
+      {others.length > 0 && (
+        <section className="panel full">
+          <div className="ch"><h2>Waiting with their Team/Project Managers</h2><span className="cd">{others.length} timesheet{others.length === 1 ? "" : "s"}</span></div>
+          <p className="note" style={{ margin: "0 0 10px" }}>Their managers approve these. Step in only if really needed, for example if a manager is away.</p>
+          <div className="list">{others.map(item)}</div>
+        </section>
+      )}
       <section className="panel">
         <h3>Not submitted for {weekLabel(lastWeek)}</h3>
         <div className="list">
