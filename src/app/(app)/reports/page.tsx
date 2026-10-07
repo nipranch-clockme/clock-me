@@ -6,6 +6,7 @@ import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { GROUPS, TIME_GROUPS, TABS, STATUSES, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
 import { clock, fmtHours, pct } from "@/lib/format";
+import { tagText } from "@/lib/tags";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
 import { PageHead, Ifld } from "@/components/ui";
@@ -15,8 +16,8 @@ import PrintButton from "@/components/PrintButton";
 import ReportTable, { type RRow } from "@/components/ReportTable";
 import { BarChart, Donut, OTHER, PALETTE } from "@/components/ReportCharts";
 
-const STACK_FIELD: Record<string, string> = { project: "projectId", client: "projectId", person: "userId", team: "userId", location: "userId", tag: "tagId", phase: "phaseId", description: "description" };
-type Rec = { userId?: string; projectId?: string; phaseId?: string | null; tagId?: string | null; description?: string; date?: Date };
+const STACK_FIELD: Record<string, string> = { project: "projectId", client: "projectId", person: "userId", team: "userId", location: "userId", tag: "tagIds", phase: "phaseId", description: "description" };
+type Rec = { userId?: string; projectId?: string; phaseId?: string | null; tagIds?: string[]; description?: string; date?: Date };
 type Combo = Rec & { userId: string; projectId: string; _sum: { minutes: number | null }; _count: number };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -54,7 +55,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const g2 = p.tab === "summary" ? p.group2 : undefined;
   const groupsUsed = [p.group, g2].filter(Boolean) as string[];
   const needDate = p.tab === "weekly" || groupsUsed.some((g) => TIME_GROUPS.includes(g));
-  const by = ["userId", "projectId", "phaseId", "tagId", ...(groupsUsed.includes("description") ? ["description"] : []), ...(needDate ? ["date"] : [])];
+  const by = ["userId", "projectId", "phaseId", "tagIds", ...(groupsUsed.includes("description") ? ["description"] : []), ...(needDate ? ["date"] : [])];
   const colored = !TIME_GROUPS.includes(p.group);
   const stackField = p.tab === "summary" && colored ? STACK_FIELD[p.group] : undefined;
   const CAP = 500;
@@ -62,7 +63,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     db.timeEntry.groupBy({ by: by as Prisma.TimeEntryScalarFieldEnum[], where, _sum: { minutes: true }, _count: true }) as unknown as Promise<Combo[]>,
     p.tab === "summary" ? (db.timeEntry.groupBy({ by: (stackField ? ["date", stackField] : ["date"]) as Prisma.TimeEntryScalarFieldEnum[], where, _sum: { minutes: true } }) as unknown as Promise<(Rec & { _sum: { minutes: number | null } })[]>) : Promise.resolve([]),
     p.tab === "detailed"
-      ? db.timeEntry.findMany({ where, orderBy: [{ date: "desc" }, { startMin: "desc" }], take: CAP, include: { user: { select: { id: true, name: true } }, project: { select: { name: true, client: { select: { name: true } } } }, phase: { select: { name: true } }, tag: { select: { name: true } } } })
+      ? db.timeEntry.findMany({ where, orderBy: [{ date: "desc" }, { startMin: "desc" }], take: CAP, include: { user: { select: { id: true, name: true } }, project: { select: { name: true, client: { select: { name: true } } } }, phase: { select: { name: true } } } })
       : Promise.resolve([]),
   ]);
   const phases = combos.length ? await db.phase.findMany({ where: { id: { in: [...new Set(combos.map((c) => c.phaseId).filter(Boolean))] as string[] } }, select: { id: true, name: true } }) : [];
@@ -80,7 +81,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       case "person": return [c.userId ?? "?", u ? (dupPersonName(u.name) ? `${u.name} (${u.location.name})` : u.name) : "Unknown"];
       case "team": return [u?.teamId ?? "-", u?.team ? `${u.team.name}, ${u.location.name}` : "No team"];
       case "location": return [u?.locationId ?? "?", u?.location.name ?? "Unknown"];
-      case "tag": return [c.tagId ?? "-", (c.tagId && T.get(c.tagId)) || "No tag"];
       case "phase": { const n = (c.phaseId && PH.get(c.phaseId)) || "No phase"; return [n, n]; }
       case "description": return [c.description ?? "", c.description || "No description"];
       case "day": { const d = toStr(c.date!); return [d, longDate(d)]; }
@@ -88,6 +88,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       default: return [c.projectId ?? "?", pr ? (dupProjectName(pr.name) ? `${pr.name} (${pr.client.name})` : pr.name) : "Unknown"];
     }
   };
+  // An entry with several tags counts under each of them; every other grouping puts an entry in exactly one group.
+  const shownTags = (c: Rec) => (p.tag.length ? (c.tagIds ?? []).filter((id) => p.tag.includes(id)) : c.tagIds ?? []); // with a tag filter, only the ticked tags are listed
+  const keysOf = (g: string, c: Rec): [string, string][] => g === "tag"
+    ? (shownTags(c).length ? shownTags(c).map((id) => [id, T.get(id) ?? "Removed tag"] as [string, string]) : [["-", "No tag"]])
+    : [labelOf(g, c)];
+  const tagOverlap = p.tab !== "detailed" && (p.group === "tag" || g2 === "tag") && combos.some((c) => shownTags(c).length > 1);
   const linkOf = (g: string, k: string) => (g === "person" && U.has(k) ? `/profile/${k}` : undefined);
 
   // The Summary table: one row per group, with the second grouping (if chosen) inside it.
@@ -95,10 +101,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const tree = new Map<string, Node>();
   if (p.tab !== "detailed") {
     for (const c of combos) {
-      const [k, label] = labelOf(p.group, c), min = c._sum.minutes ?? 0;
-      const n = tree.get(k) ?? { label, m: 0, people: new Set(), kids: new Map() };
-      n.m += min; n.people.add(c.userId); tree.set(k, n);
-      if (g2) { const [k2, l2] = labelOf(g2, c); const kid = n.kids.get(k2) ?? { label: l2, m: 0 }; kid.m += min; n.kids.set(k2, kid); }
+      const min = c._sum.minutes ?? 0;
+      for (const [k, label] of keysOf(p.group, c)) {
+        const n = tree.get(k) ?? { label, m: 0, people: new Set(), kids: new Map() };
+        n.m += min; n.people.add(c.userId); tree.set(k, n);
+        if (g2) for (const [k2, l2] of keysOf(g2, c)) { const kid = n.kids.get(k2) ?? { label: l2, m: 0 }; kid.m += min; n.kids.set(k2, kid); }
+      }
     }
   }
   const order = (g: string) => (a: [string, { m: number }], b: [string, { m: number }]) => (TIME_GROUPS.includes(g) ? a[0].localeCompare(b[0]) : b[1].m - a[1].m);
@@ -136,25 +144,32 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const lbl = (k: string) => (unit === "month" ? toDate(k + "-01").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }) : unit === "day" ? `${DAYS[dow(k)]}, ${shortDate(k)}` : shortDate(k));
   const series = colored ? slices : [{ key: "all", label: "Hours", value: total, color: "var(--s1)" }];
   const B: Record<string, Record<string, number>> = {};
+  const BT: Record<string, number> = {}; // each bar's true hours: an entry with several tags is in several stacks but counted once here
   for (const r of byDate) {
-    const b = kOf(toStr(r.date!)), sk = stackField ? labelOf(p.group, r)[0] : "all";
-    const key = colored ? (rank.get(sk)! < PALETTE.length ? sk : "other") : sk;
-    const bucket = (B[b] ??= {});
-    bucket[key] = (bucket[key] ?? 0) + (r._sum.minutes ?? 0) / 60;
+    const b = kOf(toStr(r.date!));
+    BT[b] = (BT[b] ?? 0) + (r._sum.minutes ?? 0) / 60;
+    for (const [sk] of stackField ? keysOf(p.group, r) : [["all"]]) {
+      const key = colored ? (rank.get(sk)! < PALETTE.length ? sk : "other") : sk;
+      const bucket = (B[b] ??= {});
+      bucket[key] = (bucket[key] ?? 0) + (r._sum.minutes ?? 0) / 60;
+    }
   }
 
   // The Weekly grid: one row per group, one column per day (or week, for long ranges).
   const week = new Map<string, { label: string; href?: string; total: number; cells: Record<string, number> }>();
   if (p.tab === "weekly") {
     for (const c of combos) {
-      const [k, label] = labelOf(p.group, c), min = c._sum.minutes ?? 0, b = kOf(toStr(c.date!));
-      const r = week.get(k) ?? { label, href: linkOf(p.group, k), total: 0, cells: {} };
-      r.total += min; r.cells[b] = (r.cells[b] ?? 0) + min; week.set(k, r);
+      const min = c._sum.minutes ?? 0, b = kOf(toStr(c.date!));
+      for (const [k, label] of keysOf(p.group, c)) {
+        const r = week.get(k) ?? { label, href: linkOf(p.group, k), total: 0, cells: {} };
+        r.total += min; r.cells[b] = (r.cells[b] ?? 0) + min; week.set(k, r);
+      }
     }
   }
   const weekRows = [...week].sort((a, b) => (TIME_GROUPS.includes(p.group) ? a[0].localeCompare(b[0]) : b[1].total - a[1].total));
+  // Column totals count each entry once, even when grouped by tag.
   const colTotals: Record<string, number> = {};
-  for (const [, r] of weekRows) for (const [b, m] of Object.entries(r.cells)) colTotals[b] = (colTotals[b] ?? 0) + m;
+  if (p.tab === "weekly") for (const c of combos) { const b = kOf(toStr(c.date!)); colTotals[b] = (colTotals[b] ?? 0) + (c._sum.minutes ?? 0); }
 
   const nf = [p.person, p.team, p.client, p.project, p.phase, p.tag, p.status, p.location].filter((a) => a.length).length + (p.desc ? 1 : 0);
   const clearHref = `/reports?${reportQuery(p, { person: [], team: [], client: [], project: [], phase: [], tag: [], status: [], location: [], desc: undefined })}`;
@@ -219,7 +234,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <PrintButton />
           </div>
 
-          {p.tab === "summary" && <div className="rchart"><BarChart keys={keys} data={B} series={series} unit={unit} lbl={lbl} f={f} empty={total === 0} /></div>}
+          {p.tab === "summary" && <div className="rchart"><BarChart keys={keys} data={B} totals={BT} series={series} unit={unit} lbl={lbl} f={f} empty={total === 0} /></div>}
 
           {p.tab !== "detailed" && (
             <div className="rgroup">
@@ -233,10 +248,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </div>
           )}
 
+          {tagOverlap && <p className="note" style={{ margin: "0 0 8px" }}>Time with several tags counts under each of its tags, so the tag rows and the coloured bars can add up to more than the total.</p>}
+
           {p.tab === "summary" && (
             <div className="rsplit">
               <ReportTable rows={tableRows} titleLabel={groupLabel} showPeople={p.group !== "person"} showEstimate={!!p.est} empty="No time in this range." />
-              {colored && total > 0 && <aside className="rdonut" aria-label={`Share of hours by ${groupLabel.toLowerCase()}`}><Donut slices={slices} total={total} centre={f(total)} /></aside>}
+              {colored && total > 0 && !(tagOverlap && p.group === "tag") && <aside className="rdonut" aria-label={`Share of hours by ${groupLabel.toLowerCase()}`}><Donut slices={slices} total={total} centre={f(total)} /></aside>}
             </div>
           )}
 
@@ -264,7 +281,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {p.tab === "detailed" && (
             <div className="tablebox">
               <table className="rtable">
-                <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th><th>CLIENT</th><th>PROJECT</th><th>PHASE</th><th>TAG</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
+                <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th><th>CLIENT</th><th>PROJECT</th><th>PHASE</th><th>TAGS</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => (
                     <tr key={e.id}>
@@ -272,7 +289,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                       <td data-l="Time" className="nw">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}</td>
                       <td data-l="Person"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
                       <td data-l="Client">{e.project.client.name}</td>
-                      <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tag">{e.tag?.name ?? ""}</td><td data-l="Description">{e.description}</td>
+                      <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td><td data-l="Description">{e.description}</td>
                       <td className="num" data-l="Hours">{f(e.minutes)}</td>
                     </tr>
                   ))}

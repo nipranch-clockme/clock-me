@@ -31,7 +31,7 @@ const H0=7,PX=40;
   const day0=await p.inputValue('#e-date');
   ok('dialog opens at 10:00 for 2.50 hours',(await p.inputValue('#e-start'))==='10:00'&&(await p.inputValue('#e-dur'))==='2.50',`${await p.inputValue('#e-start')} ${await p.inputValue('#e-dur')}`);
   ok('block disappears when the dialog opens',(await p.$$('.dragsel')).length===0);
-  await p.selectOption('#e-project',proj);await p.selectOption('#e-phase',{label:'Submission 1'});await p.selectOption('#e-tag',{label:'CAD'});await p.fill('#e-desc','dragged');
+  await p.selectOption('#e-project',proj);await p.selectOption('#e-phase',{label:'Submission 1'});await p.check('.tagpick-i:has-text("CAD") input');await p.fill('#e-desc','dragged');
   await p.click('dialog[open] button:has-text("Add entry")');await p.waitForSelector('button.ev');
   ok('saved entry has the dragged start and length',sql(`select "startMin"||','||minutes from "TimeEntry" where "userId"='${uid}'`)==='600,150');
 

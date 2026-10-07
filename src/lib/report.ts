@@ -100,7 +100,7 @@ export async function reportWhere(me: Me, p: ReportParams): Promise<{ where: Pri
     ...(p.person.length ? { userId: { in: p.person } } : {}),
     ...(p.project.length ? { projectId: { in: p.project } } : {}),
     ...(p.client.length ? { project: { clientId: { in: p.client } } } : {}),
-    ...(p.tag.length ? { tagId: { in: p.tag } } : {}),
+    ...(p.tag.length ? { tagIds: { hasSome: p.tag } } : {}), // any of the ticked tags
     ...(p.phase.length ? { phase: { name: { in: p.phase } } } : {}),
     ...(p.desc ? { description: { contains: p.desc, mode: "insensitive" } } : {}),
     ...(and.length ? { AND: and } : {}),

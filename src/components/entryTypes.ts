@@ -14,7 +14,7 @@ export type EntryValue = {
   projectName?: string;
   phaseId?: string | null;
   phaseName?: string;
-  tagId?: string | null;
+  tagIds?: string[];
   description?: string;
   custom?: Record<string, string>;
   date: string;

@@ -8,7 +8,7 @@ import SearchSelect from "@/components/SearchSelect";
 
 export type SheetEntry = {
   id: string; projectId: string; projectName: string; clientName: string; clientColor: string;
-  phaseId: string | null; phaseName: string; tagId: string | null; tagName: string; description: string;
+  phaseId: string | null; phaseName: string; tagIds: string[]; tagName: string; description: string;
   custom: Record<string, string>; date: string; startMin: number; minutes: number;
 };
 export type SheetRow = { projectId: string; projectName: string; clientName: string; clientColor: string };
@@ -126,7 +126,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
                             <button type="button" key={e.id} className="chipbtn" style={{ borderLeftColor: `var(--${r.clientColor})` }}
                               onClick={() => openEntry(e)} onMouseEnter={(ev) => showTip(e.id, ev.currentTarget)} onMouseLeave={() => setTip(null)}
                               onFocus={(ev) => { if (ev.currentTarget.matches(":focus-visible")) showTip(e.id, ev.currentTarget); }} onBlur={() => setTip(null)}
-                              aria-label={`${f(e.minutes)} hours. Phase: ${e.phaseName}. Tag: ${e.tagName || "no tag"}. ${e.description ? `Description: ${e.description}` : "No description"}.`}>
+                              aria-label={`${f(e.minutes)} hours. Phase: ${e.phaseName}. Tags: ${e.tagName || "none"}. ${e.description ? `Description: ${e.description}` : "No description"}.`}>
                               {f(e.minutes)}
                             </button>
                           ))}
@@ -157,7 +157,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
       {tip && tipEntry && (
         <div ref={tipRef} className="sheettip" role="tooltip" style={tipPos ?? { left: 0, top: 0, visibility: "hidden" }}>
           <div><span>Phase</span>{tipEntry.phaseName}</div>
-          <div><span>Tag</span>{tipEntry.tagName || "No tag"}</div>
+          <div><span>Tags</span>{tipEntry.tagName || "No tags"}</div>
           <div><span>Description</span>{tipEntry.description || "No description"}</div>
         </div>
       )}

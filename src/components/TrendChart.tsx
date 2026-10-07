@@ -14,7 +14,9 @@ type Props = {
 
 /** One line per series across months, named at its right end. */
 export default function TrendChart({ months, series, label, unit = "pct", fmt = pct, level }: Props) {
-  const W = 900, H = 250, pl = 44, pr = 100, pt = 14, pb = 28, iw = W - pl - pr, ih = H - pt - pb;
+  const short = (t: string) => (t.length > 24 ? t.slice(0, 23) + "…" : t);
+  const longest = Math.max(0, ...series.map((s) => short(s.name).length), level ? level.label.length : 0);
+  const W = 900, H = 250, pl = 44, pr = Math.min(200, Math.max(100, 32 + longest * 6.6)), pt = 14, pb = 28, iw = W - pl - pr, ih = H - pt - pb;
   const max = Math.max(unit === "pct" ? 1 : 0, level?.value ?? 0, ...series.flatMap((s) => s.v.filter((v): v is number => v != null)));
   const step = unit === "pct" ? 0.25 : niceStep(max);
   const top = Math.max(step, Math.ceil(max / step) * step);
@@ -27,6 +29,7 @@ export default function TrendChart({ months, series, label, unit = "pct", fmt = 
     ...(level ? [{ id: "level", text: level.label, color: "var(--muted)", x: W - pr + 12, y: y(level.value), endY: y(level.value) }] : []),
   ].sort((p, q) => p.y - q.y);
   for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
+  for (let i = labels.length - 1; i >= 0; i--) { const room = H - pb - 2 - (labels.length - 1 - i) * 15; if (labels[i].y > room) labels[i].y = room; } // keep the names inside the chart when many lines end low
   const mlabel = (m: string, long = false) => toDate(m + "-01").toLocaleDateString("en-US", long ? { month: "long", year: "numeric", timeZone: "UTC" } : { month: "short", timeZone: "UTC" });
   return (
     <div className="chart">
@@ -45,7 +48,7 @@ export default function TrendChart({ months, series, label, unit = "pct", fmt = 
           <g key={o.id}>
             <line x1={W - pr + 4} y1={o.endY} x2={o.x - 5} y2={o.y} stroke={o.color} strokeWidth="1" />
             <circle cx={o.x} cy={o.y} r="4" fill={o.color} />
-            <text x={o.x + 9} y={o.y + 4} style={{ fill: "var(--ink)" }}>{o.text}</text>
+            <text x={o.x + 9} y={o.y + 4} style={{ fill: "var(--ink)" }}>{short(o.text)}<title>{o.text}</title></text>
           </g>
         ))}
       </svg>

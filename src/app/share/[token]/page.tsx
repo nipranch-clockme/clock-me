@@ -48,7 +48,13 @@ export default async function SharedReport({ params, searchParams }: { params: P
 
   const P = new Map(choices.projects.map((x) => [x.id, x.archived ? `${x.name} (archived)` : x.name]));
   const T = new Map(choices.tags.map((x) => [x.id, x.name]));
-  const keyOf = (g: "project" | "tag", r: { projectId: string; tagId: string | null }) => (g === "project" ? r.projectId : r.tagId ?? NO_TAG);
+  // An entry with several tags counts under each of them. With a tag filter, only the chosen tags are listed.
+  const keysOf = (g: "project" | "tag", r: { projectId: string; tagIds: string[] }): string[] => {
+    if (g === "project") return [r.projectId];
+    const ids = r.tagIds.filter((t) => T.has(t) && (!p.tag.length || p.tag.includes(t))); // a tag id with no tag left counts as no tag
+    return ids.length ? ids : [NO_TAG];
+  };
+  const tagOverlap = rows.some((r) => keysOf("tag", r).length > 1);
   const labelOf = (g: "project" | "tag", k: string) => (g === "project" ? P.get(k) : T.get(k)) ?? (g === "tag" ? "No tag" : "Project");
   const other = p.by === "project" ? "tag" : "project";
 
@@ -56,11 +62,12 @@ export default async function SharedReport({ params, searchParams }: { params: P
   type Node = { m: number; kids: Map<string, number> };
   const tree = new Map<string, Node>();
   for (const r of rows) {
-    const n = tree.get(keyOf(p.by, r)) ?? { m: 0, kids: new Map() };
-    n.m += r.minutes;
-    const k2 = keyOf(other, r);
-    n.kids.set(k2, (n.kids.get(k2) ?? 0) + r.minutes);
-    tree.set(keyOf(p.by, r), n);
+    for (const k of keysOf(p.by, r)) {
+      const n = tree.get(k) ?? { m: 0, kids: new Map() };
+      n.m += r.minutes;
+      for (const k2 of keysOf(other, r)) n.kids.set(k2, (n.kids.get(k2) ?? 0) + r.minutes);
+      tree.set(k, n);
+    }
   }
   const sorted = [...tree].sort((a, b) => b[1].m - a[1].m);
   const rank = new Map(sorted.map(([k], i) => [k, i]));
@@ -87,10 +94,14 @@ export default async function SharedReport({ params, searchParams }: { params: P
   for (let d = shownFrom; d <= end; d = addDays(d, 1)) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); }
   const lbl = (k: string) => (unit === "month" ? toDate(k + "-01").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }) : unit === "day" ? `${DAYS[dow(k)]}, ${shortDate(k)}` : shortDate(k));
   const B: Record<string, Record<string, number>> = {};
+  const BT: Record<string, number> = {}; // each bar's true hours: an entry with several tags is in several stacks but counted once here
   for (const r of rows) {
-    const sk = keyOf(p.by, r), key = rank.get(sk)! < PALETTE.length ? sk : "other";
-    const bucket = (B[kOf(r.date)] ??= {});
-    bucket[key] = (bucket[key] ?? 0) + r.minutes / 60;
+    BT[kOf(r.date)] = (BT[kOf(r.date)] ?? 0) + r.minutes / 60;
+    for (const sk of keysOf(p.by, r)) {
+      const key = rank.get(sk)! < PALETTE.length ? sk : "other";
+      const bucket = (B[kOf(r.date)] ??= {});
+      bucket[key] = (bucket[key] ?? 0) + r.minutes / 60;
+    }
   }
 
   const nf = p.project.length + p.tag.length;
@@ -144,13 +155,14 @@ export default async function SharedReport({ params, searchParams }: { params: P
             <span className="rtotal">Total: <b>{f(total)}</b> <span className="note">hours</span></span>
             <span className="rcounts">{projectsCount.toLocaleString("en-US")} {projectsCount === 1 ? "project" : "projects"}</span>
           </div>
-          <div className="rchart"><BarChart keys={keys} data={B} series={slices} unit={unit} lbl={lbl} f={f} empty={total === 0} /></div>
+          <div className="rchart"><BarChart keys={keys} data={B} totals={BT} series={slices} unit={unit} lbl={lbl} f={f} empty={total === 0} /></div>
           <div className="rgroup">
             <Ifld id="sh-by" label="Group by" name="by" data-auto defaultValue={p.by}><option value="project">Project, then tag</option><option value="tag">Tag, then project</option></Ifld>
           </div>
+          {tagOverlap && <p className="note" style={{ margin: "0 0 8px" }}>Time with several tags counts under each of its tags, so the tag rows and the coloured bars can add up to more than the total.</p>}
           <div className="rsplit">
             <ReportTable rows={tableRows} titleLabel={p.by === "project" ? "Project" : "Tag"} showPeople={false} showEstimate={false} empty="No time in this period." />
-            {total > 0 && <aside className="rdonut" aria-label={`Share of hours by ${p.by}`}><Donut slices={slices} total={total} centre={f(total)} /></aside>}
+            {total > 0 && !(tagOverlap && p.by === "tag") && <aside className="rdonut" aria-label={`Share of hours by ${p.by}`}><Donut slices={slices} total={total} centre={f(total)} /></aside>}
           </div>
         </section>
       </AutoForm>

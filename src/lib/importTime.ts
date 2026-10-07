@@ -5,6 +5,7 @@ import { getSettings } from "./settings";
 import { visibleProjectsWhere, visibleUsersWhere } from "./scope";
 import { EXTRA_CELLS, csvObjects } from "./csv";
 import { monday, toDate, toStr } from "./dates";
+import { sortTagIds } from "./tags";
 import { CLIENT_COLORS, clean, cleanText, hasColumn, nameKey, parseDateFlexible, parseDurationFlexible, parseTimeFlexible, pick, splitList } from "./importParse";
 import { MAX_TAG_LENGTH, NO_CLIENT } from "./importProjects";
 import { columnNotes, type PreviewRow } from "./importTypes";
@@ -29,13 +30,13 @@ function canTrack(p: ImportProject, u: ImportUser) {
     || p.locations.some((x) => x.locationId === u.locationId) || (!!u.teamId && p.teams.some((x) => x.teamId === u.teamId));
 }
 
-const entryKey = (e: { userId: string; date: string; projectId: string; phaseId: string | null; tagId: string | null; startMin: number; minutes: number; description: string }) =>
-  [e.userId, e.date, e.projectId, e.phaseId, e.tagId, e.startMin, e.minutes, e.description].join("|");
+const entryKey = (e: { userId: string; date: string; projectId: string; phaseId: string | null; tagIds: string[]; startMin: number; minutes: number; description: string }) =>
+  [e.userId, e.date, e.projectId, e.phaseId, sortTagIds(e.tagIds).join(","), e.startMin, e.minutes, e.description].join("|");
 
 /** An entry ready to save. Anything the file asks to create (project, phase, tag) is named by a key until it exists. */
 export type EntryDraft = {
   userId: string; date: string; startMin: number; minutes: number; description: string; custom: Record<string, string>;
-  projectId?: string; projectKey?: string; phaseId?: string; phaseName: string; tagId?: string; tagKey?: string;
+  projectId?: string; projectKey?: string; phaseId?: string; phaseName: string; tagIds: string[]; tagKeys: string[];
 };
 export type NewProject = { key: string; name: string; clientName: string; clientId?: string; phases: string[] };
 export type TimePlan = { projects: Map<string, NewProject>; phases: Map<string, string[]>; tags: Map<string, string>; clients: Map<string, string> };
@@ -80,10 +81,10 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const phaseName = clean(pick(r, "phase", "task"));
     const phases = p ? p.phases.filter((x) => x.sort < 999).sort((a, b) => a.sort - b.sort) : [];
     const phase = phases.find((x) => nameKey(x.name) === nameKey(phaseName));
-    const wantedTags = splitList(pick(r, "tag", "tags")).map(clean).filter(Boolean);
-    const tagName = wantedTags[0] ?? "";
-    if (wantedTags.length > 1) notes.push(`Only the first tag (${tagName}) is kept`);
-    const tagId = tagName ? tagByName.get(nameKey(tagName)) : undefined;
+    // Any number of tags, separated by commas; each is named once.
+    const wantedTags = [...new Map(splitList(pick(r, "tag", "tags")).map(clean).filter(Boolean).map((t) => [nameKey(t), t])).values()];
+    const knownTags = wantedTags.filter((t) => tagByName.has(nameKey(t)));
+    const unknownTags = wantedTags.filter((t) => !tagByName.has(nameKey(t)));
     const minutes = parseDurationFlexible(pick(r, "hours", "duration (h)", "duration"));
     const startText = pick(r, "start", "start time");
     const startMin = startText ? parseTimeFlexible(startText) : 9 * 60;
@@ -95,7 +96,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const newProject = !p && !matches.length && create && !!projectName;
     const newClientName = newProject ? (clientGiven || NO_CLIENT) : "";
     const newPhase = (!!p || newProject) && !phase && create && !!phaseName;
-    const newTag = !!tagName && !tagId && create;
+    const newTags = create ? unknownTags : [];
     const error =
       extra ? EXTRA_CELLS
       : !date ? "Date must look like 03/31/2026 or 2026-03-31"
@@ -108,9 +109,9 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       : !phaseName ? "Task (phase) is required"
       : newPhase && phaseName.length > 80 ? "A task (phase) name can be up to 80 characters"
       : !phase && !newPhase ? `Task (phase) must be one of: ${phases.map((x) => x.name).join(", ")}`
-      : tagName && !tagId && !newTag ? `Unknown tag: ${tagName}`
-      : newTag && tagName.length > MAX_TAG_LENGTH ? `A tag name can be up to ${MAX_TAG_LENGTH} characters`
-      : settings.requireTag && !tagName ? "A tag is required (see Settings)"
+      : unknownTags.length && !create ? `Unknown tag: ${unknownTags.join(", ")}`
+      : newTags.some((t) => t.length > MAX_TAG_LENGTH) ? `A tag name can be up to ${MAX_TAG_LENGTH} characters`
+      : settings.requireTag && !wantedTags.length ? "A tag is required (see Settings)"
       : settings.requireDescription && !description ? "A description is required (see Settings)"
       : description.length > 3000 ? "Description can be up to 3000 characters"
       : missingCustom.length ? `${missingCustom.join(", ")} required`
@@ -120,7 +121,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       : settings.lockBeforeStr && date <= settings.lockBeforeStr ? "That date is locked (on or before the lock date in Settings)"
       : closedSet.has(`${u.id}|${monday(date)}`) ? "That week is already submitted or approved"
       : "";
-    const cells = [date ?? dateText, u?.name ?? emailText, p ? `${p.name} (${p.client.name})` : projectName ? `${projectName} (${clientGiven || (newProject ? NO_CLIENT : "?")})` : "", phase?.name ?? phaseName, tagName, pick(r, "hours", "duration (h)", "duration")];
+    const cells = [date ?? dateText, u?.name ?? emailText, p ? `${p.name} (${p.client.name})` : projectName ? `${projectName} (${clientGiven || (newProject ? NO_CLIENT : "?")})` : "", phase?.name ?? phaseName, wantedTags.join(", "), pick(r, "hours", "duration (h)", "duration")];
     const row: PreviewRow = { line, cells, error, notes };
     if (error) return { row };
 
@@ -138,13 +139,13 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       if (!list.some((x) => nameKey(x) === nameKey(phaseName))) list.push(phaseName);
       plan.phases.set(p!.id, list);
     }
-    if (newTag && !plan.tags.has(nameKey(tagName))) plan.tags.set(nameKey(tagName), tagName);
+    for (const t of newTags) if (!plan.tags.has(nameKey(t))) plan.tags.set(nameKey(t), t);
     const draft: EntryDraft = {
       userId: u!.id, date: date!, startMin: startMin!, minutes, description, custom,
-      projectId: p?.id, projectKey, phaseId: phase?.id, phaseName: phase?.name ?? phaseName, tagId, tagKey: newTag ? nameKey(tagName) : undefined,
+      projectId: p?.id, projectKey, phaseId: phase?.id, phaseName: phase?.name ?? phaseName, tagIds: sortTagIds(knownTags.map((t) => tagByName.get(nameKey(t))!)), tagKeys: newTags.map(nameKey),
     };
     // Rows that exactly match saved time are left out later; one that needs something new can't match anything yet.
-    const key = p && phase && (tagId || !tagName) ? entryKey({ userId: u!.id, date: date!, projectId: p.id, phaseId: phase.id, tagId: tagId ?? null, startMin: startMin!, minutes, description }) : undefined;
+    const key = p && phase && !newTags.length ? entryKey({ userId: u!.id, date: date!, projectId: p.id, phaseId: phase.id, tagIds: draft.tagIds, startMin: startMin!, minutes, description }) : undefined;
     return { row, data: draft, key };
   });
 
@@ -155,7 +156,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const dates = ok.map((o) => o.data!.date).sort();
     const existing = await db.timeEntry.findMany({
       where: { userId: { in: [...new Set(ok.map((o) => o.data!.userId))] }, date: { gte: toDate(dates[0]), lte: toDate(dates[dates.length - 1]) } },
-      select: { userId: true, date: true, projectId: true, phaseId: true, tagId: true, startMin: true, minutes: true, description: true },
+      select: { userId: true, date: true, projectId: true, phaseId: true, tagIds: true, startMin: true, minutes: true, description: true },
     });
     const have = new Set(existing.map((e) => entryKey({ ...e, date: toStr(e.date) })));
     for (const o of ok) if (have.has(o.key!)) { o.row.error = "Already imported"; o.data = undefined; }
@@ -170,7 +171,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const keep = names.filter((n) => usedPhases.get(id)?.has(nameKey(n)));
     if (keep.length) plan.phases.set(id, keep); else plan.phases.delete(id);
   }
-  const usedTags = new Set(live.map((d) => d.tagKey).filter(Boolean) as string[]);
+  const usedTags = new Set(live.flatMap((d) => d.tagKeys));
   for (const k of [...plan.tags.keys()]) if (!usedTags.has(k)) plan.tags.delete(k);
   const usedClients = new Set([...plan.projects.values()].map((np) => nameKey(np.clientName)));
   for (const k of [...plan.clients.keys()]) if (!usedClients.has(k)) plan.clients.delete(k);
@@ -184,7 +185,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     ...(plan.tags.size ? [`New tags: ${list([...plan.tags.values()])}`] : []),
   ];
   return {
-    headers: ["Date", "Person", "Project", "Phase", "Tag", "Hours"],
+    headers: ["Date", "Person", "Project", "Phase", "Tags", "Hours"],
     columnNotes: columnNotes(keys, USED, IGNORED, fields.map((f) => f.name.toLowerCase()), rows.map((r) => r.v)),
     adds, out, plan, create,
   };
@@ -226,7 +227,7 @@ export async function saveTime(drafts: EntryDraft[], plan: TimePlan) {
     const data: Prisma.TimeEntryCreateManyInput[] = drafts.map((d) => {
       const projectId = d.projectId ?? projectIds.get(d.projectKey!)!;
       return {
-        userId: d.userId, projectId, phaseId: d.phaseId ?? phaseIds.get(`${projectId}|${nameKey(d.phaseName)}`)!, tagId: d.tagId ?? (d.tagKey ? tagIds.get(d.tagKey) : undefined) ?? null,
+        userId: d.userId, projectId, phaseId: d.phaseId ?? phaseIds.get(`${projectId}|${nameKey(d.phaseName)}`)!, tagIds: sortTagIds([...d.tagIds, ...d.tagKeys.map((k) => tagIds.get(k)!)]),
         description: d.description, custom: d.custom, date: toDate(d.date), startMin: d.startMin, minutes: d.minutes,
       };
     });

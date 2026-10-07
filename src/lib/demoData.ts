@@ -194,8 +194,11 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
         const p = cl[Math.floor(r() * cl.length)];
         const minutes = i === n - 1 ? left : Math.max(30, Math.round((left * (0.3 + r() * 0.4)) / 15) * 15);
         const phase = p.phases[Math.floor(r() * p.phases.length)];
+        // one tag on most entries and two on about one in four (when there are two or more tags)
+        const picked = tags.length ? [tags[Math.floor(r() * tags.length)].id] : [];
+        if (tags.length > 1 && r() < 0.25) picked.push(tags[Math.floor(r() * tags.length)].id);
         entries.push({
-          userId: u.id, projectId: p.id, phaseId: phase?.id ?? null, tagId: tags.length ? tags[Math.floor(r() * tags.length)].id : null,
+          userId: u.id, projectId: p.id, phaseId: phase?.id ?? null, tagIds: [...new Set(picked)].sort(),
           date: toDate(d), startMin: t, minutes: Math.min(minutes, left), description: settings?.requireDescription === false && r() < 0.2 ? "" : NOTES[Math.floor(r() * NOTES.length)],
         });
         t += minutes + (i === 0 ? 45 : 15);

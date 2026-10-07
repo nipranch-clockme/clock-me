@@ -6,7 +6,8 @@ export const OTHER = "var(--s4)";
 
 export type Series = { key: string; label: string; color: string };
 
-export function BarChart({ keys, data, series, unit, lbl, f, empty }: { keys: string[]; data: Record<string, Record<string, number>>; series: Series[]; unit: string; lbl: (k: string) => string; f: (m: number) => string; empty: boolean }) {
+/** `totals` is the true hours in each bar. Leave it out when the stacks add up to it; pass it when an entry can sit in more than one stack (several tags), so the figure above a bar still counts every entry once. */
+export function BarChart({ keys, data, series, unit, lbl, f, empty, totals }: { keys: string[]; data: Record<string, Record<string, number>>; series: Series[]; unit: string; lbl: (k: string) => string; f: (m: number) => string; empty: boolean; totals?: Record<string, number> }) {
   const W = 900, H = 272, pl = 52, pr = 8, pt = 12, pb = 50, iw = W - pl - pr, ih = H - pt - pb;
   const tot = (k: string) => Object.values(data[k] ?? {}).reduce((a, b) => a + b, 0);
   const max = Math.max(1, ...keys.map(tot));
@@ -32,7 +33,7 @@ export function BarChart({ keys, data, series, unit, lbl, f, empty }: { keys: st
                 acc += v;
                 return r;
               })}
-              {showTotals && <text x={x + w / 2} y={H - 26} textAnchor="middle" className="ctot">{f(tot(k) * 60)}</text>}
+              {showTotals && <text x={x + w / 2} y={H - 26} textAnchor="middle" className="ctot">{f((totals ? totals[k] ?? 0 : tot(k)) * 60)}</text>}
               {i % every === 0 && <text x={x + w / 2} y={H - 8} textAnchor="middle">{lbl(k)}</text>}
             </g>
           );

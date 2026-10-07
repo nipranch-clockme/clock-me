@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { saveEntry, deleteEntry, type EntryResult } from "@/app/(app)/timesheet/actions";
 import type { EntryOptions, EntryValue } from "./entryTypes";
 import SearchSelect from "@/components/SearchSelect";
+import TagPicker from "@/components/TagPicker";
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const dur = (m: number | undefined, f: "decimal" | "hhmm") => (m == null ? (f === "hhmm" ? "1:00" : "1.00") : f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
@@ -47,12 +48,8 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
     </div>
   );
   const tagField = (
-    <div>
-      <label htmlFor="e-tag">Tag{opts.requireTag && <span className="req"> *</span>}</label>
-      <select id="e-tag" name="tagId" defaultValue={value.tagId ?? ""} className={bad("Tag")}>
-        <option value="">No tag</option>
-        {opts.tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-      </select>
+    <div style={{ flexBasis: "100%" }}>
+      <TagPicker id="e-tag" tags={opts.tags} selected={value.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} readOnly={ro} />
     </div>
   );
   const customFields = opts.fields.map((f) => (
@@ -97,9 +94,9 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
               <input type="hidden" name="date" value={value.date} />
               <input type="hidden" name="start" value={hhmm(value.startMin ?? 540)} />
               {phaseField}
-              {tagField}
               {durField}
               {customFields}
+              {tagField}
               {descField}
             </div>
           ) : (
@@ -110,8 +107,8 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
                   options={[...(value.projectId && !opts.projects.some((p) => p.id === value.projectId) ? [{ value: value.projectId, label: value.projectName ?? "Other project" }] : []), ...opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))]} />
               </div>
               {phaseField}
-              {tagField}
               {customFields}
+              {tagField}
               {descField}
               <div><label htmlFor="e-date">Date</label><input id="e-date" type="date" name="date" defaultValue={value.date} required /></div>
               <div><label htmlFor="e-start">Start</label><input id="e-start" type="time" name="start" defaultValue={hhmm(value.startMin ?? 540)} /></div>

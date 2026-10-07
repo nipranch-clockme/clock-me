@@ -18,10 +18,10 @@ export default async function SettingsPage() {
     db.tag.findMany({ orderBy: { name: "asc" } }),
     db.phaseTemplate.findMany({ orderBy: { name: "asc" } }),
     db.customField.findMany({ orderBy: { sort: "asc" } }),
-    db.timeEntry.groupBy({ by: ["tagId"], _count: true }),
+    db.$queryRaw<{ id: string; n: bigint }[]>`SELECT t AS id, COUNT(*)::bigint AS n FROM "TimeEntry", unnest("tagIds") AS t GROUP BY t`, // entries that carry each tag
   ]);
   const demo = await demoStatus();
-  const used = new Map(tagUse.map((t) => [t.tagId, t._count]));
+  const used = new Map(tagUse.map((t) => [t.id, Number(t.n)]));
   const mark = (v: string) => (v === "y" ? <span className="yes">✓</span> : v === "n" ? <span className="no">–</span> : <span className="part">{v}</span>);
   return (
     <>
@@ -30,10 +30,10 @@ export default async function SettingsPage() {
       <GeneralForm zones={Intl.supportedValuesOf("timeZone")} s={{ timeZone: settings.timeZone, timeFormat: settings.timeFormat, requireTag: settings.requireTag, requireDescription: settings.requireDescription, lockBefore: settings.lockBeforeStr ?? "", dailyMinimum: settings.dailyMinimum, remindSubmit: settings.remindSubmit, remindSubmitDay: settings.remindSubmitDay, remindDaily: settings.remindDaily, remindApprovers: settings.remindApprovers }} emailOn={!!process.env.RESEND_API_KEY} cronOn={!!process.env.CRON_SECRET} />
       <section className="panel">
         <h3>Tags</h3>
-        <p className="note" style={{ margin: "0 0 8px" }}>One list for the whole company. Removing a tag clears it from entries that used it.</p>
+        <p className="note" style={{ margin: "0 0 8px" }}>One list for the whole company. An entry can carry several. Removing a tag takes it off the entries that used it.</p>
         <div className="list">{tags.map((t) => (
-          <div className="item" key={t.id}><div>{t.name}<div className="meta">{used.get(t.id) ?? 0} entries</div></div>
-            <Confirm action={removeTag} id={t.id} label="Remove" question={used.get(t.id) ? `Remove ${t.name}? ${used.get(t.id)} entries will lose this tag.` : `Remove ${t.name}?`} /></div>
+          <div className="item" key={t.id}><div>{t.name}<div className="meta">{used.get(t.id) ?? 0} {used.get(t.id) === 1 ? "entry" : "entries"}</div></div>
+            <Confirm action={removeTag} id={t.id} label="Remove" question={used.get(t.id) ? `Remove ${t.name}? ${used.get(t.id)} ${used.get(t.id) === 1 ? "entry" : "entries"} will lose this tag.` : `Remove ${t.name}?`} /></div>
         ))}</div>
         <TagForm />
       </section>

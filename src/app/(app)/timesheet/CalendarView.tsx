@@ -15,7 +15,7 @@ export default async function CalendarView({ me, settings, offset, u }: { me: Me
   const people = await db.user.findMany({ where: { ...visibleUsersWhere(me), active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
   const who = people.some((p) => p.id === u) ? u! : me.id;
   const [rows, sheet, opts] = await Promise.all([
-    db.timeEntry.findMany({ where: { userId: who, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true, tag: true } }),
+    db.timeEntry.findMany({ where: { userId: who, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true } }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: who, weekStart: toDate(ws) } } }),
     entryOptions(me),
   ]);
@@ -29,7 +29,7 @@ export default async function CalendarView({ me, settings, offset, u }: { me: Me
       <CalendarWeek
         opts={opts} dates={dates} today={today()} editable={who === me.id} locked={locked}
         ownerName={people.find((p) => p.id === who)?.name ?? ""}
-        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: e.phase?.name ?? "", tagId: e.tagId, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
+        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: e.phase?.name ?? "", tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
       />
       <div className="legend">{clients.map((c) => <span key={c.id}><i style={{ background: `var(--${c.color})` }} />{c.name}</span>)}</div>
     </>

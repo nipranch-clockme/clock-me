@@ -10,7 +10,7 @@ const opt=await p.$eval('#addrow-project',s=>[...s.options].find(o=>o.value)?.te
 if(opt){await p.selectOption('#addrow-project',{label:opt});await p.click('dialog[open] button:has-text("Add row")');await p.waitForTimeout(1500);}else{await p.click('dialog[open] button:has-text("Close")');}
 await p.click('button.addcell >> nth=0');await p.waitForSelector('dialog[open] #e-phase');
 await p.click('dialog button:has-text("Add entry")');await p.waitForSelector('dialog [role=alert]');console.log('validation:',await p.textContent('dialog [role=alert]'));
-await p.selectOption('#e-phase',{index:1});await p.selectOption('#e-tag',{index:1});await p.fill('#e-desc','Logo options');await p.fill('#e-dur','1:30');
+await p.selectOption('#e-phase',{index:1});await p.locator('.tagpick-i input').first().check();await p.fill('#e-desc','Logo options');await p.fill('#e-dur','1:30');
 await p.click('dialog button:has-text("Add entry")');await p.waitForTimeout(2500);
 await p.screenshot({path:'/tmp/claude-0/a-sheet2.png',fullPage:true});
 console.log('errors',errs);await b.close()})();

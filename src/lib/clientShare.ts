@@ -36,37 +36,39 @@ export function shareQuery(p: ShareParams, extra: Record<string, string | string
   return q.toString();
 }
 
-export type ShareRow = { date: string; projectId: string; tagId: string | null; minutes: number };
+export type ShareRow = { date: string; projectId: string; tagIds: string[]; minutes: number };
 
 /**
- * Minutes per day, project and tag on one client's projects (archived ones included), for the dates and filters given.
+ * Minutes per day, project and set of tags on one client's projects (archived ones included), for the dates and filters given.
  * The client always comes from the link's secret, never from the page's parameters, and the project and tag filters can only
  * narrow it: ids that don't belong to this client match nothing.
  */
 export async function shareRows(client: { id: string; shareApprovedOnly: boolean }, p: ShareParams): Promise<{ rows: ShareRow[]; from: string; to: string }> {
   const [from, to] = rangeDates(p.range, p.from, p.to);
   const tagIds = p.tag.filter((t) => t !== NO_TAG);
+  // An entry matches when it carries any of the chosen tags (or, for "No tag", none at all).
   const tagFilter = p.tag.length
-    ? Prisma.sql`AND (${tagIds.length ? Prisma.sql`e."tagId" IN (${Prisma.join(tagIds)})` : Prisma.sql`FALSE`}${p.tag.includes(NO_TAG) ? Prisma.sql` OR e."tagId" IS NULL` : Prisma.empty})`
+    ? Prisma.sql`AND (${tagIds.length ? Prisma.sql`e."tagIds" && ARRAY[${Prisma.join(tagIds)}]::text[]` : Prisma.sql`FALSE`}${p.tag.includes(NO_TAG) ? Prisma.sql` OR cardinality(e."tagIds") = 0` : Prisma.empty})`
     : Prisma.empty;
-  const raw = await db.$queryRaw<{ d: Date; projectId: string; tagId: string | null; minutes: bigint }[]>(Prisma.sql`
-    SELECT e.date AS d, e."projectId", e."tagId", SUM(e.minutes)::bigint AS minutes
+  const raw = await db.$queryRaw<{ d: Date; projectId: string; tagIds: string[]; minutes: bigint }[]>(Prisma.sql`
+    SELECT e.date AS d, e."projectId", e."tagIds", SUM(e.minutes)::bigint AS minutes
     FROM "TimeEntry" e JOIN "Project" p ON p.id = e."projectId"
     WHERE p."clientId" = ${client.id} AND e.date >= ${toDate(from)} AND e.date <= ${toDate(to)}
     ${p.project.length ? Prisma.sql`AND e."projectId" IN (${Prisma.join(p.project)})` : Prisma.empty}
     ${tagFilter}
     ${client.shareApprovedOnly ? Prisma.sql`AND EXISTS (SELECT 1 FROM "Timesheet" t WHERE t."userId" = e."userId" AND t.status = 'APPROVED'::"SheetStatus" AND t."weekStart" = date_trunc('week', e.date)::date)` : Prisma.empty}
-    GROUP BY e.date, e."projectId", e."tagId"`);
-  return { rows: raw.map((r) => ({ date: toStr(r.d), projectId: r.projectId, tagId: r.tagId, minutes: Number(r.minutes) })), from, to };
+    GROUP BY e.date, e."projectId", e."tagIds"`);
+  return { rows: raw.map((r) => ({ date: toStr(r.d), projectId: r.projectId, tagIds: r.tagIds, minutes: Number(r.minutes) })), from, to };
 }
 
 /** The projects and tags this client's time has ever used: the choices the filters offer (so nothing else in the company is named). */
 export async function shareChoices(clientId: string) {
-  const [projects, tagRows, noTag] = await Promise.all([
+  const [projects, used, noTag] = await Promise.all([
     db.project.findMany({ where: { clientId, entries: { some: {} } }, select: { id: true, name: true, archived: true }, orderBy: { name: "asc" } }),
-    db.tag.findMany({ where: { entries: { some: { project: { clientId } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    db.timeEntry.findFirst({ where: { tagId: null, project: { clientId } }, select: { id: true } }),
+    db.$queryRaw<{ id: string }[]>`SELECT DISTINCT t AS id FROM "TimeEntry" e JOIN "Project" p ON p.id = e."projectId", unnest(e."tagIds") AS t WHERE p."clientId" = ${clientId}`,
+    db.timeEntry.findFirst({ where: { tagIds: { isEmpty: true }, project: { clientId } }, select: { id: true } }),
   ]);
+  const tagRows = used.length ? await db.tag.findMany({ where: { id: { in: used.map((u) => u.id) } }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
   return { projects, tags: [...tagRows, ...(noTag ? [{ id: NO_TAG, name: "No tag" }] : [])] };
 }
 

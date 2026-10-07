@@ -38,9 +38,9 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   sql(`insert into "Project"(id,name,"clientId",archived) values('${retired}','Old work ${uid}','${client}',true)`);
   const todayStr=sql(`select to_char(now() at time zone 'UTC','YYYY-MM-DD')`);
   const ws=mondayOf(todayStr), prevTue=addDays(ws,-6), wed=addDays(ws,2);
-  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values
-   ('${uid}a','${uid}','${proj}','${build}','${tag}','${prevTue}',540,120,'kept'),
-   ('${uid}b','${uid}','${retired}',null,'${tag}','${prevTue}',660,60,'left out')`);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description) values
+   ('${uid}a','${uid}','${proj}','${build}',ARRAY['${tag}'],'${prevTue}',540,120,'kept'),
+   ('${uid}b','${uid}','${retired}',null,ARRAY['${tag}'],'${prevTue}',660,60,'left out')`);
   const m=await login(b,email);await m.goto(BASE+'/timesheet');await m.waitForLoadState('networkidle');
   await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=/);
   const notice=await m.textContent('p[role=status]');
@@ -50,14 +50,14 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=0/);
   ok('copying again says the projects are already there',/already on this week/.test(await m.textContent('p[role=status]')));
   // a closed project that still shows this week (it has time on it) isn't reported as left out
-  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values ('${uid}w','${uid}','${retired}',null,'${tag}','${ws}',900,30,'this week')`);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description) values ('${uid}w','${uid}','${retired}',null,ARRAY['${tag}'],'${ws}',900,30,'this week')`);
   await m.goto(BASE+'/timesheet');await m.click('button:has-text("Copy last week")');await m.waitForURL(/copied=0/);
   {const n=await m.textContent('p[role=status]');ok('a closed project already on this week is not called left out',/already on this week/.test(n)&&!/left out/.test(n),n.trim());}
 
   // 4. Overlapping entries sit side by side in the calendar.
-  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description) values
-   ('${uid}c','${uid}','${proj}','${build}','${tag}','${wed}',600,60,'first'),
-   ('${uid}d','${uid}','${proj}','${build}','${tag}','${wed}',630,60,'second')`);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description) values
+   ('${uid}c','${uid}','${proj}','${build}',ARRAY['${tag}'],'${wed}',600,60,'first'),
+   ('${uid}d','${uid}','${proj}','${build}',ARRAY['${tag}'],'${wed}',630,60,'second')`);
   await m.goto(BASE+'/calendar');await m.waitForLoadState('networkidle');
   const widths=await m.$$eval('button.ev',els=>els.filter(e=>/10:00|10:30/.test(e.textContent)).map(e=>[e.style.width,e.style.left]));
   ok('overlapping entries split the column',widths.length===2&&widths.every(w=>w[0].includes('50%'))&&widths[0][1]!==widths[1][1],JSON.stringify(widths));

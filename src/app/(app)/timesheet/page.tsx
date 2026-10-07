@@ -5,6 +5,7 @@ import { entryOptions } from "@/lib/entryOptions";
 import { isDayLocked, missingFields } from "@/lib/entries";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
+import { tagText } from "@/lib/tags";
 import { PageHead, Pill, statusTone } from "@/components/ui";
 import CalendarView from "./CalendarView";
 import TimerView from "./TimerView";
@@ -23,7 +24,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
   const [rows, sheet, opts, savedRows] = await Promise.all([
-    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true, tag: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
+    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } } }),
     entryOptions(me),
     db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
@@ -35,9 +36,10 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const canCancel = status === "SUBMITTED" && !dates.every(adminLocked);
   const total = rows.reduce((a, e) => a + e.minutes, 0);
   const missingList = sp.missing ? (await Promise.all(rows.map(async (e) => ({ e, miss: await missingFields(e, settings) })))).filter((x) => x.miss.length) : [];
+  const tagNames = new Map(opts.tags.map((t) => [t.id, t.name]));
   const entries: SheetEntry[] = rows.map((e) => ({
     id: e.id, projectId: e.projectId, projectName: e.project.name, clientName: e.project.client.name, clientColor: e.project.client.color,
-    phaseId: e.phaseId, phaseName: e.phase?.name ?? "No phase", tagId: e.tagId, tagName: e.tag?.name ?? "", description: e.description,
+    phaseId: e.phaseId, phaseName: e.phase?.name ?? "No phase", tagIds: e.tagIds, tagName: tagText(e.tagIds, tagNames), description: e.description,
     custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes,
   }));
   // One row per project: the ones added for this week (while still open to log on) plus any with time this week.
@@ -119,12 +121,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
-        {statusLocked ? <>This week can&apos;t be changed{status === "SUBMITTED" ? " while it waits for approval" : ""}. <span className="honly">Click an entry to see its details, or hover over it to see its phase, tag and description.</span><span className="tonly">Tap an entry to see its details.</span></>
-          : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}</>}
+        {statusLocked ? <>This week can&apos;t be changed{status === "SUBMITTED" ? " while it waits for approval" : ""}. <span className="honly">Click an entry to see its details, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an entry to see its details.</span></>
+          : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", at least one tag" : " and at least one tag") : ""}${settings.requireDescription ? " and description" : ""}.`}</>}
       </p>
       </>}
       {view === "cal" && <CalendarView me={me} settings={settings} offset={offset} u={sp.u} />}
-      {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagId: run.tagId, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
+      {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
     </section>
     </>
   );

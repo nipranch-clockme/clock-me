@@ -108,7 +108,7 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     ok(c.rows[0][6] === '8:00:00' && check(c.rows[0]) === 'Ready', 'time: 08:00:00 style durations are accepted');
     ok(/Duration must be/.test(check(c.rows[1])), 'time: 1:75 is refused');
     ok(check(c.rows[2]) === 'Ready', 'time: decimal hours and 24 hour start accepted');
-    ok(/Only the first tag/.test(check(c.rows[3])), 'time: several tags keep the first, with a heads-up');
+    ok(check(c.rows[3]) === 'Ready' && c.rows[3].includes('CAD, ENG'), 'time: several tags are all kept, no heads-up: ' + JSON.stringify(c.rows[3]));
     ok(/Ready/.test(check(c.rows[4])), 'time: a description starting with an apostrophe-guarded = is accepted');
     ok(/Task \(phase\) must be one of/.test(check(c.rows[5])), 'time: an unknown phase lists the real ones');
     ok(/Unknown tag: Nope/.test(check(c.rows[6])), 'time: an unknown tag is refused');

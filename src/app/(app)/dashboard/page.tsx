@@ -14,6 +14,7 @@ import { PageHead, Ifld } from "@/components/ui";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
 const OFFCOL = ["s1", "s2", "s8", "s3", "s6"];
+const TEAMCOL = ["s1", "s2", "s8", "s3", "s6", "s7", "s5"]; // one colour per team in an office, the same on its card and in the chart
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
@@ -57,10 +58,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         GROUP BY 1, 2`)
     : [];
   const mm = new Map(monthly.map((r) => [`${r.userId}|${r.m}`, Number(r.minutes)]));
-  const series = locs.map((l) => ({
-    id: l.id, name: l.name, color: colorOf(l.id),
+  // A location manager sees one line per team in their office; everyone else sees one line per office.
+  const lines = me.role === "LOCATION"
+    ? teamCards.map(([t], i) => ({ id: t, name: t, color: TEAMCOL[i % TEAMCOL.length], us: users.filter((u) => (u.team?.name ?? "No team") === t) }))
+    : locs.map((l) => ({ id: l.id, name: l.name, color: colorOf(l.id), us: users.filter((u) => u.locationId === l.id) }));
+  const series = lines.map(({ us, ...line }) => ({
+    ...line,
     v: months.map((m) => {
-      const us = users.filter((u) => u.locationId === l.id);
       const tg = us.reduce((s, u) => s + target(u, m + "-01", endOfMonth(m)), 0);
       return tg ? us.reduce((s, u) => s + (mm.get(`${u.id}|${m}`) ?? 0), 0) / tg : null;
     }),
@@ -106,7 +110,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 const o = sum(list);
                 return (
                   <section className={`panel${i >= teamCards.length - ({ 2: 2, 1: 4 }[teamCards.length % 3] ?? 0) ? " w3" : ""}`} key={t}>
-                    <div className="ch"><h3><span className="dot" style={{ background: `var(--${OFFCOL[i % OFFCOL.length]})` }} />{t} team</h3><span className="cd">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
+                    <div className="ch"><h3><span className="dot" style={{ background: `var(--${TEAMCOL[i % TEAMCOL.length]})` }} />{t === "No team" ? t : `${t} team`}</h3><span className="cd">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
                     <div className="stat" style={{ margin: "4px 0 10px" }}><b>{pct(o.prod)}</b><span>team productivity</span></div>
                     <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
                     <div className="stats spread sm" style={{ marginTop: 14 }}>
@@ -138,8 +142,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         })}
         {me.role === "ADMIN" && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of target, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
-          <h3>Productivity by month, last 12 full months</h3>
-          <TrendChart months={months} series={series} label="Monthly productivity by office" />
+          <h3>Productivity by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
+          <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly productivity by team" : "Monthly productivity by office"} />
           <div className="legend">{series.map((s) => <span key={s.id}><i style={{ background: `var(--${s.color})` }} />{s.name}</span>)}</div>
         </section>
         <section className="panel full">

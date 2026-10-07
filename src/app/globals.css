@@ -88,8 +88,8 @@ nav.snav hr+.navend{margin-top:auto}
 .tmcard{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .tmcard .row{flex:1 1 460px;margin:0}
-.tmcard .row>div{flex:1 1 150px!important;min-width:0}.tmcard .row>div:last-child{flex-basis:100%!important}
-.tmctl{display:flex;align-items:center;gap:10px;flex:0 0 auto;margin-left:auto}
+.tmcard .row>div{flex:1 1 150px!important;min-width:0}.tmcard .row>div:nth-last-child(-n+2){flex-basis:100%!important}
+.tmctl{display:flex;align-items:center;gap:10px;flex:0 0 auto;margin-left:auto;align-self:flex-start;margin-top:19px}
 .tmclock{font:600 28px/1 var(--body);font-variant-numeric:tabular-nums;min-width:6ch;text-align:right;margin-right:6px}
 .tmnote{margin:8px 2px 0}
 .tmday{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin:20px 2px 8px}
@@ -97,7 +97,7 @@ nav.snav hr+.navend{margin-top:auto}
 .tmrow:hover{border-color:var(--accent)}
 .tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
-@media (max-width:560px){.tmctl{margin-left:0;width:100%;justify-content:space-between}.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
+@media (max-width:560px){.tmctl{margin-left:0;margin-top:0;width:100%;justify-content:space-between}.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
@@ -137,6 +137,21 @@ textarea{font:12.5px/1.5 var(--mono);min-height:130px;resize:vertical}
 input[type=checkbox],input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0;vertical-align:middle;accent-color:var(--accent)}
 .check{display:flex;align-items:center;font-size:14px;color:var(--ink);font-weight:400;margin:0;padding:4px 0}
 input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
+/* Tags on an entry: a tick box in a small pill for each tag, so any number can be picked */
+.tagpick{border:0;padding:0;margin:0;min-width:0}
+.tagpick legend{padding:0;margin-bottom:5px;font-size:12px;font-weight:500;color:var(--muted)}
+.tagpick legend .req{color:var(--bad)}
+.tagpick-list{display:flex;flex-wrap:wrap;gap:6px;max-height:184px;overflow:auto;padding:2px}
+.tagpick-i{display:inline-flex;align-items:center;margin:0;padding:5px 11px 5px 9px;font-size:13.5px;font-weight:500;color:var(--ink);background:var(--tile);border:1px solid var(--field);border-radius:6px;cursor:pointer}
+.tagpick-i input{margin:0 7px 0 0}
+.tagpick-i:hover{border-color:var(--muted)}
+.tagpick-i:has(input:checked),.tagpick-i.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.tagpick-i.on{cursor:default}
+.tagpick-i input:focus-visible{outline:0}
+.tagpick-i input:disabled{opacity:1}
+.tagpick-i:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.tagpick.err .tagpick-i:not(:has(input:checked)){border-color:var(--bad);background:var(--bad-soft)}
+fieldset:disabled .tagpick-i{opacity:.6;cursor:not-allowed}
 /* Compact filter field: label and dropdown in one box, for page and card toolbars */
 .ifld{display:flex;align-items:center;min-width:0;max-width:100%;background:var(--tile);border:1px solid var(--field);border-radius:6px;padding-left:10px}
 .ifld:hover{border-color:var(--muted)}
@@ -568,15 +583,15 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 .themebtn svg{width:17px;height:17px}
 
 /* Your numbers (personal dashboard) */
-.insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
-.insight{background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
-.insight b{display:block;font:600 28px/1.15 var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.insight p{margin:6px 0 0;color:var(--muted);font-size:13.5px}
+.insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+.insight{background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:9px 12px}
+.insight b{display:block;font:600 22px/1.15 var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.insight p{margin:3px 0 0;color:var(--muted);font-size:12.5px;line-height:1.4}
 .insight.warn{border-color:var(--warn);background:var(--warn-soft)}
 .insight.warn b{color:var(--warn)}
-.mybars{margin-top:18px}
-.mybars-in{padding:24px 0 30px}
-.mybars-plot{position:relative;display:flex;align-items:flex-end;gap:10px;height:150px;border-bottom:1px solid var(--line)}
+.mybars{margin-top:8px}
+.mybars-in{padding:20px 0 26px}
+.mybars-plot{position:relative;display:flex;align-items:flex-end;gap:10px;height:96px;border-bottom:1px solid var(--line)}
 .mybar{position:relative;flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
 .mybar i{display:block;flex:none;width:100%;max-width:56px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
 .mybar i.ok{background:var(--ok)}
@@ -586,7 +601,7 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 .mybar span{position:absolute;bottom:-22px;font-size:11px;color:var(--muted);white-space:nowrap}
 .mybars-target{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;z-index:1}
 .mybars-target span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--muted);background:var(--card);padding:0 4px}
-.mynext{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:20px}
+.mynext{margin:6px 0 0;padding-top:8px;border-top:1px solid var(--line);font-size:13.5px}
 
 /* Reports: tabs and date on one line, a filter bar of tick-box lists, then one card with the total, the chart and the grouped table */
 .rform{display:flex;flex-direction:column;gap:14px}

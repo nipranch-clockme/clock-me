@@ -126,7 +126,7 @@ model TimerRun {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId   String
   phaseId     String?
-  tagId       String?
+  tagIds      String[] @default([])
   description String   @default("")
   startedAt   DateTime @default(now())
 }
@@ -203,9 +203,8 @@ model PhaseTemplate {
 }
 
 model Tag {
-  id      String      @id @default(cuid())
-  name    String      @unique
-  entries TimeEntry[]
+  id   String @id @default(cuid())
+  name String @unique
 }
 
 model CustomField {
@@ -225,8 +224,7 @@ model TimeEntry {
   project     Project  @relation(fields: [projectId], references: [id])
   phaseId     String?
   phase       Phase?   @relation(fields: [phaseId], references: [id], onDelete: SetNull)
-  tagId       String?
-  tag         Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  tagIds      String[] @default([]) // the entry's tags (ids of Tag), always sorted by id so the same set of tags is the same list; removeTag takes a removed tag out of it
   date        DateTime @db.Date
   startMin    Int      @default(540)
   minutes     Int
@@ -237,6 +235,7 @@ model TimeEntry {
   @@index([userId, date])
   @@index([projectId, date])
   @@index([date])
+  @@index([tagIds], type: Gin)
 }
 
 model Timesheet {

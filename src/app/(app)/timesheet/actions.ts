@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
 import { isDayLocked, missingFields } from "@/lib/entries";
+import { readTagIds } from "@/lib/tags";
 import { trackableProjectsWhere } from "@/lib/scope";
 import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, parseDuration } from "@/lib/format";
@@ -29,12 +30,12 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const phaseId = String(form.get("phaseId") ?? "") || null;
   const phase = phaseId ? project.phases.find((p) => p.id === phaseId) : null;
   if (phaseId && !phase) return { ok: false, error: "That phase doesn't belong to this project.", fields: ["phaseId"] };
-  const tagId = String(form.get("tagId") ?? "") || null;
+  const tagIds = await readTagIds(form);
   const description = String(form.get("description") ?? "").trim();
   const fields = await db.customField.findMany();
   const custom = Object.fromEntries(fields.map((f) => [f.id, String(form.get("cf_" + f.id) ?? "").trim()]));
 
-  const miss = await missingFields({ phaseId, tagId, description, custom }, settings);
+  const miss = await missingFields({ phaseId, tagIds, description, custom }, settings);
   if (miss.length) return { ok: false, error: `Fill in: ${miss.join(", ")}.`, fields: miss };
 
   const old = id ? await db.timeEntry.findUnique({ where: { id } }) : null;
@@ -48,7 +49,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const lock = await isDayLocked(me.id, date, settings);
   if (lock) return { ok: false, error: lock };
 
-  const data = { projectId, phaseId, tagId, description, custom, date: toDate(date), startMin, minutes };
+  const data = { projectId, phaseId, tagIds, description, custom, date: toDate(date), startMin, minutes };
   if (id) await db.timeEntry.update({ where: { id }, data });
   else await db.timeEntry.create({ data: { ...data, userId: me.id } });
   await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}`, me.id);

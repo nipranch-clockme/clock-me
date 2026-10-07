@@ -17,7 +17,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
  try{
   // a member on Daniel's team, so Daniel approves them
   sql(`insert into "User"(id,email,name,"passwordHash",role,"locationId","teamId","weeklyTarget","createdAt") values('${uid}','${email}','Cancel Test','${daniel[2]}','MEMBER','${daniel[0]}','${daniel[1]}',40, now()-interval '30 days')`);
-  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagId",date,"startMin",minutes,description,custom,"createdAt") values('${uid}e','${uid}','${pr[0]}','${pr[1]}','${pr[2]}','${ws}',540,120,'work','{}',now())`);
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${uid}e','${uid}','${pr[0]}','${pr[1]}',ARRAY['${pr[2]}'],'${ws}',540,120,'work','{}',now())`);
   const p=await login(b,email);await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
   ok('no cancel button before submitting',(await p.locator('button:has-text("Cancel submission")').count())===0);
   await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');

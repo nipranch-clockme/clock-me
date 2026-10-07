@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 
-type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; phaseName: string; tagId: string | null; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
+type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; phaseName: string; tagIds: string[]; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PX = 40; // pixels per hour
 /** Side-by-side columns for entries that overlap in time, so none hides another. */

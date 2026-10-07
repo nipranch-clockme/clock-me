@@ -167,7 +167,7 @@ const hiddenId = 'hidden' + process.pid;
     c = await d.check();
     ok(c.ready === 2, 'time: a row with a NUL character in the description is ready (it used to fail the whole import): ' + JSON.stringify(c.rows.map(check)));
     const heads = await p.locator('.ipreview thead th').allInnerTexts();
-    ok(heads.includes('Tag'), 'time: the preview shows the Tag column: ' + heads.join(','));
+    ok(heads.includes('Tags'), 'time: the preview shows the Tags column: ' + heads.join(','));
     const msg = await d.commit();
     ok(/2 time entries added/.test(msg), 'time: both are saved: ' + msg);
     ok(sql(`select count(*) from "TimeEntry" where description = 'nulbyte ${run}'`) === '1', 'time: the NUL is dropped from the description');

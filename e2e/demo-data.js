@@ -61,7 +61,9 @@ const cron = async () => (await fetch(BASE + "/api/cron/reminders", { headers: {
   ok(days > 340 && days < 372, `covers the past year (${span[0]} to ${span[1]})`);
   ok(span[1] < new Date().toISOString().slice(0, 10), "nothing in the future or today");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and extract(dow from e.date) in (0,6)`) === 0, "no weekend time");
-  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and e."tagId" is null`) === 0, "every entry has an existing tag");
+  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and cardinality(e."tagIds") = 0`) === 0, "every entry has an existing tag");
+  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and cardinality(e."tagIds") > 1`) > 1000, "many entries carry two tags");
+  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and exists (select 1 from unnest(e."tagIds") t where t not in (select id from "Tag"))`) === 0, "only existing tags are used");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" join "Phase" ph on ph.id=e."phaseId" where ${DEMO} and ph."projectId"<>e."projectId"`) === 0, "phases belong to their project");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and e."projectId" not in (select jsonb_array_elements_text(value::jsonb->'projectIds') from "AppSecret" where key='demo-data')`) === 0, "demo time only goes on demo projects");
   const avg = Number(q(`select round(avg(s)/60.0,2) from (select sum(minutes) s from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} group by e."userId", e.date) x`));

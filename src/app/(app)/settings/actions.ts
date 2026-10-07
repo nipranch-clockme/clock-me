@@ -56,7 +56,13 @@ export async function addTag(_: SettingsResult, form: FormData): Promise<Setting
 
 export async function removeTag(form: FormData) {
   const me = await requireTab("settings");
-  const t = await db.tag.delete({ where: { id: String(form.get("id")) } });
+  const id = String(form.get("id"));
+  // Entries keep their tags as a list of ids, so take this one out of every list (and out of running timers) as the tag goes.
+  const [, , t] = await db.$transaction([
+    db.$executeRaw`UPDATE "TimeEntry" SET "tagIds" = array_remove("tagIds", ${id}) WHERE "tagIds" @> ARRAY[${id}]::text[]`,
+    db.$executeRaw`UPDATE "TimerRun" SET "tagIds" = array_remove("tagIds", ${id}) WHERE "tagIds" @> ARRAY[${id}]::text[]`,
+    db.tag.delete({ where: { id } }),
+  ]);
   await logAction(me.id, `Removed tag ${t.name}`);
   done();
 }
@@ -85,7 +91,7 @@ export async function addField(_: SettingsResult, form: FormData): Promise<Setti
   const type = form.get("type") === "select" ? "select" : "text";
   const options = String(form.get("options") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!name) return { ok: false, error: "Name the field." };
-  if (["project", "phase", "tag", "description", "date", "email", "hours", "start", "client"].includes(name.toLowerCase())) return { ok: false, error: "That name is already used by a built-in field." };
+  if (["project", "phase", "tag", "tags", "description", "date", "email", "hours", "start", "client"].includes(name.toLowerCase())) return { ok: false, error: "That name is already used by a built-in field." };
   if (type === "select" && options.length < 2) return { ok: false, error: "A dropdown needs at least two options, separated by commas." };
   if (await db.customField.findFirst({ where: { name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "A field with that name already exists." };
   const sort = await db.customField.count();

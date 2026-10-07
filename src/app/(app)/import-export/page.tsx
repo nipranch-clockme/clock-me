@@ -55,7 +55,7 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
         ["Description", "What was done. Required unless Settings turn that off."],
         ["Task", "The project's phase. Required."],
         ["Email", "Whose time it is. Must be someone you manage."],
-        ["Tags", "One tag per entry, so the first one listed is kept. Required unless Settings turn that off."],
+        ["Tags", "One or more, separated by commas, like CAD, Revit. Required unless Settings turn that off."],
         ["Billable", NOT_USED, true],
         ["Start Date", "The day, like 03/31/2026 (month first) or 2026-03-31."],
         ["Start Time", "Like 9:00 AM or 14:30. Blank means 09:00."],

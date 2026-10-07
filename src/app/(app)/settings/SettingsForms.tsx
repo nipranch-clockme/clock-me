@@ -23,7 +23,7 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
           <label className="check"><input type="radio" name="timeFormat" value="hhmm" defaultChecked={s.timeFormat === "hhmm"} /> Hours and minutes (7:30)</label>
           <h3 style={{ marginTop: 18 }}>Required fields</h3>
           <p className="note" style={{ margin: "0 0 6px" }}>Project and Phase are always required. Custom fields are set below.</p>
-          <label className="check"><input type="checkbox" name="requireTag" defaultChecked={s.requireTag} /> Tag</label>
+          <label className="check"><input type="checkbox" name="requireTag" defaultChecked={s.requireTag} /> At least one tag</label>
           <label className="check"><input type="checkbox" name="requireDescription" defaultChecked={s.requireDescription} /> Description</label>
           <h3 style={{ marginTop: 18 }}>Lock timesheets</h3>
           <div className="row">

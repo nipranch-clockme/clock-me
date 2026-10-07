@@ -11,12 +11,12 @@ export async function isDayLocked(userId: string, date: string, settings: AppSet
   return null;
 }
 
-export type EntryLike = { phaseId: string | null; tagId: string | null; description: string; custom: unknown };
+export type EntryLike = { phaseId: string | null; tagIds: string[]; description: string; custom: unknown };
 
 export async function missingFields(e: EntryLike, settings: AppSettings) {
   const out: string[] = [];
   if (!e.phaseId) out.push("Phase");
-  if (settings.requireTag && !e.tagId) out.push("Tag");
+  if (settings.requireTag && !e.tagIds.length) out.push("Tags");
   if (settings.requireDescription && !e.description.trim()) out.push("Description");
   const fields = await db.customField.findMany({ where: { required: true } });
   const vals = (e.custom ?? {}) as Record<string, string>;

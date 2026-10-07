@@ -160,7 +160,9 @@ async function main() {
       for (let i = 0; i < n && left > 0; i++) {
         const p = byName[pick(pool)];
         const minutes = i === n - 1 ? left : Math.max(30, Math.round((left * (0.3 + rnd() * 0.4)) / 15) * 15);
-        rows.push({ userId: u.id, projectId: p.id, phaseId: pick(p.phaseIds), tagId: tags[pickW(tagMix[dept])], date: toDate(d), startMin: t, minutes, description: rnd() < 0.95 ? pick(notes) : "" });
+        const entryTags = [tags[pickW(tagMix[dept])]];
+        if (rnd() < 0.2) entryTags.push(tags[pickW(tagMix[dept])]); // some work carries two tags
+        rows.push({ userId: u.id, projectId: p.id, phaseId: pick(p.phaseIds), tagIds: [...new Set(entryTags)].sort(), date: toDate(d), startMin: t, minutes, description: rnd() < 0.95 ? pick(notes) : "" });
         minutesPerProject[p.id] = (minutesPerProject[p.id] || 0) + minutes;
         t += minutes + (i === 0 ? 45 : 15);
         left -= minutes;

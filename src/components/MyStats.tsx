@@ -22,16 +22,13 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
   const weeks = Array.from({ length: 9 }, (_, i) => addDays(thisWs, (i - 8) * 7)); // eight full weeks and this one
   const from = [lastMs, weeks[0]].sort()[0];
 
-  const [byDate, byProject, sheet, lastSheet] = await Promise.all([
+  const [byDate, sheet, lastSheet] = await Promise.all([
     db.timeEntry.groupBy({ by: ["date"], where: { userId: me.id, date: { gte: toDate(from), lte: toDate(t) } }, _sum: { minutes: true } }),
-    db.timeEntry.groupBy({ by: ["projectId"], where: { userId: me.id, date: { gte: toDate(thisMs), lte: toDate(t) } }, _sum: { minutes: true }, orderBy: { _sum: { minutes: "desc" } }, take: 5 }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(thisWs) } }, select: { status: true } }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(lastWs) } }, select: { status: true } }),
   ]);
   const days = new Map(byDate.map((r) => [toStr(r.date), r._sum.minutes ?? 0]));
   const logged = (a: string, b: string) => { let s = 0; for (const [d, m] of days) if (d >= a && d <= b) s += m; return s; };
-  const projects = byProject.length ? await db.project.findMany({ where: { id: { in: byProject.map((p) => p.projectId) } }, select: { id: true, name: true, client: { select: { name: true } } } }) : [];
-  const pname = new Map(projects.map((p) => [p.id, p]));
 
   // 1 and 2: last week and last month against expected hours
   const lwM = logged(lastWs, lastWe), lwE = expected(lastWs, lastWe);
@@ -51,7 +48,6 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
 
   const bars = weeks.map((ws) => ({ ws, m: logged(ws, addDays(ws, 6)) }));
   const top = Math.max(target * 60, ...bars.map((b) => b.m), 1);
-  const projTotal = byProject.reduce((a, p) => a + (p._sum.minutes ?? 0), 0);
 
   if (!target) {
     return <section className="panel full"><h3>Your numbers</h3><p className="empty">Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change.</p></section>;
@@ -94,24 +90,13 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
             </div>
           ))}
         </div></div>
-        <p className="note" style={{ margin: "6px 0 0" }}>Hours per week. Green: reached the expected hours. Blue: below it. Striped: this week so far.</p>
+        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. Green: reached the expected hours. Blue: below it. Striped: this week so far.</p>
       </div>
 
-      <div className="mynext">
-        <div>
-          <h3 style={{ margin: "0 0 6px" }}>Your timesheets</h3>
-          <p style={{ margin: 0 }}>This week is <strong>{STATUS[sheet?.status ?? "DRAFT"]}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
-            {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}</p>
-        </div>
-        <div>
-          <h3 style={{ margin: "0 0 6px" }}>Where your time went this month</h3>
-          {byProject.length ? (
-            <div className="list">{byProject.map((p) => (
-              <div className="item" key={p.projectId}><div>{pname.get(p.projectId)?.name ?? "Project"}<div className="meta">{pname.get(p.projectId)?.client.name}</div></div><span className="num">{f(p._sum.minutes ?? 0)} h <span className="note">· {pct((p._sum.minutes ?? 0) / projTotal)}</span></span></div>
-            ))}</div>
-          ) : <p className="empty" style={{ margin: 0 }}>No time logged this month yet.</p>}
-        </div>
-      </div>
+      <p className="mynext">
+        <b>Your timesheet:</b> this week is <strong>{STATUS[sheet?.status ?? "DRAFT"]}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
+        {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
+      </p>
     </section>
   );
 }

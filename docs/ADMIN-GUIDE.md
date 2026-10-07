@@ -31,7 +31,7 @@ Things to know:
 - Settings can reject Clockify rows: if tags or descriptions are required, rows without them are skipped, dates on or before the lock date are refused, and so is time in a week that is already submitted or approved. Relax the setting for the import if needed.
 - If a file still has the template's example rows in it, the check says so and asks you to confirm before it will import them.
 - A file that can't be read (an Excel file, semicolons instead of commas, a quote that is never closed, more values in a row than the header has columns) is refused with the reason, rather than imported wrongly.
-- Only the first tag on a row is kept (one tag per time entry).
+- A row can carry several tags, separated by commas (for example `CAD, Revit`). An entry in The Time Sink can have any number of tags.
 - There is no undo for an import, and clients and projects can't be deleted (only archived), so check the "This import will also add" box before you import.
 
 ## Sharing a report with a client

@@ -6,8 +6,9 @@ import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 import type { SheetEntry } from "./TimesheetGrid";
 import { discardTimer, startTimer, stopTimer, type TimerResult } from "./timer-actions";
 import SearchSelect from "@/components/SearchSelect";
+import TagPicker from "@/components/TagPicker";
 
-export type RunningTimer = { projectId: string; phaseId: string | null; tagId: string | null; description: string; startedAt: string };
+export type RunningTimer = { projectId: string; phaseId: string | null; tagIds: string[]; description: string; startedAt: string };
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.round(m) % 60).padStart(2, "0")}`;
 const clock = (s: number) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((x) => String(x).padStart(2, "0")).join(":");
@@ -53,15 +54,11 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
               </select>
             </div>
             <div>
-              <label htmlFor="tm-tag">Tag{opts.requireTag && <span className="req"> *</span>}</label>
-              <select id="tm-tag" name="tagId" defaultValue={run?.tagId ?? ""} className={bad("Tag")}>
-                <option value="">No tag</option>
-                {opts.tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
               <label htmlFor="tm-desc">Description{opts.requireDescription && <span className="req"> *</span>}</label>
               <input id="tm-desc" name="description" defaultValue={run?.description ?? ""} maxLength={500} className={bad("Description")} />
+            </div>
+            <div>
+              <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
             </div>
           </div>
           <div className="tmctl">
