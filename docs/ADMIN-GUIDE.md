@@ -32,6 +32,13 @@ Things to know:
 - Only the first tag on a row is kept (one tag per time entry).
 - There is no undo for an import, and clients and projects can't be deleted (only archived), so check the "This import will also add" box before you import.
 
+## Sharing a report with a client
+Clients, open the client, **Client link**, Create link. Copy it and send it to the client. They open it without logging in and get an interactive report with date range, project and tag filters, hours by project then tag, and a CSV download. It shows only project, hours and tag: never people, descriptions, phases, budgets or other clients.
+- Anyone with the link can see the report, so send it only to the client. The secret in the link is long and can't be guessed.
+- **Make a new link** if the link was shared by mistake: the old one stops working at once. **Turn off** removes access until you create a link again.
+- By default the report counts everything logged, so its totals match your Reports page. Switch on **Count only approved time** to leave out weeks that haven't been approved yet.
+- The panel shows when the link was last opened. Only admins can create or change links.
+
 ## Roles
 Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
 

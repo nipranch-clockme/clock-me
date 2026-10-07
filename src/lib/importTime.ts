@@ -19,7 +19,7 @@ const projectInclude = {
   users: { select: { userId: true } }, managers: { select: { userId: true } },
   locations: { select: { locationId: true } }, teams: { select: { teamId: true } },
 } satisfies Prisma.ProjectInclude;
-type ImportProject = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
+type ImportProject = Omit<Prisma.ProjectGetPayload<{ include: typeof projectInclude }>, "client"> & { client: { id: string; name: string } };
 type ImportUser = { id: string; email: string; name: string; role: string; locationId: string; teamId: string | null };
 
 /** Same rule as trackableProjectsWhere in lib/scope.ts, checked in memory for the person the row is for. */

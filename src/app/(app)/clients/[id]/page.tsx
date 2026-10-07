@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { addMonths, endOfMonth, toDate, today } from "@/lib/dates";
+import { addMonths, endOfMonth, localDate, longDate, toDate, today } from "@/lib/dates";
+import { SHARE_PATH } from "@/lib/clientShare";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
 import { PACE, change, clientPeriod, clientTypeName, contractOf, minutesByClient, paceOf, perMonth } from "@/lib/clients";
@@ -13,6 +14,7 @@ import { Dot, PageHead, Pill } from "@/components/ui";
 import { clientTeamOptions, teamLabelOf } from "@/lib/clientTeams";
 import { EditClient } from "../../projects/ClientForm";
 import { ContractMeter, PeriodPicker, ShareTable, periodNote } from "../parts";
+import ShareLink from "./ShareLink";
 
 // One client: totals for the period, hours by month against the contract, and hours by project, phase and person.
 // Every total counts the whole company. Location managers only see their own office's people listed by name.
@@ -23,6 +25,8 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const client = await db.client.findUnique({ where: { id }, include: { team: { include: { location: true } }, contacts: { orderBy: { sort: "asc" } } } });
   if (!client) notFound();
+  // The link's secret is only ever read for admins, who manage it.
+  const link = me.role === "ADMIN" ? await db.client.findUnique({ where: { id }, select: { shareToken: true, shareApprovedOnly: true, shareViewedAt: true } }) : null;
   const per = clientPeriod(sp.range);
   const monthly = contractOf(client);
   const thisMonth = per.key === "thismonth";
@@ -100,6 +104,13 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
             </div>
           </div>
         </section>
+        {me.role === "ADMIN" && (
+          <section className="panel full">
+            <h3>Client link</h3>
+            <ShareLink clientId={client.id} path={link?.shareToken ? `${SHARE_PATH}/${link.shareToken}` : null} approvedOnly={!!link?.shareApprovedOnly}
+              opened={link?.shareToken ? (link.shareViewedAt ? `Last opened ${longDate(localDate(link.shareViewedAt))}` : "Not opened yet") : ""} />
+          </section>
+        )}
         <section className="panel full">
           <h3>Hours by month, last 12 full months</h3>
           <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} level={monthly ? { value: monthly, label: "Contract", title: `Contract: ${perMonth(monthly)}` } : undefined} />

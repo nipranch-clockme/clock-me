@@ -102,6 +102,9 @@ model Client {
   teamId       String? // the team that looks after this client
   team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
   contacts     ClientContact[]
+  shareToken        String?   @unique // the secret in the client's view-only report link; null while the link is off
+  shareApprovedOnly Boolean   @default(false) // the shared report counts only time in approved timesheets
+  shareViewedAt     DateTime? // when the link was last opened (updated at most once an hour)
 }
 
 // People at the client who are the points of contact.
