@@ -57,7 +57,7 @@ export default async function SettingsPage() {
         <h3>What each role can do</h3>
         <div className="tablebox"><table className="matrix">
           <thead><tr><th>Permission</th>{ROLES.map(([r, l]) => <th key={r}>{l}</th>)}</tr></thead>
-          <tbody>{PERMISSIONS.map(([label, cells]) => <tr key={label}><td>{label}</td>{ROLES.map(([r]) => <td key={r}>{mark(cells[r])}</td>)}</tr>)}</tbody>
+          <tbody>{PERMISSIONS.map(([label, cells]) => <tr key={label}><td>{label}</td>{ROLES.map(([r, l]) => <td key={r} data-l={l}>{mark(cells[r])}</td>)}</tr>)}</tbody>
         </table></div>
         <p className="note" style={{ margin: "8px 0 0" }}>Set each person&apos;s role on the People page.</p>
       </section>

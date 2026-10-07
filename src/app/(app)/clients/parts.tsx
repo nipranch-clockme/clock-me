@@ -46,7 +46,6 @@ export function ChangeText({ now, before, per, f }: { now: number; before: numbe
 /** Hours per item with each one's share of the total. */
 export function ShareTable({ head, rows, total, f, empty }: { head: string; rows: { key: string; label: React.ReactNode; m: number }[]; total: number; f: (m: number) => string; empty: string }) {
   if (!rows.length) return <p className="empty">{empty}</p>;
-  const max = Math.max(1, ...rows.map((r) => r.m));
   return (
     <div className="tablebox"><table>
       <thead><tr><th>{head}</th><th className="num">Hours</th><th style={{ width: "35%" }}>Share of hours</th></tr></thead>
@@ -54,7 +53,7 @@ export function ShareTable({ head, rows, total, f, empty }: { head: string; rows
         {rows.map((r) => (
           <tr key={r.key}>
             <td>{r.label}</td><td className="num">{f(r.m)}</td>
-            <td><div className="meter"><i style={{ width: `${(r.m / max) * 100}%` }} /></div><div className="note">{total ? ((r.m / total) * 100).toFixed(1) : 0}%</div></td>
+            <td><div className="meter"><i style={{ width: `${total ? (r.m / total) * 100 : 0}%` }} /></div><div className="note">{total ? ((r.m / total) * 100).toFixed(1) : 0}%</div></td>
           </tr>
         ))}
       </tbody>

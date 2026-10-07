@@ -68,7 +68,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
           <>
           <TableFilter label="Search projects" placeholder="Search projects or clients…" />
           <div className="tablebox">
-            <table>
+            <table className="ptable ctable">
               <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
               <tbody>
                 {projects.map((p) => {
@@ -76,11 +76,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   return (
                     <tr key={p.id}>
                       <td><span className="dot" style={{ background: `var(--${p.client.color})` }} />{p.name} {p.archived && <Pill tone="locked">Archived</Pill>}<div className="note">{p.client.name}</div></td>
-                      <td>{p.access === "PUBLIC" ? <Pill tone="ok">Everyone</Pill> : <><Pill tone="warn">Restricted</Pill><div className="note">{accessText(p)}</div></>}</td>
-                      <td className="note">{p.managers.map((m) => m.user.name).join(", ") || "–"}</td>
-                      <td className="note">{p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", ")}</td>
-                      <td>{p.budgetHours ? <><div className="meter"><i className={pc > 1 ? "over" : pc > 0.85 ? "hi" : ""} style={{ width: `${Math.min(100, pc * 100)}%` }} /></div><div className="note">{Math.round(u)} of {p.budgetHours} h</div></> : <span className="note">No budget</span>}</td>
-                      <td>{editable.some((e) => e.id === p.id) && <Link className="btn sm" scroll={false} href={`/projects?${new URLSearchParams({ ...(sp.client ? { client: sp.client } : {}), edit: p.id })}`}>Edit</Link>}</td>
+                      <td data-l="Who can see it">{p.access === "PUBLIC" ? <Pill tone="locked">Everyone</Pill> : <><Pill tone="locked">Restricted</Pill><div className="note">{accessText(p)}</div></>}</td>
+                      <td className="note" data-l="Managers">{p.managers.map((m) => m.user.name).join(", ") || "–"}</td>
+                      <td className="note" data-l="Phases">{p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", ")}</td>
+                      <td data-l="Budget">{p.budgetHours ? <><div className="meter"><i className={pc > 1 ? "over" : pc > 0.85 ? "hi" : ""} style={{ width: `${Math.min(100, pc * 100)}%` }} /></div><div className="note">{Math.round(u)} of {p.budgetHours} h</div></> : <span className="note">No budget</span>}</td>
+                      <td className="act">{editable.some((e) => e.id === p.id) && <Link className="btn sm" scroll={false} href={`/projects?${new URLSearchParams({ ...(sp.client ? { client: sp.client } : {}), edit: p.id })}`}>Edit</Link>}</td>
                     </tr>
                   );
                 })}

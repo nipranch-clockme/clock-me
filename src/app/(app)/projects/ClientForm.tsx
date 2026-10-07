@@ -44,11 +44,11 @@ function TeamAndContacts({ id, teams, teamId, contacts }: { id: string; teams: T
         <div className="row pocrow" key={i} style={{ alignItems: "flex-end", marginBottom: 6 }}>
           <div style={{ flex: "2 1 150px" }}><label htmlFor={`${id}-cn${i}`}>Name</label><input id={`${id}-cn${i}`} name="contactName" maxLength={80} value={r.name} onChange={(e) => set(i, "name", e.target.value)} placeholder="Contact name" /></div>
           <div style={{ flex: "2 1 170px" }}><label htmlFor={`${id}-ce${i}`}>Email</label><input id={`${id}-ce${i}`} name="contactEmail" type="email" maxLength={120} value={r.email} onChange={(e) => set(i, "email", e.target.value)} placeholder="name@client.com" /></div>
-          <div style={{ flex: "1 1 120px" }}><label htmlFor={`${id}-cp${i}`}>Phone</label><input id={`${id}-cp${i}`} name="contactPhone" maxLength={30} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} /></div>
-          <button type="button" className="btn sm" aria-label={`Remove contact ${i + 1}`} onClick={() => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ name: "", email: "", phone: "" }])}>Remove</button>
+          <div style={{ flex: "1 1 120px" }}><label htmlFor={`${id}-cp${i}`}>Phone</label><input id={`${id}-cp${i}`} name="contactPhone" maxLength={30} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} placeholder="+1 555 0100" /></div>
+          <button type="button" className="btn sm bad" aria-label={`Remove contact ${i + 1}`} onClick={() => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ name: "", email: "", phone: "" }])}>Remove</button>
         </div>
       ))}
-      <button type="button" className="btn sm" onClick={() => setRows([...rows, { name: "", email: "", phone: "" }])}>Add another contact</button>
+      <button type="button" className="linkbtn" onClick={() => setRows([...rows, { name: "", email: "", phone: "" }])}>Add another contact</button>
     </fieldset>
   </>;
 }
@@ -63,7 +63,7 @@ export default function ClientForm({ teams, onAdded }: { teams: TeamOpt[]; onAdd
       <div><label htmlFor="nc-name">New client</label><input id="nc-name" name="name" placeholder="e.g. Greenleaf Foods" /></div>
       <ContractFields id="nc" type={type} setType={setType} />
       <TeamAndContacts key={String(state?.ok)} id="nc" teams={teams} />
-      <button className="btn" disabled={pending}>Add client</button>
+      <button className="btn primary" disabled={pending}>Add client</button>
       {state?.error && <p className="err-text" role="alert" style={{ flexBasis: "100%" }}>{state.error}</p>}
       <p className="note" style={{ flexBasis: "100%", margin: 0 }}>{TYPE_HELP}</p>
     </form>

@@ -118,6 +118,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 );
               })}
             </div>
+            <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of target, blue is 50% to 75%, orange is under 50%.</p>
           </div>
         )}
         {me.role === "ADMIN" && locs.map((l) => {
@@ -135,6 +136,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </section>
           );
         })}
+        {me.role === "ADMIN" && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of target, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
           <h3>Productivity by month, last 12 full months</h3>
           <TrendChart months={months} series={series} label="Monthly productivity by office" />

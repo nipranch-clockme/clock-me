@@ -55,20 +55,20 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             <span className="note">{rows.length} client{rows.length === 1 ? "" : "s"}. Click a client for its details.</span>
           </div>
           {!rows.length ? <p className="empty">No clients yet. Admins add them with the Add client button.</p> : (
-            <><TableFilter label="Search clients" placeholder="Search clients…" /><div className="tablebox"><table className="clients">
+            <><TableFilter label="Search clients" placeholder="Search clients…" /><div className="tablebox"><table className="clients cltable ctable">
               <thead><tr><th>Client</th><th>Type</th><th className="num">Hours logged</th><th className="num">Contracted</th><th>Utilisation</th><th className="num">Hours left</th>{thisMonth && <th>Pace this month</th>}</tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.c.id}>
                     <td><span className="dot" style={{ background: `var(--${r.c.color})` }} /><Link href={`/clients/${r.c.id}?range=${per.key}`}>{r.c.name}</Link>{r.c.team && <div className="note">{teamLabelOf(r.c.team)}</div>}</td>
-                    <td>{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{perMonth(r.monthly)}</div>}</td>
-                    <td className="num">{f(r.m)}</td>
+                    <td data-l="Type" className="nw">{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{perMonth(r.monthly)}</div>}</td>
+                    <td className="num" data-l="Hours logged">{f(r.m)}</td>
                     {r.monthly ? <>
-                      <td className="num">{f(r.contract)}</td>
-                      <td><ContractMeter use={r.use} /></td>
-                      <td className="num">{r.m <= r.contract ? f(r.contract - r.m) : <span className="t-bad">{f(r.m - r.contract)} over</span>}</td>
-                      {thisMonth && <td>{r.pace ? <><Pill tone={PACE[r.pace.state][0]}>{PACE[r.pace.state][1]}</Pill><div className="note">{f(r.pace.soFar)} logged by yesterday, {f(r.pace.expected)} expected</div></> : <span className="note">Too early to tell</span>}</td>}
-                    </> : <td colSpan={thisMonth ? 4 : 3}><ChangeText now={r.m} before={r.before} per={per} f={f} /></td>}
+                      <td className="num" data-l="Contracted">{f(r.contract)}</td>
+                      <td className="uc" data-l="Utilisation"><ContractMeter use={r.use} /></td>
+                      <td className="num" data-l="Hours left">{r.m <= r.contract ? f(r.contract - r.m) : <span className="t-bad">{f(r.m - r.contract)} over</span>}</td>
+                      {thisMonth && <td className="pc" data-l="Pace this month">{r.pace ? <><Pill tone={PACE[r.pace.state][0]}>{PACE[r.pace.state][1]}</Pill><div className="note">{f(r.pace.soFar)} logged by yesterday, {f(r.pace.expected)} expected</div></> : <span className="note">Too early to tell</span>}</td>}
+                    </> : <td colSpan={thisMonth ? 4 : 3} data-l="Change"><ChangeText now={r.m} before={r.before} per={per} f={f} /></td>}
                   </tr>
                 ))}
               </tbody>

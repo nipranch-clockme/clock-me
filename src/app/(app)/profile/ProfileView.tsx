@@ -64,7 +64,6 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   const weekMinutes = (ws: string) => recent.reduce((s, r) => { const d = toStr(r.date); return d >= ws && d <= addDays(ws, 6) ? s + (r._sum.minutes ?? 0) : s; }, 0);
 
   const shareTable = (head: string, rows: ShareRow[]) => {
-    const max = Math.max(1, ...rows.map((r) => r.m));
     return (
       <div className="tablebox"><table>
         <thead><tr><th>{head}</th><th className="num">Hours</th><th style={{ width: "38%" }}>Share of hours</th></tr></thead>
@@ -73,7 +72,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
             <tr key={r.key}>
               <td>{r.label}{r.sub && <div className="note">{r.sub}</div>}</td>
               <td className="num">{f(r.m)}</td>
-              <td><div className="meter"><i style={{ width: `${(r.m / max) * 100}%` }} /></div><div className="note">{m ? ((r.m / m) * 100).toFixed(1) : 0}%</div></td>
+              <td><div className="meter"><i style={{ width: `${m ? (r.m / m) * 100 : 0}%` }} /></div><div className="note">{m ? ((r.m / m) * 100).toFixed(1) : 0}%</div></td>
             </tr>
           ))}
           {!rows.length && <tr><td colSpan={3} className="empty">No time in this period.</td></tr>}

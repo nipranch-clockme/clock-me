@@ -5,11 +5,11 @@
 :root{
   color-scheme:light;
   --bg:#FFFFFF; --side:#F8F9FB; --card:#F6F7F9; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#EDEFF2; --track:#DADDE1;
-  --ink:#1F2328; --muted:#5B6470; --line:#E0E3E7; --border:#DEE0E4; --line2:#C9CDD2;
+  --ink:#1F2328; --muted:#5B6470; --line:#E0E3E7; --border:#DEE0E4; --line2:#C9CDD2; --field:#838C97;
   --accent:#0168DA; --accent-hi:#0157B8; --link:#0168DA; --accent-soft:#DCE8FB; --accent-ink:#1F5FB8;
   --btn2:#E6E8EB; --btn2-hi:#DADDE1; --seg-on:#DADDE1; --lilac:#EEE3FC; --lilac-ink:#6A3DAE;
   --ok:#276B3C; --ok-soft:#DFF3E4; --warn:#964A0B; --warn-soft:#FDE7D3; --bad:#B42335; --bad-soft:#FBE3E6; --bad-hi:#F7D2D7;
-  --s1:#0168DA; --s2:#F59A3E; --s3:#0B3B75; --s4:#9199A3; --nb:#C9CDD2; --on-s1:#FFFFFF; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
+  --s1:#0168DA; --s2:#D4730F; --s3:#0B3B75; --s4:#76808C; --nb:#C9CDD2; --on-s1:#FFFFFF; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
   --t1:#DCE8FB; --t1i:#1F5FB8; --t2:#EEE3FC; --t2i:#6A3DAE; --t3:#FBE1EC; --t3i:#A3376B; --t4:#DFF3E4; --t4i:#276B3C; --t5:#FDE7D3; --t5i:#964A0B;
   --shadow:0 1px 2px rgba(16,24,40,.06); --pop:0 16px 40px rgba(16,24,40,.18),0 2px 6px rgba(16,24,40,.08); --scrim:rgba(15,20,28,.42);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%235B6470' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -30,7 +30,7 @@ nav.snav{display:flex;flex-direction:column;gap:2px;flex:1 0 auto}
 nav.snav a,nav.snav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink);font:500 13.5px/1.2 var(--body);padding:8px 10px;border-radius:7px;cursor:pointer;text-align:left}
 nav.snav a svg,nav.snav button svg{width:16px;height:16px;flex:none;color:var(--muted)}
 nav.snav a:hover,nav.snav button:hover{background:var(--hover)}
-nav.snav a[aria-current="page"],nav.snav button[aria-current="page"]{background:var(--tile);font-weight:600;box-shadow:var(--shadow)}
+nav.snav a[aria-current="page"],nav.snav button[aria-current="page"]{background:var(--accent-soft);font-weight:600;box-shadow:inset 3px 0 0 var(--accent)}
 nav.snav a[aria-current="page"] svg,nav.snav button[aria-current="page"] svg{color:var(--accent)}
 nav.snav hr{border:0;border-top:1px solid var(--border);margin:8px 6px;width:auto}
 nav.snav .navend{margin-top:auto} /* Settings stays at the bottom */
@@ -122,13 +122,15 @@ h3{font:700 14px/1.3 var(--body);color:var(--ink);margin:0 0 12px}
 .ch:has(.fbar){align-items:center}
 label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
 label .req{color:var(--bad)}
-input,select,textarea{width:100%;font:14px/1.3 var(--body);color:var(--ink);background-color:var(--tile);border:1px solid var(--line2);border-radius:6px;padding:7px 10px;min-height:34px}
+input,select,textarea{width:100%;font:14px/1.3 var(--body);color:var(--ink);background-color:var(--tile);border:1px solid var(--field);border-radius:6px;padding:7px 10px;min-height:34px}
 select{-webkit-appearance:none;appearance:none;background-image:var(--chev);background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
 /* The open list of a dropdown is drawn by the browser from the option's own colours, not the box's: say them, so it is never light text on a white list (or the reverse) */
 ::placeholder{color:var(--muted);opacity:1}
 select option,select optgroup{background-color:var(--tile);color:var(--ink)}
 select option:disabled{color:var(--muted)}
-select:disabled{opacity:.6;cursor:not-allowed}
+select:disabled,dialog input:disabled,dialog textarea:disabled{opacity:.6;cursor:not-allowed}
+input[type=date],input[type=time]{height:34px;min-height:34px;padding-block:0}
+input[type=date]::-webkit-datetime-edit{padding:0}
 input:hover:not(:disabled):not(:focus),select:hover:not(:disabled):not(:focus){border-color:var(--muted)}
 input[type=file]{min-height:0}
 textarea{font:12.5px/1.5 var(--mono);min-height:130px;resize:vertical}
@@ -136,7 +138,7 @@ input[type=checkbox],input[type=radio]{width:auto;min-height:0;margin:0 8px 0 0;
 .check{display:flex;align-items:center;font-size:14px;color:var(--ink);font-weight:400;margin:0;padding:4px 0}
 input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
 /* Compact filter field: label and dropdown in one box, for page and card toolbars */
-.ifld{display:flex;align-items:center;min-width:0;max-width:100%;background:var(--tile);border:1px solid var(--line2);border-radius:6px;padding-left:10px}
+.ifld{display:flex;align-items:center;min-width:0;max-width:100%;background:var(--tile);border:1px solid var(--field);border-radius:6px;padding-left:10px}
 .ifld:hover{border-color:var(--muted)}
 .ifld:focus-within{border-color:var(--accent)}
 .ifld label{margin:0;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
@@ -146,6 +148,7 @@ input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
 .fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;max-width:100%} /* never wider than its box, so a long client name in a dropdown can't push the page sideways */
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .row>div{flex:1 1 150px;min-width:0}
+dialog .row>div{flex-basis:210px}
 .row>.btn{flex:0 0 auto}
 .row>.seg{flex:0 1 auto} /* shrinks and wraps its buttons rather than running off a narrow screen */
 .between{justify-content:space-between;align-items:center}
@@ -157,6 +160,7 @@ input.err,select.err{border-color:var(--bad);background-color:var(--bad-soft)}
 .btn.bad:hover:not(:disabled){background:var(--bad-hi)}
 .btn.sm{padding:4px 10px;min-height:28px;font-size:12px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--link)}
 .linkbtn{background:none;border:0;color:var(--link);font:600 13px var(--body);cursor:pointer;padding:0;border-radius:3px}
 .linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
 .tablebox{overflow-x:auto;container-type:inline-size} /* a size container, so tables can change layout by the width of their box */
@@ -181,6 +185,7 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .rmrow:hover,.rmrow:focus-visible{border-color:var(--line2);color:var(--bad);background:var(--bad-soft)}
 .sheet td.dc{padding:4px;height:1px;vertical-align:top;min-width:80px}
 .sheet td.dc.open{cursor:pointer}
+.sheet th.wknd,.sheet td.sheetcell.wknd{background-color:color-mix(in srgb,var(--line) 40%,transparent)}
 .sheet td.dc.lkday{background-color:color-mix(in srgb,var(--line) 55%,transparent)}
 .dcin{display:flex;flex-direction:column;gap:3px;height:100%;min-height:34px}
 .ent{display:block;width:100%;font:600 13px/1.2 var(--body);font-variant-numeric:tabular-nums;text-align:right;padding:6px 8px;border:1px solid var(--border);border-left:4px solid var(--line2);border-radius:6px;background:var(--tile);color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
@@ -256,6 +261,8 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .cal .hrs{position:relative}
 .cal .hrs span{position:absolute;right:8px;font:400 11px var(--body);font-variant-numeric:tabular-nums;color:var(--muted);transform:translateY(-50%)}
 .cal .col{position:relative;border-left:1px solid var(--line);cursor:crosshair;-webkit-user-select:none;user-select:none;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
+.cal .col.wknd{background-color:color-mix(in srgb,var(--line) 40%,transparent)}
+.cal .col.today{background-color:color-mix(in srgb,var(--lilac) 35%,transparent)}
 .cal .col.locked{cursor:not-allowed;background-color:color-mix(in srgb,var(--line) 45%,transparent)}
 .ev{position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.25;overflow:hidden;background:var(--tile);border:1px solid var(--border);border-left-width:4px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}
 .ev:hover{background:var(--accent-soft)}
@@ -280,7 +287,7 @@ body.calpen .cal .col.can{touch-action:none} /* see the pen note next to the dra
 @container (width<620px){
   .matrix thead{display:none}
   .matrix,.matrix tbody{display:block}
-  .matrix tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .matrix tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
   .matrix td{display:flex;flex-direction:column;justify-content:space-between;padding:0;border:0;text-align:left}
   .matrix td:first-child{display:block;grid-column:1/-1;font-weight:500}
   .matrix td[data-l]::before{content:attr(data-l);display:block;font:500 11.5px/1.3 var(--body);color:var(--muted);margin-bottom:1px}
@@ -292,6 +299,9 @@ body.calpen .cal .col.can{touch-action:none} /* see the pen note next to the dra
 .modal h2{font-size:18px;margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-flex;align-items:center;gap:2px;font-size:12px;background:var(--tile);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-variant-numeric:tabular-nums}
+a.chip{color:var(--ink);text-decoration:none;padding:5px 10px}
+a.chip:hover{background:var(--hover);border-color:var(--muted)}
+a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .chip .linkbtn{margin-left:4px;color:var(--muted);font-size:14px;line-height:1}
 .chip .linkbtn:hover{color:var(--bad);text-decoration:none}
 .cols2{columns:2 200px;column-gap:20px}
@@ -315,7 +325,7 @@ body.calpen .cal .col.can{touch-action:none} /* see the pen note next to the dra
   .ctable td.act:empty{display:none}
   .ctable td[data-l]::before{content:attr(data-l);display:block;font:500 12px/1.3 var(--body);color:var(--muted);margin:0 0 5px}
   .ctable td select{min-width:0!important;max-width:240px;padding-right:26px;background-position:right 8px center}
-  .pptable td[data-l]{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;line-height:32px} .pptable td[data-l]>.pill{margin-bottom:6px} /* values line up along a row, even under a two-line label */
+  .pptable td[data-l]{display:block;line-height:1.4} .pptable td[data-l]>.pill{margin-bottom:6px}
 }
 @container (width<648px){
   .ctable tr{grid-template-columns:repeat(var(--cc),minmax(0,1fr));grid-template-rows:none}
@@ -408,7 +418,7 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
 .ferr{color:var(--bad);font-size:12.5px;margin:4px 0 0}
 .ferr:empty{display:none}
 .legend i.ref{background:none;width:16px;height:0;border-radius:0;border-top:2px dashed var(--muted);vertical-align:3px}
-@media (min-width:1100px){.pfacts{grid-template-columns:1fr 1fr 1fr 1.7fr 1fr 1.1fr}} /* the email gets a wider tile */
+@media (min-width:1100px){.pfacts{grid-template-columns:1fr 1fr 1fr 1fr 1.7fr 1.1fr}} /* the email gets a wider tile */
 /* Narrower desktops: the top bar stays one line. The role switch gets tighter and the person shows just their name, then just their photo */
 @media (min-width:900px){.top{flex-wrap:nowrap}.proto{flex:0 1 auto}.who{flex:none;max-width:45%}.whot b,.whot small{overflow:hidden;text-overflow:ellipsis;max-width:100%}}
 @media (min-width:900px) and (max-width:1279px){.plab{display:none}.proto .seg button,.seg a{padding:5px 7px}.whot small{display:none}}
@@ -442,6 +452,14 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
   .modal .panel{padding:16px}
   .stats.tiles .stat{flex:1 1 0;min-width:0}
 }
+@media (max-width:420px){.tbrand span{display:none}.who .btn.sm{padding-inline:10px}}
+@media (max-width:560px){
+  .login{margin-top:40px}
+  .fm+.fm::before{display:none}
+  .mybar:nth-of-type(even) span{visibility:hidden}
+  .sheet td:first-child,.sheet th:first-child{position:sticky;left:0;z-index:1;background:var(--card);min-width:120px!important;box-shadow:1px 0 0 var(--line)}
+  .cal .hrs,.cal .hd:first-child{position:sticky;left:0;z-index:3;background:var(--card);box-shadow:1px 0 0 var(--line)}
+}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
 @media (prefers-reduced-motion:reduce){.side{transition:none!important}}
 .tsd summary{cursor:pointer}@media(min-width:701px){.tsd summary{display:inline}.tsd[open]>div{display:inline-flex!important;margin:0 0 0 8px!important}}
@@ -463,9 +481,10 @@ nav.snav a{text-decoration:none}
 table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .cellstack{display:flex;flex-direction:column;gap:3px;min-height:34px;height:100%}
 .chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
-.chipbtn:hover{border-color:var(--line2)}
+.chipbtn:hover{background:var(--accent-soft);border-color:var(--accent)}
 .sheetcell.open{cursor:pointer}
 .addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent-ink);background:var(--accent-soft)}
+@media (hover:none){.sheetcell.open .addcell{border-color:var(--field);color:var(--muted);background:var(--tile);min-height:34px}} /* touch screens have no hover, so empty days show a dashed box to tap */
 .sheetcell.locked .cellstack{min-height:0}
 .sheetcell.locked{cursor:default}
 .rowx{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;cursor:pointer}
@@ -477,7 +496,7 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .dragsel{position:absolute;left:3px;right:3px;z-index:3;border-radius:5px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);pointer-events:none}
 .draglabel{position:absolute;z-index:4;white-space:nowrap;background:var(--accent);color:var(--surface);font:600 12px/1.2 var(--body);padding:3px 7px;border-radius:5px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .cal.dragging .ev{pointer-events:none}
-.login{max-width:400px;margin:10vh auto 0}
+.login{max-width:400px;width:calc(100% - 32px);margin:10vh auto 0}
 .err-text{color:var(--bad);font-size:13px;margin:6px 0 0}
 .inline{display:inline}
 form.inline{display:inline}
@@ -514,6 +533,9 @@ body:has(dialog[open]){overflow:hidden}
 .ssel-q{width:100%}
 .ssel select[size]{height:auto;background-image:none;padding:4px}
 .ssel select[size] option,.ssel select[size] optgroup{padding:4px 8px}
+/* The chosen row stays marked while the list is not focused. The gradient is what makes Chromium paint a list-box option background */
+.ssel select[size] option:checked{background-color:var(--accent-soft);background-image:linear-gradient(var(--accent-soft),var(--accent-soft));color:var(--accent-ink);font-weight:600}
+.ssel select[size]:focus option:checked{background-color:var(--accent);background-image:linear-gradient(var(--accent),var(--accent));color:var(--on-accent,#fff)}
 .ssel-none{margin:0}
 .ifld .ssel{flex-direction:row;align-items:center;gap:0;width:auto}
 .ifld .ssel-q{width:84px;border:0;border-right:1px solid var(--line);border-radius:0;background:transparent;min-height:32px;font-size:13px}
@@ -524,12 +546,13 @@ tr[hidden]{display:none}
 
 /* ===== Themes: the picker (Settings, My profile) sets data-theme on <html>. Light is the default and lives in :root above. ===== */
 :root[data-theme="light"]{color-scheme:light}
+html[data-theme] body{background:var(--bg);color:var(--ink)}
 
 /* Dark: near-black slate, a calm blue accent, text at about 14:1 contrast so long days stay readable */
 :root[data-theme="dark"]{
   color-scheme:dark; --on-accent:#fff;
   --bg:#0F1216; --side:#14181D; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
-  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
+  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F; --field:#6C7682;
   --accent:#2B72DA; --accent-hi:#2563EB; --link:#7DB0FF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
   --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
   --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
@@ -555,9 +578,11 @@ tr[hidden]{display:none}
 .mybars-in{padding:24px 0 30px}
 .mybars-plot{position:relative;display:flex;align-items:flex-end;gap:10px;height:150px;border-bottom:1px solid var(--line)}
 .mybar{position:relative;flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
-.mybar i{display:block;width:100%;max-width:56px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
+.mybar i{display:block;flex:none;width:100%;max-width:56px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
 .mybar i.ok{background:var(--ok)}
-.mybar em{position:relative;z-index:2;font-style:normal;font-size:11px;color:var(--muted);margin-bottom:3px;padding:0 3px;border-radius:3px;background:var(--card);font-variant-numeric:tabular-nums}
+.mybar i.wip{background:repeating-linear-gradient(135deg,var(--s1) 0 4px,transparent 4px 8px)}
+.mybar i.wip.ok{background:repeating-linear-gradient(135deg,var(--ok) 0 4px,transparent 4px 8px)}
+.mybar em{position:relative;flex:none;z-index:2;font-style:normal;font-size:11px;color:var(--muted);margin-bottom:3px;padding:0 3px;border-radius:3px;background:var(--card);font-variant-numeric:tabular-nums}
 .mybar span{position:absolute;bottom:-22px;font-size:11px;color:var(--muted);white-space:nowrap}
 .mybars-target{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;z-index:1}
 .mybars-target span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--muted);background:var(--card);padding:0 4px}
@@ -568,7 +593,7 @@ tr[hidden]{display:none}
 .rtools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 .rtools-r{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .rtabs a{font-size:13.5px;padding:8px 16px}
-.rdate{display:flex;align-items:center;background:var(--tile);border:1px solid var(--line2);border-radius:6px;min-height:38px;padding-left:11px;color:var(--muted)}
+.rdate{display:flex;align-items:center;background:var(--tile);border:1px solid var(--field);border-radius:6px;min-height:38px;padding-left:11px;color:var(--muted)}
 .rdate svg{flex:none}
 .rdate select{width:auto;border:0;background-color:transparent;min-height:36px;font-weight:500;font-size:13.5px;padding-left:8px}
 .rdate select:focus-visible{outline:none}
@@ -623,7 +648,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rcard>.rhead+.rgroup{border-top:0}
 .tog{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin:0}
 .tog input{position:absolute;opacity:0;width:1px;height:1px}
-.tog span{width:34px;height:20px;border-radius:99px;background:var(--line2);position:relative;transition:background .15s;flex:none}
+.tog span{width:34px;height:20px;border-radius:99px;background:var(--field);position:relative;transition:background .15s;flex:none}
 .tog span::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--tile);box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
 .tog input:checked+span{background:var(--accent)}
 .tog input:checked+span::after{transform:translateX(14px)}
@@ -761,3 +786,8 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .shadmin .err-text{margin:8px 0 0}
 @media (max-width:600px){.shpg{padding:18px 16px 40px}.shhead h1{font-size:23px}}
 @media print{.shpg .themebtn{display:none!important}.shpg{padding:0}}
+/* Bigger touch targets on phones (this block comes last so it beats the base button rules); on wider screens Sign out matches the avatar and theme buttons */
+@media (max-width:560px){.btn.sm{min-height:36px}.themebtn{width:40px;height:40px}.rowx{min-width:32px;min-height:32px}}
+@media (min-width:561px){.who .btn.sm{min-height:34px}}
+.tonly{display:none}
+@media (hover:none){.honly{display:none}.tonly{display:inline}}

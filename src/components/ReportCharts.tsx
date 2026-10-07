@@ -28,7 +28,7 @@ export function BarChart({ keys, data, series, unit, lbl, f, empty }: { keys: st
               {series.map((s) => {
                 const v = data[k]?.[s.key] ?? 0;
                 if (v <= 0) return null;
-                const r = <rect key={s.key} x={x} y={y(acc + v)} width={w} height={Math.max(0.5, y(acc) - y(acc + v))} fill={s.color} rx={series.length === 1 ? Math.min(3, w / 3) : 0}><title>{`${lbl(k)}: ${s.label}, ${v.toFixed(1)} h`}</title></rect>;
+                const r = <rect key={s.key} x={x} y={y(acc + v)} width={w} height={Math.max(0.5, y(acc) - y(acc + v))} fill={s.color} stroke={series.length > 1 ? "var(--tile)" : undefined} strokeWidth={series.length > 1 ? 1 : undefined} rx={series.length === 1 ? Math.min(3, w / 3) : 0}><title>{`${lbl(k)}: ${s.label}, ${v.toFixed(1)} h`}</title></rect>;
                 acc += v;
                 return r;
               })}

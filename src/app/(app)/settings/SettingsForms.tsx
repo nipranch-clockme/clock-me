@@ -27,7 +27,7 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
           <label className="check"><input type="checkbox" name="requireDescription" defaultChecked={s.requireDescription} /> Description</label>
           <h3 style={{ marginTop: 18 }}>Lock timesheets</h3>
           <div className="row">
-            <div><label htmlFor="st-lock">Lock all time on or before</label><input id="st-lock" type="date" name="lockBefore" value={lock} onChange={(e) => setLock(e.target.value)} /></div>
+            <div><label htmlFor="st-lock">Lock all time on or before</label><input id="st-lock" type="date" name="lockBefore" style={{ maxWidth: 220 }} value={lock} onChange={(e) => setLock(e.target.value)} /></div>
             {lock && <button type="button" className="btn sm" onClick={() => setLock("")}>No lock</button>}
           </div>
           <p className="note" style={{ margin: "6px 0 0" }}>Nobody can add, change or delete locked time, admins included.</p>

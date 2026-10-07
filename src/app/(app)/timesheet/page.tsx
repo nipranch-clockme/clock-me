@@ -83,13 +83,15 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <strong>{weekLabel(ws)}</strong>
           {view === "cal" || offset < 0 ? <Link className="btn sm" href={href(view, offset + 1)} aria-label="Next week">›</Link> : <span className="btn sm" aria-disabled="true" style={{ opacity: 0.45 }}>›</span>}
           {offset !== 0 && <Link className="linkbtn" href={href(view, 0)}>This week</Link>}
-          <Pill tone={statusTone(status)}>{status.toLowerCase()}</Pill>
+          {!others && <Pill tone={statusTone(status)}>{status.toLowerCase()}</Pill>}
           {dates.some(adminLocked) && <Pill tone="locked">Locked period</Pill>}
         </div>
-        <div className="stats">
-          <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
-          <div className="stat"><b>{me.weeklyTarget ? Math.round((total / 60 / me.weeklyTarget) * 100) : 0}%</b><span>of {me.weeklyTarget} h target</span></div>
-        </div>
+        {!others && (
+          <div className="stats">
+            <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
+            <div className="stat"><b>{me.weeklyTarget ? Math.round((total / 60 / me.weeklyTarget) * 100) : 0}%</b><span>of {me.weeklyTarget} h target</span></div>
+          </div>
+        )}
       </div>
       {view === "sheet" && <>
       {sp.copied != null && (
@@ -113,12 +115,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
-        {statusLocked ? `This week can't be changed${status === "SUBMITTED" ? " while it waits for approval" : ""}. Click an entry to see its details, or hover over it to see its phase, tag and description.`
-          : `Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description. Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}
+        {statusLocked ? <>This week can&apos;t be changed{status === "SUBMITTED" ? " while it waits for approval" : ""}. <span className="honly">Click an entry to see its details, or hover over it to see its phase, tag and description.</span><span className="tonly">Tap an entry to see its details.</span></>
+          : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tag and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", tag" : " and tag") : ""}${settings.requireDescription ? " and description" : ""}.`}</>}
       </p>
       </>}
       {view === "cal" && <CalendarView me={me} settings={settings} offset={offset} u={sp.u} />}

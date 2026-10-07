@@ -3,7 +3,7 @@ import { TABS, roleName } from "@/lib/roles";
 import AppShell from "@/components/AppShell";
 import Avatar from "@/components/Avatar";
 import TeamStrip from "@/components/TeamStrip";
-import Link from "next/link";
+import ProfileLink from "@/components/ProfileLink";
 import { cookies } from "next/headers";
 import ThemeToggle from "@/components/ThemeToggle";
 import { THEME_COOKIE, themeOf } from "@/lib/themes";
@@ -15,10 +15,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
   const who = (
     <>
-      <Link href="/profile" className="plink" title="My profile" aria-label={`${me.name}, my profile`}>
+      <ProfileLink name={me.name}>
         <span className="whot"><b>{me.name}</b><small>{roleName(me.role)} · {me.location.name}</small></span>
         <Avatar person={me} size={34} />
-      </Link>
+      </ProfileLink>
       <ThemeToggle initial={theme} />
       <form action={logout} className="inline" style={{ marginLeft: 8 }}><button className="btn sm">Sign out</button></form>
     </>

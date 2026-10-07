@@ -29,17 +29,17 @@ export default function PeopleClient(props: Props) {
           <button type="button" className="btn primary" onClick={() => setInviting(true)}>Invite person</button>
         </div>
       </div>
-      <div className="tablebox"><table>
-        <thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Office and team</th><th className="num">Expected hours per week</th><th /></tr></thead>
+      <div className="tablebox"><table className="ctable pptable">
+        <thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Office and team</th><th className="num eh">Expected hours per week</th><th /></tr></thead>
         <tbody>
           {shown.map((p) => (
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
               <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
-              <td>{p.employeeId || <span className="note">Not set</span>}</td>
-              <td>{roleLabel(roles, p.role)}</td>
-              <td>{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
-              <td className="num">{p.weeklyTarget} h</td>
-              <td>{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
+              <td data-l="Employee ID">{p.employeeId || <span className="note">Not set</span>}</td>
+              <td data-l="Role">{roleLabel(roles, p.role)}</td>
+              <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
+              <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
+              <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
             </tr>
           ))}
           {!shown.length && <tr><td colSpan={6} className="empty">Nobody matches.</td></tr>}

@@ -89,12 +89,12 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
           {bars.map((b, i) => (
             <div className="mybar" key={b.ws} title={`${shortDate(b.ws)}: ${f(b.m)} h`}>
               <em>{b.m ? f(b.m) : ""}</em>
-              <i className={b.m >= target * 60 ? "ok" : ""} style={{ height: `${(b.m / top) * 100}%`, opacity: i === bars.length - 1 ? 0.55 : 1 }} />
+              <i className={(b.m >= target * 60 ? "ok" : "") + (i === bars.length - 1 ? " wip" : "")} style={{ height: `${(b.m / top) * 100}%` }} />
               <span>{shortDate(b.ws)}</span>
             </div>
           ))}
         </div></div>
-        <p className="note" style={{ margin: "6px 0 0" }}>Hours per week, this week (paler bar) still in progress.</p>
+        <p className="note" style={{ margin: "6px 0 0" }}>Hours per week. Green: reached the expected hours. Blue: below it. Striped: this week so far.</p>
       </div>
 
       <div className="mynext">

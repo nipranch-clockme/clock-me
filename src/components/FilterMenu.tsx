@@ -30,6 +30,9 @@ export default function FilterMenu({ name, label, options, selected }: { name: s
     if (!open || !el) return;
     el.style.left = "0"; el.style.right = "auto";
     if (el.getBoundingClientRect().right > window.innerWidth - 8) { el.style.left = "auto"; el.style.right = "0"; }
+    // On a phone the list can then spill past the left edge, so slide it back in.
+    const l = el.getBoundingClientRect().left;
+    if (l < 8) { const at = el.offsetLeft; el.style.right = "auto"; el.style.left = at + (8 - l) + "px"; }
   }, [open]);
 
   const flip = (v: string) => setPicked((s) => { const n = new Set(s); if (n.has(v)) n.delete(v); else n.add(v); return n; });

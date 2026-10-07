@@ -14,7 +14,7 @@ type Props = {
 
 /** One line per series across months, named at its right end. */
 export default function TrendChart({ months, series, label, unit = "pct", fmt = pct, level }: Props) {
-  const W = 900, H = 250, pl = 44, pr = 90, pt = 14, pb = 28, iw = W - pl - pr, ih = H - pt - pb;
+  const W = 900, H = 250, pl = 44, pr = 100, pt = 14, pb = 28, iw = W - pl - pr, ih = H - pt - pb;
   const max = Math.max(unit === "pct" ? 1 : 0, level?.value ?? 0, ...series.flatMap((s) => s.v.filter((v): v is number => v != null)));
   const step = unit === "pct" ? 0.25 : niceStep(max);
   const top = Math.max(step, Math.ceil(max / step) * step);
@@ -23,8 +23,8 @@ export default function TrendChart({ months, series, label, unit = "pct", fmt = 
   for (let v = 0; v <= top + 1e-9; v += step) ticks.push(v);
   const lines = series.map((s) => ({ s, pts: s.v.map((v, i) => (v == null ? null : ([x(i), y(v), v, i] as const))).filter((p): p is readonly [number, number, number, number] => !!p) }));
   const labels = [
-    ...lines.filter((l) => l.pts.length).map((l) => { const last = l.pts[l.pts.length - 1]; return { id: l.s.id, text: l.s.name, x: last[0] + 10, y: last[1] }; }),
-    ...(level ? [{ id: "level", text: level.label, x: W - pr + 10, y: y(level.value) }] : []),
+    ...lines.filter((l) => l.pts.length).map((l) => { const last = l.pts[l.pts.length - 1]; return { id: l.s.id, text: l.s.name, color: `var(--${l.s.color})`, x: last[0] + 12, y: last[1], endY: last[1] }; }),
+    ...(level ? [{ id: "level", text: level.label, color: "var(--muted)", x: W - pr + 12, y: y(level.value), endY: y(level.value) }] : []),
   ].sort((p, q) => p.y - q.y);
   for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
   const mlabel = (m: string, long = false) => toDate(m + "-01").toLocaleDateString("en-US", long ? { month: "long", year: "numeric", timeZone: "UTC" } : { month: "short", timeZone: "UTC" });
@@ -40,7 +40,14 @@ export default function TrendChart({ months, series, label, unit = "pct", fmt = 
             {pts.map((p) => <circle key={p[3]} cx={p[0]} cy={p[1]} r="4" fill={`var(--${s.color})`} stroke="var(--surface)" strokeWidth="2"><title>{`${s.name}, ${mlabel(months[p[3]], true)}: ${fmt(p[2])}`}</title></circle>)}
           </g>
         ))}
-        {labels.map((o) => <text key={o.id} x={o.x} y={o.y + 4} style={{ fill: "var(--ink)" }}>{o.text}</text>)}
+        {/* Each name gets a dot in its line's colour and a short leader back to where the line ends, so a name stays tied to its line when names have to be spread apart. The words stay in the normal text colour so they are easy to read. */}
+        {labels.map((o) => (
+          <g key={o.id}>
+            <line x1={W - pr + 4} y1={o.endY} x2={o.x - 5} y2={o.y} stroke={o.color} strokeWidth="1" />
+            <circle cx={o.x} cy={o.y} r="4" fill={o.color} />
+            <text x={o.x + 9} y={o.y + 4} style={{ fill: "var(--ink)" }}>{o.text}</text>
+          </g>
+        ))}
       </svg>
     </div>
   );

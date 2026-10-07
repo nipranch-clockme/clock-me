@@ -81,7 +81,7 @@ function ProjectEditor({ form, project, admin, onDone }: { form: ProjectForm; pr
             <div>
               <label htmlFor="p-tpl">Start from template</label>
               <select id="p-tpl" defaultValue="" onChange={(e) => { const t = form.templates.find((x) => x.id === e.target.value); setPhases((t?.phases ?? DEFAULT_PHASES).join(", ")); }}>
-                <option value="">Blank (default phases)</option>
+                <option value="">Blank</option>
                 {form.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
