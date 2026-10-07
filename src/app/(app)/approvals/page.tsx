@@ -8,7 +8,7 @@ import { fmtHours } from "@/lib/format";
 import { PageHead, Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
-import { trackingStarts } from "@/lib/startDates";
+import { loadExpected } from "@/lib/timeoff";
 import { staleText } from "@/lib/approvalText";
 
 export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ stale?: string; skipped?: string }> }) {
@@ -42,20 +42,26 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     : [];
   // Sent-back weeks still count as not submitted. People who started after that week aren't listed.
   const submitted = new Set(lastWeekSheets.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED").map((s) => s.userId));
-  const starts = await trackingStarts(people);
-  const late = people.filter((u) => !submitted.has(u.id) && starts.get(u.id)! <= addDays(lastWeek, 4));
+  // Expected hours for each person and week: weekly hours over Monday to Friday, less their office's public holidays and their time off.
+  const weekStarts = [...pending.map((s) => toStr(s.weekStart)), lastWeek].sort();
+  const ex = await loadExpected([...pending.map((s) => s.user), ...people], { from: weekStarts[0], to: addDays(weekStarts[weekStarts.length - 1], 6) });
+  const lastWeekEnd = addDays(lastWeek, 6);
+  // Nobody is asked to submit a week they were off all of.
+  const late = people.filter((u) => !submitted.has(u.id) && ex.starts.get(u.id)! <= addDays(lastWeek, 4) && ex(u, lastWeek, lastWeekEnd, { whole: true }) > 0);
 
   const item = (s: (typeof pending)[number]) => {
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
+            const want = ex(s.user, ws, we, { whole: true });
+            const fullWeek = s.user.weeklyTarget * 60;
             const byP = new Map<string, { m: number; color: string; name: string }>();
             es.forEach((e) => { const x = byP.get(e.projectId) ?? { m: 0, color: e.project.client.color, name: e.project.name }; x.m += e.minutes; byP.set(e.projectId, x); });
             return (
               <div className="item" style={{ flexWrap: "wrap" }} key={s.id}>
                 <div style={{ minWidth: 0, flex: "1 1 300px" }}>
                   <strong><Link className="plink" href={`/profile/${s.userId}`}>{s.user.name}</Link></strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
-                  <div className="meta">{f(total)} of {f(s.user.weeklyTarget * 60)} h target {total < s.user.weeklyTarget * 60 && <Pill tone="warn">Under target</Pill>}</div>
+                  <div className="meta">{f(total)} of {f(want)} h {want < fullWeek ? "expected" : "target"} {want < fullWeek && <span title="Weekly target less public holidays and time off">({f(fullWeek)} h target less holidays and time off) </span>}{want > 0 && total < want && <Pill tone="warn">Under target</Pill>}</div>
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>

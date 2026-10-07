@@ -24,15 +24,19 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Import people from CSV", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Invite people, set expected hours, employee IDs and joining dates", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Change profile pictures", { MEMBER: "Own", LEADER: "Own", LOCATION: "Own office", ADMIN: "y" }],
+  ["Add own time off (PTO)", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
+  ["Add or remove other people's time off", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
+  ["Set an office's public holidays", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "All offices" }],
   ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", LOCATION: "n", ADMIN: "y" }],
 ];
 
-export type Tab = "dashboard" | "clients" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
+export type Tab = "dashboard" | "clients" | "timesheet" | "calendar" | "time-off" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
 export const TABS: [Tab, string, Role[] | "all"][] = [
   ["dashboard", "Dashboard", "all"],
   ["clients", "Clients", ["LOCATION", "ADMIN"]],
   ["timesheet", "Timesheet", "all"],
   ["calendar", "Calendar", "all"],
+  ["time-off", "Time off", "all"],
   ["approvals", "Approvals", ["LEADER", "LOCATION", "ADMIN"]],
   ["reports", "Reports", "all"],
   ["projects", "Projects", "all"],

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
+import type { DayMark } from "@/lib/dayMark";
 
 type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; phaseName: string; tagIds: string[]; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -30,7 +31,9 @@ type Drag = { date: string; anchor: number; cur: number; y0: number; moved: bool
 const range = (d: Drag) => (d.cur === d.anchor ? [d.anchor, d.anchor + SNAP] : [Math.min(d.anchor, d.cur), Math.max(d.anchor, d.cur)]);
 const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-export default function CalendarWeek({ opts, dates, entries, today, editable, locked, ownerName }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string }) {
+export default function CalendarWeek({ opts, dates, entries, today, editable, locked, marks = [], ownerName }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string;
+  /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
+  marks?: (DayMark | null)[] }) {
   // The grid shows 07:00 to 20:00, and stretches when an entry starts earlier or ends later so nothing is cut off.
   const H0 = Math.min(7, Math.floor(Math.min(7 * 60, ...entries.map((e) => e.startMin)) / 60));
   const H1 = Math.min(24, Math.max(20, Math.ceil(Math.max(0, ...entries.map((e) => e.startMin + Math.max(e.minutes, 15))) / 60)));
@@ -102,13 +105,13 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
         <div ref={calRef} className={"cal" + (drag ? " dragging" : "")}>
           <div className="hd" />
           {dates.map((d, i) => (
-            <div key={d} className={"hd" + (d === today ? " today" : "")}><span>{DAYS[i]}</span>{" "}<span className="dn">{+d.slice(8)}</span><div className="num" style={{ textAlign: "center", fontWeight: 400 }}>{f(entries.filter((e) => e.date === d).reduce((a, e) => a + e.minutes, 0))}</div></div>
+            <div key={d} className={"hd" + (d === today ? " today" : "")}><span>{DAYS[i]}</span>{" "}<span className="dn">{+d.slice(8)}</span>{marks[i] && <span className={"dmark " + marks[i]!.kind} title={marks[i]!.long}>{marks[i]!.short}</span>}<div className="num" style={{ textAlign: "center", fontWeight: 400 }}>{f(entries.filter((e) => e.date === d).reduce((a, e) => a + e.minutes, 0))}</div></div>
           ))}
           <div className="hrs" style={{ height: (H1 - H0) * PX }}>
             {Array.from({ length: H1 - H0 - 1 }, (_, i) => <span key={i} style={{ top: (i + 1) * PX }}>{String(H0 + i + 1).padStart(2, "0")}:00</span>)}
           </div>
           {dates.map((d, i) => (
-            <div key={d} className={"col" + (canAdd(i) ? "" : " locked") + (d === today ? " today" : "") + (i > 4 ? " wknd" : "")} style={{ height: (H1 - H0) * PX }}
+            <div key={d} className={"col" + (canAdd(i) ? "" : " locked") + (d === today ? " today" : "") + (i > 4 ? " wknd" : "") + (marks[i] ? " " + marks[i]!.kind : "")} style={{ height: (H1 - H0) * PX }}
               onPointerDown={onDown(d, i)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDragBoth(null)}
               onLostPointerCapture={(ev) => { if (dragRef.current?.pointerId === ev.pointerId) setDragBoth(null); }}
               onClick={(ev) => {

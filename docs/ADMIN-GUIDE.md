@@ -18,6 +18,7 @@ Move all three into accounts the company owns (not one person's personal login) 
 3. Projects: add clients (pick a team and add points of contact) and projects.
 4. People: invite a second admin straight away, then the pilot office's location manager, managers and members.
 5. Settings: choose time format, required fields, lock date, tags and phase templates.
+6. Time off, Public holidays: add each office's holidays for the year. Offices with no holidays listed get nothing taken off, and the page warns about them. Add the next year's before it starts.
 
 ## Bringing people, projects and time in from CSV
 Import & export, Import tab. Do the three in this order: projects first, so the People file's *Projects Managed* column can link people to them; time last, because it needs the people and the projects.
@@ -51,7 +52,9 @@ Run one office for 1 to 2 weeks. Check that people submit, managers approve, and
 - **Forgot password:** People, create a password reset link, send it to the person.
 - **Someone leaves:** People, set them inactive (their history stays).
 - **Wrong time entered:** unlock by sending the week back in Approvals, or edit as admin.
-- **Close a month:** set the lock date in Settings.
+- **Close a month:** set the lock date in Settings. Holidays and time off on or before the lock date can't be added or removed either.
+- **Public holiday:** Time off, Public holidays, pick the office (admins) and add it. "All offices" is for a holiday everyone shares. Paste several at once with one line each, like `2026-12-25, Christmas Day` (add `(half)` for a half day).
+- **Someone is on leave:** Time off, Add time off. Managers can add it for the people they manage. Hours logged on a day off still count, as extra. Changing a holiday or time off changes the numbers for past periods too.
 - **Export everything:** Import and export, or Reports, Export, Save as CSV (it follows whatever filters are applied).
 
 ## Backups

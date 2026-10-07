@@ -10,13 +10,15 @@ import { addDays, dow, monday, today, toDate } from "./dates";
  * Everything is easy to find again: demo people have an email at DEMO_DOMAIN and an employee ID that starts with DEMO-,
  * and the demo projects are listed in one record (kept in AppSecret under MANIFEST). "Remove" deletes exactly those.
  * Only existing offices, teams, clients and tags are used; nothing of those is created or changed.
+ * Each office also gets a few public holidays (kept in the same record, so "Remove" deletes exactly those) and the
+ * people get a few stretches of PTO (they go with the people), so expected hours match the gaps in the time.
  */
 export { DEMO_DOMAIN, isDemoEmail };
 const MANIFEST = "demo-data";
 export const DEMO_PEOPLE = 30;
 const BATCH = 4; // people per step, so one step stays well inside a server time limit
 
-type Manifest = { projectIds: string[]; nextPerson: number; start: string; end: string; people: number; entries: number; done: boolean };
+type Manifest = { projectIds: string[]; holidayIds?: string[]; nextPerson: number; start: string; end: string; people: number; entries: number; done: boolean };
 
 const readManifest = async (): Promise<Manifest | null> => {
   const row = await db.appSecret.findUnique({ where: { key: MANIFEST } });
@@ -47,6 +49,7 @@ const TITLES = ["Designer", "Developer", "Engineer", "Analyst", "Coordinator", "
 const PROJECT_NAMES = ["Mobile app refresh", "Customer portal", "Data migration", "Brand guidelines", "Annual report", "Warehouse layout", "Site survey", "Compliance audit", "Training modules", "Analytics dashboard", "Packaging redesign", "Campaign microsite", "Capacity planning", "Onboarding flow", "Tender response", "Safety review", "Equipment upgrade", "Quarterly review", "Booking system", "Signage package", "Process mapping", "Pilot rollout"];
 const NOTES = ["Client review", "Drawings", "Revisions", "Model updates", "Coordination", "Handoff", "Team standup", "Planning", "Quality checks", "Site notes", "Documentation", "Design iterations", "Feedback round", "Estimates", "Status report", "Research"];
 const TARGETS = [40, 40, 40, 40, 40, 40, 40, 36, 32, 20];
+const HOLIDAYS = ["Founders' Day", "Spring Festival", "Harvest Day", "Foundation Day", "Summer Break", "Autumn Holiday", "Winter Break", "Year-end Holiday", "Unity Day"];
 
 /** The window of time that gets filled: from the Monday about a year ago up to yesterday. */
 const window = () => {
@@ -111,11 +114,21 @@ export async function startDemo(): Promise<{ ok: true; people: number; projects:
   }
   if (!projectData.length) return { ok: false, error: "Couldn't think of new project names for your clients. Try again after renaming a project." };
 
+  // A few weekday holidays for each office that gets people, on different days in different offices. A day an office already has a holiday is left alone.
+  const holidayRows: Prisma.HolidayCreateManyInput[] = [];
+  for (const locationId of new Set(people.map((p) => p.locationId))) {
+    const hr = rng("holidays" + locationId);
+    const days = new Set<string>();
+    for (let i = 0, tries = 0; days.size < HOLIDAYS.length && tries++ < 200; i++) { const d = addDays(w.start, Math.floor(hr() * 360)); if (dow(d) < 5) days.add(d); }
+    [...days].sort().forEach((d, i) => holidayRows.push({ locationId, date: toDate(d), name: `${HOLIDAYS[i % HOLIDAYS.length]} (demo)` }));
+  }
+
   const projectIds = await db.$transaction(async (tx) => {
     await tx.user.createMany({ data: people });
     const ids: string[] = [];
     for (const data of projectData) ids.push((await tx.project.create({ data, select: { id: true } })).id);
-    await tx.appSecret.create({ data: { key: MANIFEST, value: JSON.stringify({ projectIds: ids, nextPerson: 0, start: w.start, end: w.end, people: people.length, entries: 0, done: false } satisfies Manifest) } });
+    const holidayIds = (await tx.holiday.createManyAndReturn({ data: holidayRows, skipDuplicates: true, select: { id: true } })).map((h) => h.id);
+    await tx.appSecret.create({ data: { key: MANIFEST, value: JSON.stringify({ projectIds: ids, holidayIds, nextPerson: 0, start: w.start, end: w.end, people: people.length, entries: 0, done: false } satisfies Manifest) } });
     return ids;
   }, { timeout: 30000 });
   return { ok: true, people: people.length, projects: projectIds.length };
@@ -140,10 +153,10 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
   for (const p of projects) byClient.set(p.clientId, [...(byClient.get(p.clientId) ?? []), p]);
   const activeClients = [...byClient.keys()];
 
-  // A few company-wide days off each year, the same for everyone.
-  const hrnd = rng("holidays");
-  const holidays = new Set<string>();
-  for (let i = 0; i < 9; i++) holidays.add(addDays(m.start, Math.floor(hrnd() * 360)));
+  // Public holidays of each person's office (the demo ones and any the office already has): no time is logged on those days.
+  const holidayRows = await db.holiday.findMany({ where: { locationId: { in: [...new Set(batch.map((u) => u.locationId))] }, date: { gte: toDate(m.start), lte: toDate(m.end) }, fraction: { gte: 1 } }, select: { locationId: true, date: true } });
+  const holidays = new Map<string, Set<string>>();
+  for (const h of holidayRows) { const s = holidays.get(h.locationId) ?? new Set<string>(); s.add(h.date.toISOString().slice(0, 10)); holidays.set(h.locationId, s); }
 
   // How the company's hours spread over the clients each month. A client with contracted hours gets roughly that many
   // (a little under or over); the rest goes to clients with no commitment, so contracts aren't wildly overrun.
@@ -177,14 +190,22 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
   const thisMon = monday(today());
   const entries: Prisma.TimeEntryCreateManyInput[] = [];
   const sheets: Prisma.TimesheetCreateManyInput[] = [];
+  const timeOff: Prisma.TimeOffCreateManyInput[] = [];
   for (const u of batch) {
     const r = rng("person" + u.employeeId);
     // a few stretches of leave, and now and then a sick day
     const leave = new Set<string>();
     for (let b = 0; b < 2 + Math.floor(r() * 2); b++) { const s = addDays(m.start, Math.floor(r() * 340)); for (let d = 0; d < 3 + Math.floor(r() * 5); d++) leave.add(addDays(s, d)); }
+    // the leave stretches become PTO, so the days are also taken out of that person's expected hours
+    const days = [...leave].filter((d) => d >= m.start && d <= m.end).sort();
+    for (let i = 0; i < days.length; ) {
+      let j = i; while (j + 1 < days.length && days[j + 1] === addDays(days[j], 1)) j++;
+      if (days.slice(i, j + 1).some((d) => dow(d) < 5)) timeOff.push({ userId: u.id, startDate: toDate(days[i]), endDate: toDate(days[j]), label: "PTO", source: "manual" });
+      i = j + 1;
+    }
     const perDay = u.weeklyTarget / 5;
     for (let d = m.start; d <= m.end; d = addDays(d, 1)) {
-      if (dow(d) > 4 || holidays.has(d) || leave.has(d) || r() < 0.035) continue;
+      if (dow(d) > 4 || holidays.get(u.locationId)?.has(d) || leave.has(d) || r() < 0.035) continue;
       if (u.joiningDate && d < u.joiningDate.toISOString().slice(0, 10)) continue;
       let left = Math.max(60, Math.round((perDay * (0.82 + r() * 0.34) * 60) / 15) * 15);
       const n = 1 + Math.floor(r() * 3);
@@ -215,6 +236,8 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
     // running a step twice gives the same result: these people's demo time is cleared first
     await tx.timeEntry.deleteMany({ where: { userId: { in: ids } } });
     await tx.timesheet.deleteMany({ where: { userId: { in: ids } } });
+    await tx.timeOff.deleteMany({ where: { userId: { in: ids } } });
+    await tx.timeOff.createMany({ data: timeOff });
     for (let i = 0; i < entries.length; i += 2000) await tx.timeEntry.createMany({ data: entries.slice(i, i + 2000) });
     await tx.timesheet.createMany({ data: sheets, skipDuplicates: true });
     await tx.appSecret.update({ where: { key: MANIFEST }, data: { value: JSON.stringify({ ...m, nextPerson: m.nextPerson + batch.length, entries: m.entries + entries.length, done: finished } satisfies Manifest) } });
@@ -238,6 +261,8 @@ export async function removeDemo(): Promise<{ people: number; projects: number; 
   const users = await db.user.findMany({ where: { email: { endsWith: "@" + DEMO_DOMAIN, mode: "insensitive" } }, select: { id: true } });
   const userIds = users.map((u) => u.id);
   const projectIds = m?.projectIds ?? [];
+  // the holidays the demo added (a holiday an office already had was never touched, so it isn't listed)
+  if (m?.holidayIds?.length) await db.holiday.deleteMany({ where: { id: { in: m.holidayIds } } });
   // people first (their time, timesheets and project links go with them), then any time others logged on demo projects, then the projects
   const entries = await db.timeEntry.count({ where: { OR: [{ userId: { in: userIds } }, { projectId: { in: projectIds } }] } });
   if (userIds.length) await db.user.deleteMany({ where: { id: { in: userIds } } });

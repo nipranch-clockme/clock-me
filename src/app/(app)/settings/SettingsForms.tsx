@@ -39,7 +39,7 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
           <label className="check"><input type="checkbox" name="remindSubmit" defaultChecked={s.remindSubmit} /> Remind people to submit their timesheet on</label>
           <select name="remindSubmitDay" defaultValue={s.remindSubmitDay} aria-label="Reminder day" style={{ maxWidth: 200, marginLeft: 24 }}>{DAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select>
           <p className="note" style={{ margin: "2px 0 0 24px" }}>On Monday or Tuesday it&apos;s about the week that just ended; on other days, the current week.</p>
-          <label className="check" style={{ marginTop: 6 }}><input type="checkbox" name="remindDaily" defaultChecked={s.remindDaily} /> Remind people who logged less than the daily minimum on the previous workday</label>
+          <label className="check" style={{ marginTop: 6 }}><input type="checkbox" name="remindDaily" defaultChecked={s.remindDaily} /> Remind people who logged less than the daily minimum on the previous workday (not on public holidays or time off)</label>
           <label className="check"><input type="checkbox" name="remindApprovers" defaultChecked={s.remindApprovers} /> Remind approvers about timesheets waiting for them</label>
           <p className={emailOn && cronOn ? "note" : "alert info"} style={{ margin: "10px 0 0" }}>
             {emailOn && cronOn ? "Reminder emails go out once a day, in the afternoon (UTC)."

@@ -3,6 +3,7 @@ export const ICONS: Record<string, string> = {
   "timer": "<circle cx=\"12\" cy=\"13.5\" r=\"7.5\"/><path d=\"M12 9.5v4.5l3 1.8M9.5 3h5\"/>",
   "dash": "<rect x=\"3.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/>",
   "sheet": "<rect x=\"3.5\" y=\"4\" width=\"17\" height=\"16\" rx=\"2\"/><path d=\"M3.5 9h17M9 9v11M3.5 14.5h17\"/>",
+  "off": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18\"/>",
   "cal": "<rect x=\"3.5\" y=\"5\" width=\"17\" height=\"15.5\" rx=\"2\"/><path d=\"M3.5 10h17M8 3v4M16 3v4\"/>",
   "approve": "<circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M8.5 12.3l2.4 2.4 4.6-5\"/>",
   "reports": "<path d=\"M4 4v16h16\"/><path d=\"M7.5 15l3.5-4.5 3 2.5 5-6\"/>",

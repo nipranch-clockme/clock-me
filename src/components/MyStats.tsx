@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import type { Me } from "@/lib/auth";
-import { addDays, addMonths, daysBetween, endOfMonth, monday, shortDate, today, toDate, toStr, workdays, workdaysSoFar } from "@/lib/dates";
+import { addDays, addMonths, daysBetween, endOfMonth, monday, shortDate, today, toDate, toStr } from "@/lib/dates";
 import { fmtHours, pct, type TimeFormat } from "@/lib/format";
-import { trackingStarts } from "@/lib/startDates";
+import { loadExpected } from "@/lib/timeoff";
 
 const STATUS: Record<string, string> = { DRAFT: "not submitted yet", SUBMITTED: "waiting for approval", APPROVED: "approved", REJECTED: "sent back to you" };
 
@@ -12,9 +12,9 @@ const STATUS: Record<string, string> = { DRAFT: "not submitted yet", SUBMITTED: 
 export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: TimeFormat }) {
   const f = (m: number) => fmtHours(m, timeFormat);
   const t = today(), y = addDays(t, -1);
-  const start = (await trackingStarts([me])).get(me.id) ?? t;
   const target = me.weeklyTarget;
-  const expected = (a: string, b: string) => (target / 5) * workdaysSoFar(start > a ? start : a, b) * 60;
+  const ex = await loadExpected([me]); // expected hours: weekly hours over Monday to Friday, less the office's public holidays and my time off
+  const expected = (a: string, b: string) => ex(me, a, b);
 
   const thisWs = monday(t), lastWs = addDays(thisWs, -7), lastWe = addDays(thisWs, -1);
   const thisYm = t.slice(0, 7), lastYm = addMonths(thisYm, -1);
@@ -42,11 +42,11 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
   const paceE = expected(thisMs, y), paceM = tmM, gap = paceM - paceE;
   const ratio = paceE ? paceM / paceE : null;
   const behind = ratio !== null && ratio < 0.9;
-  const monthE = (target / 5) * workdays(start > thisMs ? start : thisMs, endOfMonth(thisYm)) * 60;
-  const leftDays = workdays(t, endOfMonth(thisYm));
+  const monthE = ex(me, thisMs, endOfMonth(thisYm), { whole: true });
+  const leftDays = ex.days(me, t, endOfMonth(thisYm), { whole: true }); // working days still to come, holidays and booked time off not counted
   const perDay = behind && leftDays ? Math.max(0, monthE - paceM) / leftDays : 0;
 
-  const bars = weeks.map((ws) => ({ ws, m: logged(ws, addDays(ws, 6)) }));
+  const bars = weeks.map((ws) => ({ ws, m: logged(ws, addDays(ws, 6)), e: ex(me, ws, addDays(ws, 6), { whole: true }) }));
   const top = Math.max(target * 60, ...bars.map((b) => b.m), 1);
 
   if (!target) {
@@ -54,7 +54,7 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
   }
   return (
     <section className="panel full" aria-label="Your numbers">
-      <div className="ch"><h3>Your numbers</h3><span className="cd">Hours logged divided by your {f(target * 60)} expected hours a week, counting complete working days</span></div>
+      <div className="ch"><h3>Your numbers</h3><span className="cd">Hours logged divided by your {f(target * 60)} expected hours a week, counting complete working days, less public holidays and your time off</span></div>
       <div className="insights">
         <div className="insight">
           <b>{lwE ? pct(lwM / lwE) : "–"}</b>
@@ -83,19 +83,19 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
         <div className="mybars-in"><div className="mybars-plot">
           <i className="mybars-target" style={{ bottom: `${(target * 60 / top) * 100}%` }}><span>{f(target * 60)} expected</span></i>
           {bars.map((b, i) => (
-            <div className="mybar" key={b.ws} title={`${shortDate(b.ws)}: ${f(b.m)} h`}>
+            <div className="mybar" key={b.ws} title={`${shortDate(b.ws)}: ${f(b.m)} h of ${f(b.e)} h expected`}>
               <em>{b.m ? f(b.m) : ""}</em>
-              <i className={(b.m >= target * 60 ? "ok" : "") + (i === bars.length - 1 ? " wip" : "")} style={{ height: `${(b.m / top) * 100}%` }} />
+              <i className={(b.m >= b.e ? "ok" : "") + (i === bars.length - 1 ? " wip" : "")} style={{ height: `${(b.m / top) * 100}%` }} />
               <span>{shortDate(b.ws)}</span>
             </div>
           ))}
         </div></div>
-        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. Green: reached the expected hours. Blue: below it. Striped: this week so far.</p>
+        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. Green: reached that week's expected hours (a week with a public holiday or time off expects less than the dashed line). Blue: below it. Striped: this week so far.</p>
       </div>
 
       <p className="mynext">
         <b>Your timesheet:</b> this week is <strong>{STATUS[sheet?.status ?? "DRAFT"]}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
-        {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
+        {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE || lwM) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
       </p>
     </section>
   );

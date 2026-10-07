@@ -37,7 +37,9 @@ const pct=(v)=>`${Math.round(v*100)}%`;
  const addEntry=(d,minutes,p,ph)=>entries.push({d,minutes,p,ph});
  // Last month: 8 hours on each weekday except the first three, plus 2 hours on its first Saturday.
  const lm=addMonths(today.slice(0,7),-1), la=lm+'-01', lb=endOfMonth(lm);
- const weekdays=(a,z)=>{const out=[];for(let d=a;d<=z&&d<=yesterday;d=addDays(d,1))if(dow(d)<5)out.push(d);return out;};
+ // Public holidays of the test person's office are taken out of expected hours (whole-day ones; none are set when this suite is run on a fresh database)
+ const hols=new Set(sql(`select to_char(date,'YYYY-MM-DD') from "Holiday" where "locationId"='${daniel[1]}'`).split('\n').filter(Boolean));
+ const weekdays=(a,z)=>{const out=[];for(let d=a;d<=z&&d<=yesterday;d=addDays(d,1))if(dow(d)<5&&!hols.has(d))out.push(d);return out;};
  const lwd=weekdays(la,lb);
  lwd.slice(3).forEach((d)=>{addEntry(d,300,pa,xa);addEntry(d,180,pb,yb);});
  for(let d=la;d<=lb;d=addDays(d,1))if(dow(d)===5){addEntry(d,120,pa,xa);break;}

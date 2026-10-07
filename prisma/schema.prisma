@@ -39,6 +39,7 @@ model Location {
   teams     Team[]
   users     User[]
   access    ProjectLocationAccess[]
+  holidays  Holiday[]
 }
 
 model Team {
@@ -82,6 +83,8 @@ model User {
   access         ProjectUserAccess[]
   audit          AuditLog[]
   timer          TimerRun?
+  timeOff        TimeOff[]           @relation("TimeOffPerson")
+  timeOffAdded   TimeOff[]           @relation("TimeOffAddedBy")
 }
 
 /// A person's profile picture: a 256x256 JPEG made in the browser. Kept apart from User so lists of people don't load it.
@@ -260,6 +263,45 @@ model TimesheetRow {
   createdAt DateTime @default(now())
 
   @@id([userId, weekStart, projectId])
+}
+
+/// A public holiday in one office. It takes that day out of everyone's expected hours in that office
+/// (half of it when fraction is 0.5). Time can still be logged on it; that counts as extra.
+model Holiday {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  name       String
+  fraction   Float    @default(1) // 1 = the whole day, 0.5 = half a day
+  createdAt  DateTime @default(now())
+
+  @@unique([locationId, date])
+  @@index([date])
+}
+
+/// A stretch of time off (PTO, sick leave...) for one person, from startDate to endDate. It takes its Monday to Friday
+/// days out of that person's expected hours (fraction 0.5 = half of each day). Time can still be logged on it.
+/// Leave pulled from an HR system later (Keka) lands here too: source says where a row came from ("manual" is typed in
+/// the app), externalId is the other system's id for it, and rows from another system can't be edited in the app.
+model TimeOff {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("TimeOffPerson", fields: [userId], references: [id], onDelete: Cascade)
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  fraction    Float    @default(1)
+  label       String   @default("PTO")
+  note        String   @default("")
+  source      String   @default("manual")
+  externalId  String?
+  createdById String? // who added it; null for rows that came from another system
+  createdBy   User?    @relation("TimeOffAddedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([source, externalId])
+  @@index([userId, startDate, endDate])
 }
 
 model Settings {

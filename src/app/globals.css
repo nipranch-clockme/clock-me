@@ -202,6 +202,16 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .sheet td.dc.open{cursor:pointer}
 .sheet th.wknd,.sheet td.sheetcell.wknd{background-color:color-mix(in srgb,var(--line) 40%,transparent)}
 .sheet td.dc.lkday{background-color:color-mix(in srgb,var(--line) 55%,transparent)}
+/* A day with a public holiday or time off: a short badge in the header and a soft tint. Never a lock: time can still be logged on it. */
+.dmark{display:block;width:max-content;max-width:100%;margin:3px 0 0 auto;padding:0 7px;border-radius:999px;font:600 10.5px/1.55 var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmark.hol{background:var(--t3);color:var(--t3i)}
+.dmark.pto{background:var(--t4);color:var(--t4i)}
+.cal .hd .dmark{margin:0 auto}
+.sheet td.sheetcell.hol{background-color:color-mix(in srgb,var(--t3) 55%,transparent)}
+.sheet td.sheetcell.pto{background-color:color-mix(in srgb,var(--t4) 55%,transparent)}
+.dayoffs{margin:10px 0 0;padding:0;list-style:none}
+.dayoffs li{margin:2px 0}
+.dayoffs .dmark{display:inline-block;margin:0 6px 0 0;vertical-align:1px}
 .dcin{display:flex;flex-direction:column;gap:3px;height:100%;min-height:34px}
 .ent{display:block;width:100%;font:600 13px/1.2 var(--body);font-variant-numeric:tabular-nums;text-align:right;padding:6px 8px;border:1px solid var(--border);border-left:4px solid var(--line2);border-radius:6px;background:var(--tile);color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
 .ent:hover{background:var(--accent-soft)}
@@ -277,6 +287,8 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .cal .hrs span{position:absolute;right:8px;font:400 11px var(--body);font-variant-numeric:tabular-nums;color:var(--muted);transform:translateY(-50%)}
 .cal .col{position:relative;border-left:1px solid var(--line);cursor:crosshair;-webkit-user-select:none;user-select:none;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 40px}
 .cal .col.wknd{background-color:color-mix(in srgb,var(--line) 40%,transparent)}
+.cal .col.hol{background-color:color-mix(in srgb,var(--t3) 55%,transparent)}
+.cal .col.pto{background-color:color-mix(in srgb,var(--t4) 55%,transparent)}
 .cal .col.today{background-color:color-mix(in srgb,var(--lilac) 35%,transparent)}
 .cal .col.locked{cursor:not-allowed;background-color:color-mix(in srgb,var(--line) 45%,transparent)}
 .ev{position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.25;overflow:hidden;background:var(--tile);border:1px solid var(--border);border-left-width:4px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}

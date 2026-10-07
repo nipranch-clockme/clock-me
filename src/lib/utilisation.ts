@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
-import { addDays, addMonths, endOfMonth, rangeDates, today, toDate, workdaysSoFar } from "./dates";
+import { addDays, addMonths, endOfMonth, rangeDates, today, toDate } from "./dates";
+import type { Expected } from "./expected";
 
 // Productivity on the Dashboard and utilisation on profiles are the same number: hours logged divided by expected
-// (target) hours. Both pages work it out here so they always agree.
+// (target) hours. Expected hours come from expected.ts (weekly hours over Monday to Friday, less the office's public
+// holidays and the person's time off, up to yesterday, from the day they started), so every page agrees.
 
 export const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
 export const periodOf = (v: string | undefined) => (PERIODS.some((p) => p[0] === v) ? v! : "thismonth");
@@ -15,11 +17,6 @@ export function periodDays(range: string): [string, string] {
   const yesterday = addDays(today(), -1);
   return [a, b < yesterday ? b : yesterday];
 }
-
-/** Expected minutes from `from` to `to`: the weekly hours spread over Monday to Friday, up to yesterday, from the day
- *  the person started (see trackingStarts). */
-export const expectedMinutes = (weeklyTarget: number, start: string, from: string, to: string) =>
-  (weeklyTarget / 5) * workdaysSoFar(start > from ? start : from, to) * 60;
 
 /** Hours logged divided by expected hours, or 0 when nothing was expected. */
 export const utilisation = (minutes: number, expected: number) => (expected ? minutes / expected : 0);
@@ -43,9 +40,9 @@ export async function monthlyMinutes(ids: string[], months: string[]) {
 
 /** Each month's figure for a group of people (an office, or one person): everyone's hours over everyone's expected
  *  hours, or null when nothing was expected that month. */
-export function monthlyUtilisation(users: { id: string; weeklyTarget: number }[], months: string[], starts: Map<string, string>, minutes: Map<string, number>) {
+export function monthlyUtilisation(users: { id: string; locationId: string; weeklyTarget: number }[], months: string[], ex: Expected, minutes: Map<string, number>) {
   return months.map((m) => {
-    const tg = users.reduce((s, u) => s + expectedMinutes(u.weeklyTarget, starts.get(u.id)!, m + "-01", endOfMonth(m)), 0);
+    const tg = users.reduce((s, u) => s + ex(u, m + "-01", endOfMonth(m)), 0);
     return tg ? users.reduce((s, u) => s + (minutes.get(`${u.id}|${m}`) ?? 0), 0) / tg : null;
   });
 }

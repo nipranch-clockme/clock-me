@@ -34,14 +34,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const ids = users.map((u) => u.id);
   const sums = b >= a ? await db.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: ids }, date: { gte: toDate(a), lte: toDate(b) } }, _sum: { minutes: true } }) : [];
   const byUser = new Map(sums.map((s) => [s.userId, s._sum.minutes ?? 0]));
-  // Target hours only count working days from when each person started (see trackingStarts).
+  // Target hours only count working days from when each person started, less their office's public holidays and their time off (see expected.ts).
   const target = await targetMinutes(users);
   const rows: Row[] = users.map((u) => { const m = byUser.get(u.id) ?? 0, tg = b >= a ? target(u, a, b) : 0; return { id: u.id, name: u.name, title: u.title, team: u.team?.name ?? "No team", locationId: u.locationId, m, tg, prod: tg ? m / tg : 0 }; });
   const locs = [...new Map(users.map((u) => [u.locationId, u.location])).values()].sort((x, y) => x.name.localeCompare(y.name));
   const allLocs = await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true } });
   const colorOf = (id: string) => OFFCOL[Math.max(0, allLocs.findIndex((l) => l.id === id)) % OFFCOL.length];
   const all = sum(rows);
-  const top = (list: Row[]) => [...list].sort((x, y) => (rank === "total" ? y.m - x.m : y.prod - x.prod)).slice(0, 5);
+  // Someone with nothing expected in the period (off the whole time) has no productivity to rank.
+  const top = (list: Row[]) => [...list].filter((r) => rank === "total" || r.tg > 0).sort((x, y) => (rank === "total" ? y.m - x.m : y.prod - x.prod)).slice(0, 5);
   const multiOffice = locs.length > 1;
   // Location managers also see a card for each team in their office (the cards add up to the office total).
   const teamMap = new Map<string, Row[]>();
@@ -75,7 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th><th className="num">Target h</th></tr></thead>
       <tbody>
         {top(list).map((r, i) => (
-          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{pct(r.prod)}</td><td className="num">{f(r.m)}</td><td className="num">{f(r.tg)}</td></tr>
+          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td><td className="num">{f(r.tg)}</td></tr>
         ))}
         {!list.length && <tr><td colSpan={6} className="empty">Nobody to show.</td></tr>}
       </tbody>
@@ -89,7 +90,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far). People with a target of 0 are left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with a target of 0 are left out.`} />
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} />
         <section className="panel full">

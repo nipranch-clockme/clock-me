@@ -6,9 +6,12 @@ import { isDayLocked, missingFields } from "@/lib/entries";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
 import { tagText } from "@/lib/tags";
+import { dayMarks, loadExpected } from "@/lib/timeoff";
+import { dayMark } from "@/lib/dayMark";
 import { PageHead, Pill, statusTone } from "@/components/ui";
 import CalendarView from "./CalendarView";
 import TimerView from "./TimerView";
+import DayOffList from "./DayOffList";
 import { ICONS } from "@/components/icons";
 import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
 import { cancelSubmission, copyLastWeek, submitWeek } from "./actions";
@@ -23,12 +26,16 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const offset = view === "cal" ? rawOffset : Math.min(0, rawOffset); // the calendar can look ahead
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
-  const [rows, sheet, opts, savedRows] = await Promise.all([
+  const [rows, sheet, opts, savedRows, offs, ex] = await Promise.all([
     db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } } }),
     entryOptions(me),
     db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
+    dayMarks(me, dates), // public holidays of my office and my time off, for the badges
+    loadExpected([me], { from: ws, to: dates[6] }),
   ]);
+  const marks = offs.map(dayMark);
+  const want = ex(me, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
   const adminLocked = (d: string) => !!settings.lockBeforeStr && d <= settings.lockBeforeStr;
@@ -91,7 +98,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
         {!others && (
           <div className="stats">
             <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
-            <div className="stat"><b>{me.weeklyTarget ? Math.round((total / 60 / me.weeklyTarget) * 100) : 0}%</b><span>of {me.weeklyTarget} h target</span></div>
+            <div className="stat"><b>{want ? Math.round((total / want) * 100) : me.weeklyTarget ? "–" : 0}{want || !me.weeklyTarget ? "%" : ""}</b><span title={want < me.weeklyTarget * 60 ? "Your weekly target less public holidays and time off" : undefined}>{want === me.weeklyTarget * 60 ? `of ${me.weeklyTarget} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
           </div>
         )}
       </div>
@@ -117,7 +124,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
@@ -125,6 +132,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", at least one tag" : " and at least one tag") : ""}${settings.requireDescription ? " and description" : ""}.`}</>}
       </p>
       </>}
+      {view !== "cal" && <DayOffList dates={dates} marks={marks} />}
       {view === "cal" && <CalendarView me={me} settings={settings} offset={offset} u={sp.u} />}
       {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
     </section>

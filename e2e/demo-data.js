@@ -15,6 +15,7 @@ const counts = () => ({
   entries: n(`select count(*) from "TimeEntry"`), sheets: n(`select count(*) from "Timesheet"`), clients: n(`select count(*) from "Client"`),
   tags: n(`select count(*) from "Tag"`), teams: n(`select count(*) from "Team"`), locations: n(`select count(*) from "Location"`),
   secrets: n(`select count(*) from "AppSecret" where key='demo-data'`),
+  holidays: n(`select count(*) from "Holiday"`), timeoff: n(`select count(*) from "TimeOff"`),
 });
 const envSecret = () => (fs.readFileSync(process.env.ENVFILE || "/tmp/cm-demo/.env", "utf8").match(/^CRON_SECRET="?([^"\n]+)"?/m) || [])[1];
 const cron = async () => (await fetch(BASE + "/api/cron/reminders", { headers: { authorization: `Bearer ${envSecret()}` } })).json();
@@ -61,6 +62,15 @@ const cron = async () => (await fetch(BASE + "/api/cron/reminders", { headers: {
   ok(days > 340 && days < 372, `covers the past year (${span[0]} to ${span[1]})`);
   ok(span[1] < new Date().toISOString().slice(0, 10), "nothing in the future or today");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and extract(dow from e.date) in (0,6)`) === 0, "no weekend time");
+  // public holidays per office and PTO per person, so expected hours match the gaps
+  const hols = n(`select count(*) from "Holiday" where name like '% (demo)'`);
+  ok(hols >= before.locations * 5 && after.holidays === before.holidays + hols, `each office got public holidays (${hols}), none of the real ones touched`);
+  ok(n(`select count(*) from "Holiday" where name like '% (demo)' and extract(dow from date) in (0,6)`) === 0, "demo holidays fall on weekdays");
+  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" join "Holiday" h on h."locationId"=u."locationId" and h.date=e.date where ${DEMO} and h.fraction>=1`) === 0, "no demo time on a public holiday of the person's office");
+  const pto = n(`select count(*) from "TimeOff" t join "User" u on u.id=t."userId" where ${DEMO}`);
+  ok(pto >= 60 && after.timeoff === before.timeoff + pto, `demo people have PTO (${pto} stretches), real people none added`);
+  ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" join "TimeOff" t on t."userId"=e."userId" and e.date between t."startDate" and t."endDate" where ${DEMO}`) === 0, "no demo time on a PTO day");
+  ok(n(`select count(*) from "TimeOff" t join "User" u on u.id=t."userId" where ${DEMO} and (t.source<>'manual' or t.fraction<>1 or extract(dow from t."startDate") in (0,6) and extract(dow from t."endDate") in (0,6) and t."endDate"-t."startDate"<2)`) === 0, "demo PTO is plain, and never only a weekend");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and cardinality(e."tagIds") = 0`) === 0, "every entry has an existing tag");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and cardinality(e."tagIds") > 1`) > 1000, "many entries carry two tags");
   ok(n(`select count(*) from "TimeEntry" e join "User" u on u.id=e."userId" where ${DEMO} and exists (select 1 from unnest(e."tagIds") t where t not in (select id from "Tag"))`) === 0, "only existing tags are used");

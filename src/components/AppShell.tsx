@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { ICONS } from "./icons";
 
 type Tab = { href: string; label: string; icon: string };
-const GROUPS: string[][] = [["dashboard", "timesheet"], ["approvals", "reports"], ["clients", "projects", "people", "import-export"]];
-const ICON_FOR: Record<string, string> = { dashboard: "dash", timesheet: "sheet", approvals: "approve", reports: "reports", clients: "clients", projects: "projects", people: "people", "import-export": "io", settings: "settings" };
+const GROUPS: string[][] = [["dashboard", "timesheet", "time-off"], ["approvals", "reports"], ["clients", "projects", "people", "import-export"]];
+const ICON_FOR: Record<string, string> = { dashboard: "dash", timesheet: "sheet", "time-off": "off", approvals: "approve", reports: "reports", clients: "clients", projects: "projects", people: "people", "import-export": "io", settings: "settings" };
 
 const Mark = () => (
   <svg className="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="13" r="9.5" fill="var(--accent)" /><path d="M11 8v5l3.2 2.1" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="19.6" cy="4.6" r="3.1" fill="var(--s2)" /></svg>
@@ -24,7 +24,7 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("keydown", esc); document.body.classList.remove("navopen"); };
   }, [open]);
-  const labels: Record<string, string> = { dashboard: "Dashboard", timesheet: "Timesheet", approvals: "Approvals", reports: "Reports", clients: "Clients", projects: "Projects", people: "People", "import-export": "Import & export", settings: "Settings" };
+  const labels: Record<string, string> = { dashboard: "Dashboard", timesheet: "Timesheet", "time-off": "Time off", approvals: "Approvals", reports: "Reports", clients: "Clients", projects: "Projects", people: "People", "import-export": "Import & export", settings: "Settings" };
   const link = (k: string, cls?: string) => {
     const t: Tab = { href: "/" + k, label: labels[k], icon: ICONS[ICON_FOR[k]] };
     const here = path.startsWith(t.href) || (k === "timesheet" && path.startsWith("/calendar"));

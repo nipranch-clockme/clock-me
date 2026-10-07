@@ -4,10 +4,11 @@ import type { Me } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { canManagePerson } from "@/lib/scope";
 import { roleName } from "@/lib/roles";
-import { addDays, longDate, monday, today, toDate, toStr, weekLabel, workdayDates } from "@/lib/dates";
+import Link from "next/link";
+import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
-import { trackingStarts } from "@/lib/startDates";
-import { PERIODS, periodOf, periodDays, expectedMinutes, utilisation, last12Months, monthlyMinutes, monthlyUtilisation } from "@/lib/utilisation";
+import { loadExpected } from "@/lib/timeoff";
+import { PERIODS, periodOf, periodDays, utilisation, last12Months, monthlyMinutes, monthlyUtilisation } from "@/lib/utilisation";
 import { dayMonthYear, joinedText } from "@/lib/profile";
 import AutoForm from "@/components/AutoForm";
 import TrendChart from "@/components/TrendChart";
@@ -18,6 +19,8 @@ import { DetailsForm, PhotoForm } from "./ProfileForms";
 type Person = Prisma.UserGetPayload<{ include: { team: true; location: true } }>;
 type ShareRow = { key: string; label: string; sub?: string; m: number };
 const SHEET: Record<string, string> = { DRAFT: "Not submitted", SUBMITTED: "Waiting for approval", APPROVED: "Approved", REJECTED: "Sent back" };
+
+const dayText = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)} ${n === 1 ? "day" : "days"}`;
 
 /** A person's profile: who they are, then their utilisation (worked out exactly like Dashboard productivity). */
 export default async function ProfileView({ me, person, range: rangeParam }: { me: Me; person: Person; range?: string }) {
@@ -32,8 +35,8 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   const months = last12Months();
   const inPeriod = { userId: person.id, date: { gte: toDate(a), lte: toDate(b) } };
   const none = Promise.resolve([]);
-  const [starts, perDay, perProject, perPhase, mm, sheets, recent] = await Promise.all([
-    trackingStarts([person]),
+  const [ex, perDay, perProject, perPhase, mm, sheets, recent] = await Promise.all([
+    loadExpected([person]),
     b >= a ? db.timeEntry.groupBy({ by: ["date"], where: inPeriod, _sum: { minutes: true } }) : none,
     b >= a ? db.timeEntry.groupBy({ by: ["projectId"], where: inPeriod, _sum: { minutes: true } }) : none,
     b >= a ? db.timeEntry.groupBy({ by: ["phaseId"], where: inPeriod, _sum: { minutes: true } }) : none,
@@ -47,12 +50,14 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   ]);
 
   // The summary: the same days, hours and expected hours as the Dashboard for this person.
-  const start = starts.get(person.id)!;
+  const start = ex.starts.get(person.id)!;
   const byDay = new Map(perDay.map((r) => [toStr(r.date), r._sum.minutes ?? 0]));
   const m = perDay.reduce((s, r) => s + (r._sum.minutes ?? 0), 0);
-  const tg = expectedMinutes(person.weeklyTarget, start, a, b);
-  const workdays = workdayDates(start > a ? start : a, b);
-  const trend = monthlyUtilisation([person], months, starts, mm);
+  const tg = ex(person, a, b);
+  const workdays = ex.dates(person, a, b); // working days that count: public holidays and time off are not workdays
+  const worked = new Set([...workdays, ...[...byDay].filter(([, v]) => v > 0).map(([d]) => d)]); // plus any day time was logged anyway
+  const cut = ex.breakdown(person, a, b);
+  const trend = monthlyUtilisation([person], months, ex, mm);
 
   const P = new Map(projects.map((p) => [p.id, p]));
   const projectRows: ShareRow[] = perProject.map((r) => ({ key: r.projectId, label: P.get(r.projectId)?.name ?? "Unknown project", sub: P.get(r.projectId)?.client.name, m: r._sum.minutes ?? 0 })).sort((x, y) => y.m - x.m);
@@ -115,16 +120,25 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
         <h3>Utilisation</h3>
         <AutoForm className="row" key={range}>
           <div style={{ flex: "0 1 220px" }}><label htmlFor="pr-range">Period</label><select id="pr-range" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Utilisation is hours logged divided by expected hours. Expected hours per week are spread over Monday to Friday, up to yesterday, from {self ? "your" : "their"} first day in The Time Sink.</p></div>
+          <div style={{ flex: "2 1 300px" }}><p className="note" style={{ margin: 0 }}>{b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Utilisation is hours logged divided by expected hours. Expected hours per week are spread over Monday to Friday, up to yesterday, from {self ? "your" : "their"} first day in The Time Sink, less the public holidays of the {person.location.name} office and {self ? "your" : "their"} time off. <Link href="/time-off">Time off and holidays</Link></p></div>
         </AutoForm>
         <div className="stats spread five" style={{ marginTop: 16 }}>
           <div className="stat"><b>{tg ? pct(utilisation(m, tg)) : "–"}</b><span>utilisation</span></div>
           <div className="stat"><b>{f(m)}</b><span>hours logged</span></div>
           <div className="stat"><b>{f(tg)}</b><span>expected hours</span></div>
-          <div className="stat"><b>{workdays.length ? f(m / workdays.length) : "–"}</b><span>average hours per workday</span></div>
+          <div className="stat"><b>{worked.size ? f(m / worked.size) : "–"}</b><span>average hours per workday</span></div>
           <div className="stat"><b>{workdays.filter((d) => !byDay.get(d)).length}</b><span>workdays with no time</span></div>
         </div>
         {!person.weeklyTarget && <p className="note" style={{ margin: "12px 0 0" }}>Expected hours per week is 0, so there&apos;s no utilisation to show.</p>}
+        {!!person.weeklyTarget && (cut.holidayDays > 0 || cut.leaveDays > 0) && (
+          <p className="note" style={{ margin: "12px 0 0" }}>
+            Of {cut.weekdays} working {cut.weekdays === 1 ? "day" : "days"} in this period, {[
+              cut.holidayDays > 0 ? `${dayText(cut.holidayDays)} ${cut.holidayDays === 1 ? "is a" : "are"} public ${cut.holidayDays === 1 ? "holiday" : "holidays"}${cut.holidays.length && cut.holidays.length <= 3 ? ` (${cut.holidays.map((h) => h.name).join(", ")})` : ""}` : "",
+              cut.leaveDays > 0 ? `${dayText(cut.leaveDays)} ${cut.leaveDays === 1 ? "is" : "are"} time off` : "",
+            ].filter(Boolean).join(" and ")}, so {dayText(cut.days)} {cut.days === 1 ? "is" : "are"} expected.
+            {tg === 0 && cut.weekdays > 0 ? " Nothing is expected in this period, so there is no utilisation to show." : ""}
+          </p>
+        )}
       </section>
 
       <section className="panel full">

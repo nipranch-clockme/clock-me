@@ -5,6 +5,7 @@ import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
 import { addRow, removeRow } from "./actions";
 import SearchSelect from "@/components/SearchSelect";
+import type { DayMark } from "@/lib/dayMark";
 
 export type SheetEntry = {
   id: string; projectId: string; projectName: string; clientName: string; clientColor: string;
@@ -16,8 +17,10 @@ type Tip = { id: string; el: HTMLElement };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
-export default function TimesheetGrid({ opts, entries, rows, dates, locked, weekStart, rowsLocked, today, footerLeft, footerRight }: {
+export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight }: {
   opts: EntryOptions; entries: SheetEntry[]; rows: SheetRow[]; dates: string[]; locked: (string | null)[]; weekStart: string; rowsLocked: boolean;
+  /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
+  marks?: (DayMark | null)[];
   /** Today's date (YYYY-MM-DD), marked in the header. */
   today?: string;
   /** Week actions from the page (copy last week, submit), shown beside "Add project row". */
@@ -101,7 +104,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
     <>
       <div className="tablebox">
         <table className="sheet">
-          <thead><tr><th>Project</th>{dates.map((d, i) => <th key={d} className={"num" + (d === today ? " today" : "") + (i > 4 ? " wknd" : "")}><span className="dh">{DAYS[i]} {+d.slice(8)}{locked[i] ? " 🔒" : ""}</span></th>)}<th className="num">Total</th></tr></thead>
+          <thead><tr><th>Project</th>{dates.map((d, i) => <th key={d} className={"num" + (d === today ? " today" : "") + (i > 4 ? " wknd" : "")}><span className="dh">{DAYS[i]} {+d.slice(8)}{locked[i] ? " 🔒" : ""}</span>{marks[i] && <span className={"dmark " + marks[i]!.kind} title={marks[i]!.long}>{marks[i]!.short}</span>}</th>)}<th className="num">Total</th></tr></thead>
           <tbody>
             {rows.length ? rows.map((r) => {
               const rowTotal = sum(r.projectId, null);
@@ -120,7 +123,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, week
                     const open = !locked[i] && canLog(r.projectId);
                     return (
                       // Mouse users can click anywhere free in the cell; the + button inside is there for keyboard users.
-                      <td key={d} className={"sheetcell" + (open ? " open" : " locked") + (i > 4 ? " wknd" : "")} onClick={open ? (ev) => { if (!(ev.target as HTMLElement).closest("button")) openAdd(r, d); } : undefined}>
+                      <td key={d} className={"sheetcell" + (open ? " open" : " locked") + (i > 4 ? " wknd" : "") + (marks[i] ? " " + marks[i]!.kind : "")} onClick={open ? (ev) => { if (!(ev.target as HTMLElement).closest("button")) openAdd(r, d); } : undefined}>
                         <div className="cellstack">
                           {list.map((e) => (
                             <button type="button" key={e.id} className="chipbtn" style={{ borderLeftColor: `var(--${r.clientColor})` }}

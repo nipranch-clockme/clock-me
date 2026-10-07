@@ -8,10 +8,10 @@ const { start, login, BASE } = require('./helpers');
 const PSQL = (process.env.PSQL || 'psql -h /var/run/postgresql clockme').split(' ');
 const sql = (q) => execFileSync(PSQL[0], [...PSQL.slice(1), '-Atc', q]).toString().trim();
 const ROLES = {
-  'admin@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/clients', '/people', '/approvals', '/reports', '/reports?tab=detailed', '/reports?tab=weekly', '/import-export', '/settings', '/profile'],
-  'aisha@example.com': ['/dashboard', '/timesheet', '/approvals', '/reports', '/people', '/projects'],
+  'admin@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/clients', '/people', '/approvals', '/reports', '/reports?tab=detailed', '/reports?tab=weekly', '/import-export', '/settings', '/profile', '/time-off', '/time-off?view=holidays'],
+  'aisha@example.com': ['/dashboard', '/timesheet', '/time-off', '/approvals', '/reports', '/people', '/projects'],
   'fatima@example.com': ['/dashboard', '/approvals', '/reports', '/people', '/clients'],
-  'priya@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/profile'],
+  'priya@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/profile', '/time-off'],
 };
 const MIN = 4.5; // WCAG AA for normal text; large text (18px, or 14px bold) only needs 3
 let fails = 0;
@@ -128,6 +128,12 @@ async function withOverlays(p, path) {
   const clientId = sql(`select id from "Client" where name <> 'Internal' order by name limit 1`);
   const token = 'contrastcheck' + 'x'.repeat(19);
   sql(`update "Client" set "shareToken"='${token}' where id='${clientId}' and "shareToken" is null`);
+  // A holiday in Priya's office, a day and a half day of time off for her, and one row from another system: badges, lists and pills on screen.
+  const dt = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + n); return d.toISOString().slice(0, 10); };
+  const priya = sql(`select id||'|'||"locationId" from "User" where email='priya@example.com'`).split('|');
+  sql(`insert into "Holiday"(id,"locationId",date,name,fraction) values('ctrh1','${priya[1]}','${dt(2)}','Contrast Day',1),('ctrh2','${priya[1]}','${dt(4)}','Contrast Half',0.5)`);
+  sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,"updatedAt") values('ctro1','${priya[0]}','${dt(3)}','${dt(3)}',1,'PTO',now())`);
+  sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,source,"externalId","updatedAt") values('ctro2','${priya[0]}','${dt(21)}','${dt(22)}',0.5,'Sick leave','keka','ctr-1',now())`);
   try {
     for (const theme of ['light', 'dark']) {
       for (const [email, pages] of Object.entries(ROLES)) {
@@ -138,7 +144,7 @@ async function withOverlays(p, path) {
           const th = await p.evaluate(() => document.documentElement.dataset.theme);
           if (th !== theme) { ok(false, `${theme} ${email} ${path}: page is in the ${th} theme`); continue; }
           let res = await p.evaluate(measure, MIN);
-          if (email === 'admin@example.com' || path === '/timesheet') res = merge(res, await withOverlays(p, path));
+          if (email === 'admin@example.com' || path === '/timesheet' || path === '/time-off') res = merge(res, await withOverlays(p, path));
           report(`${theme} ${email.split('@')[0]} ${path}`, res);
         }
         if (email === 'admin@example.com') {
@@ -161,7 +167,7 @@ async function withOverlays(p, path) {
         await ctx.close();
       }
       // Phone: the main pages as a team member and as an admin.
-      for (const [email, pages] of [['priya@example.com', ['/dashboard', '/timesheet', '/projects']], ['admin@example.com', ['/reports', '/people', '/import-export']]]) {
+      for (const [email, pages] of [['priya@example.com', ['/dashboard', '/timesheet', '/time-off', '/projects']], ['admin@example.com', ['/reports', '/people', '/import-export', '/time-off?view=holidays']]]) {
         const ctx = await b.newContext({ viewport: { width: 390, height: 800 } });
         const p = await ctx.newPage();
         await p.goto(BASE + '/login'); await p.waitForLoadState('networkidle'); await p.fill('#email', email); await p.fill('#password', 'password123'); await p.click('button:has-text("Sign in")');
@@ -172,7 +178,7 @@ async function withOverlays(p, path) {
       }
     }
   } catch (e) { console.log('ERR', e.message.slice(0, 600)); fails++; }
-  finally { sql(`update "Client" set "shareToken"=null where "shareToken"='${token}'`); await b.close(); }
+  finally { sql(`delete from "Holiday" where id in ('ctrh1','ctrh2')`); sql(`delete from "TimeOff" where id in ('ctro1','ctro2')`); sql(`update "Client" set "shareToken"=null where "shareToken"='${token}'`); await b.close(); }
   console.log(fails ? `${fails} FAILED` : 'ALL PASSED');
   process.exit(fails ? 1 : 0);
 })();
