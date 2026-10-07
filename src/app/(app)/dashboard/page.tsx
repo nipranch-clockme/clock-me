@@ -8,6 +8,7 @@ import { addMonths, endOfMonth, longDate, rangeDates, today, toDate } from "@/li
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
 import AutoForm from "@/components/AutoForm";
+import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
 import { PageHead, Ifld } from "@/components/ui";
 
@@ -21,6 +22,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const me = await requireTab("dashboard");
   const settings = await getSettings();
   const f = (m: number) => fmtHours(m, settings.timeFormat);
+  // Team members get their own numbers; everyone else sees them above the numbers for the people they look after.
+  if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
   const [a, bRaw] = rangeDates(range);
@@ -84,6 +87,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </AutoForm>}
         sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far). People with a target of 0 are left out.`} />
       <div className="grid g3">
+        <MyStats me={me} timeFormat={settings.timeFormat} />
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
           <div className="stats spread">

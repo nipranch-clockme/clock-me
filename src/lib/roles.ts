@@ -27,7 +27,7 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
 
 export type Tab = "dashboard" | "clients" | "timesheet" | "calendar" | "approvals" | "reports" | "projects" | "people" | "import-export" | "settings";
 export const TABS: [Tab, string, Role[] | "all"][] = [
-  ["dashboard", "Dashboard", ["LEADER", "LOCATION", "ADMIN"]],
+  ["dashboard", "Dashboard", "all"],
   ["clients", "Clients", ["LOCATION", "ADMIN"]],
   ["timesheet", "Timesheet", "all"],
   ["calendar", "Calendar", "all"],
