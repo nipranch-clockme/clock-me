@@ -83,7 +83,7 @@ nav.snav hr+.navend{margin-top:auto}
 .seg{display:inline-flex;flex-wrap:wrap;background:var(--tile);border:1px solid var(--border);border-radius:7px;padding:2px;gap:2px}
 .seg button,.seg a{text-decoration:none;border:0;background:transparent;color:var(--muted);font:500 12px/1.2 var(--body);padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
 .seg button:hover,.seg a:hover{color:var(--ink);background:var(--hover)}
-.seg button[aria-pressed="true"],.seg a[aria-pressed="true"]{background:var(--seg-on);color:var(--ink);font-weight:600}
+.seg button[aria-pressed="true"],.seg a[aria-pressed="true"],.seg a[aria-current="page"]{background:var(--seg-on);color:var(--ink);font-weight:600}
 /* Timer view: the timer card (fields, big clock, Start / Stop) and the week's entries by day */
 .tmcard{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
@@ -124,6 +124,10 @@ label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bot
 label .req{color:var(--bad)}
 input,select,textarea{width:100%;font:14px/1.3 var(--body);color:var(--ink);background-color:var(--tile);border:1px solid var(--line2);border-radius:6px;padding:7px 10px;min-height:34px}
 select{-webkit-appearance:none;appearance:none;background-image:var(--chev);background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
+/* The open list of a dropdown is drawn by the browser from the option's own colours, not the box's: say them, so it is never light text on a white list (or the reverse) */
+::placeholder{color:var(--muted);opacity:1}
+select option,select optgroup{background-color:var(--tile);color:var(--ink)}
+select option:disabled{color:var(--muted)}
 select:disabled{opacity:.6;cursor:not-allowed}
 input:hover:not(:disabled):not(:focus),select:hover:not(:disabled):not(:focus){border-color:var(--muted)}
 input[type=file]{min-height:0}
@@ -364,17 +368,22 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
 .sheet td.empty>div{max-width:calc(100cqw - 20px)}
 /* a narrower timesheet (tablets, small laptops): tighter columns, and a day's name and date may stack, so the whole week fits */
 @container (width<820px){.sheet td.pcell{min-width:140px} .sheet td.dc{min-width:0} .sheet th{padding-inline:4px;white-space:normal} .sheet td.num{padding-inline:6px} .sheet .ent{padding-inline:5px}}
-/* import check: dates stay on one line, a long problem wraps inside its pill. On a phone each row stacks its values, each with
-   its column name (data-l), with the check at the right */
+/* import check: dates and hours stay on one line, a long value or problem wraps inside its box, the column names stay in view while the rows scroll.
+   In a narrower box (a phone, or a tablet or small laptop with the sidebar open) each row stacks its values, each with its column name (data-l),
+   and the check goes on a row of its own underneath, so the verdict is never off to the side */
+.imptable th{position:sticky;top:0;z-index:1;background:var(--tile)}
+.imptable td{overflow-wrap:anywhere}
+.imptable td[data-l="Date"],.imptable td[data-l="Hours"]{white-space:nowrap}
 .imptable .pill{white-space:normal;line-height:1.3;min-width:60px}
-@container (width<440px){
+@container (width<760px){
   .imptable thead{display:none}
   .imptable,.imptable tbody{display:block}
-  .imptable tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .imptable tr{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 12px;padding:10px 12px;border-bottom:1px solid var(--line)}
   .imptable td{grid-column:1;padding:0;border:0;min-width:0}
-  .imptable td:last-child{grid-area:1/2/span 4;align-self:start;max-width:120px;text-align:right}
-  .imptable td[data-l]{display:grid;grid-template-columns:58px minmax(0,1fr);gap:8px;align-items:baseline}
+  .imptable td.ichk{margin-top:4px}
+  .imptable td[data-l]{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;align-items:baseline}
   .imptable td[data-l]::before{content:attr(data-l);font-size:12px;color:var(--muted)}
+  .imptable td[data-l="Date"],.imptable td[data-l="Hours"]{white-space:normal}
 }
 .nw{white-space:nowrap}
 .mono{font-variant-numeric:tabular-nums;letter-spacing:.01em;font-weight:500}
@@ -456,7 +465,7 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
 .chipbtn:hover{border-color:var(--line2)}
 .sheetcell.open{cursor:pointer}
-.addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent);background:var(--accent-soft)}
+.addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent-ink);background:var(--accent-soft)}
 .sheetcell.locked .cellstack{min-height:0}
 .sheetcell.locked{cursor:default}
 .rowx{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;cursor:pointer}
@@ -521,7 +530,7 @@ tr[hidden]{display:none}
   color-scheme:dark; --on-accent:#fff;
   --bg:#0F1216; --side:#14181D; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
   --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F;
-  --accent:#2F7BE5; --accent-hi:#4A8FF0; --link:#7DB0FF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
+  --accent:#2B72DA; --accent-hi:#2563EB; --link:#7DB0FF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
   --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
   --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
   --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
@@ -568,8 +577,8 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rdate-nav.off{opacity:.35;cursor:not-allowed}
 .rdate-c{display:flex;flex-wrap:wrap;gap:8px}
 .xm{position:relative}
-.xm-b{min-height:38px;background:var(--tile);border-color:var(--accent);color:var(--accent);padding-inline:16px}
-.xm-b:hover:not(:disabled){background:var(--accent-soft)}
+.xm-b{min-height:38px;background:var(--tile);border-color:var(--accent);color:var(--link);padding-inline:16px}
+.xm-b:hover:not(:disabled),.xm-b[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent-ink)}
 .xm-p{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:250px;background:var(--tile);border:1px solid var(--border);border-radius:8px;box-shadow:var(--pop);padding:6px;display:flex;flex-direction:column}
 .xm-p[hidden]{display:none}
 .xm-p a,.xm-p button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;border:0;background:none;color:var(--ink);font:500 13.5px/1.3 var(--body);padding:9px 10px;border-radius:6px;cursor:pointer;text-decoration:none}
@@ -581,7 +590,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .fm+.fm::before{content:"";position:absolute;left:-2px;top:9px;bottom:9px;border-left:1px solid var(--line)}
 .fm-b{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--ink);font:500 14px/1 var(--body);padding:11px 13px;border-radius:6px;cursor:pointer}
 .fm-b:hover,.fm-b[aria-expanded="true"]{background:var(--hover)}
-.fm-b.on{color:var(--accent);font-weight:600}
+.fm-b.on{color:var(--link);font-weight:600}
 .fm-b svg{color:var(--muted)}
 .fm-n{background:var(--accent);color:var(--on-accent,#fff);font:600 11px/1 var(--body);border-radius:99px;padding:3px 6px}
 .fm-p{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:min(300px,calc(100vw - 32px));max-height:min(380px,70vh);overflow:auto;background:var(--tile);border:1px solid var(--border);border-radius:8px;box-shadow:var(--pop);padding:8px}
@@ -636,7 +645,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rtable th{background:var(--tile);font-size:11.5px;letter-spacing:.05em}
 .rtable th .sorter{border:0;background:none;padding:0;font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer;white-space:nowrap}
 .rtable th .sorter:hover{color:var(--ink)}
-.rtable th .sorter span{font-size:10px;opacity:.7}
+.rtable th .sorter span{font-size:10px;opacity:.9}
 .rtable td:first-child,.rtable th:first-child{white-space:nowrap}
 .rg-t{display:flex;align-items:center;min-width:0}
 .rg-t .dot{margin-right:9px}
@@ -690,10 +699,13 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .icols>div{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);gap:4px 14px}
 .icols dt{font-weight:600}
 .icols dd{margin:0;color:var(--muted)}
-.icols .off dt,.icols .off dd{opacity:.65}
+.icols .off dt{opacity:.8}
 .idrop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:26px 16px;border:2px dashed var(--line2);border-radius:10px;background:var(--tile);color:var(--muted);cursor:pointer;font-size:13px}
 .idrop b{color:var(--ink);font-size:14px;margin-top:4px}
 .idrop:hover,.idrop.over,.istep:has(.isr:focus-visible) .idrop{border-color:var(--accent);background:var(--accent-soft)}
+.istep:has(.isr:focus-visible) .idrop{outline:2px solid var(--accent);outline-offset:2px}
+.ichip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ibody h3[tabindex="-1"]:focus{outline:none}
 .isr{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .ichip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 12px;background:var(--tile);border:1px solid var(--line2);border-radius:8px}
 .ichip b{overflow-wrap:anywhere}
@@ -720,6 +732,10 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .icolnotes{margin:0 0 12px;padding-left:18px;font-size:13px;color:var(--muted)}
 .ipreview{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
 .inote{display:block;margin-top:4px;font-size:12px;color:var(--warn)}
+.ishowing{margin:0 0 6px}
+.ilink{display:flex;gap:6px;align-items:center;min-width:230px}
+.ilink input{flex:1 1 auto;min-width:0;font-size:12px;min-height:30px}
+.note a{color:var(--link)}
 .alert.ok{background:var(--ok-soft);color:var(--ok)}
 .idone{display:flex;flex-direction:column;gap:2px}
 .ilinks{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
@@ -729,7 +745,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .iexports li:first-child{border-top:0}
 .iexports b{display:block}
 .iexports span{font-size:13px;color:var(--muted)}
-@media (max-width:560px){.itiles{grid-template-columns:1fr}.icols>div{grid-template-columns:1fr}.istep{grid-template-columns:28px minmax(0,1fr);gap:0 10px}.inum{width:28px;height:28px}.istep:not(:last-child)::before{left:13px;top:32px}}
+@media (max-width:560px){.ipreview{max-height:none;overflow-y:visible}.idetails summary{padding:10px 0;min-height:44px}.ichip .btn,.ibody .btn,.ilink .btn{min-height:40px}.icheck{padding:6px 0}.icheck input{width:18px;height:18px}.itiles{grid-template-columns:1fr}.icols>div{grid-template-columns:1fr}.istep{grid-template-columns:28px minmax(0,1fr);gap:0 10px}.inum{width:28px;height:28px}.istep:not(:last-child)::before{left:13px;top:32px}}
 
 /* A client's view-only report (opened from a private link, no sidebar) and the admin's link controls on the client page */
 .shpg{max-width:1100px;margin:0 auto;padding:28px 24px 56px;display:flex;flex-direction:column;gap:16px}

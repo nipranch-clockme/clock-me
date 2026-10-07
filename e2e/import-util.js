@@ -64,6 +64,8 @@ const desk = (p, BASE) => ({
     };
   },
   async commit() {
+    // A file that still holds the template's example rows has to be confirmed first.
+    if (await p.locator('.alert.warn .icheck input').count()) await p.check('.alert.warn .icheck input');
     await p.click('button.primary:has-text("Import")');
     await p.waitForSelector('.idone, .alert.bad', { timeout: 90000 });
     return (await p.locator('.idone, .alert.bad').first().innerText()).replace(/\n/g, ' | ');

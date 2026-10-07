@@ -119,7 +119,7 @@ export default async function SharedReport({ params, searchParams }: { params: P
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
               <select id="sh-range" name="range" data-auto defaultValue={p.range} aria-label="Date range">{RANGES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               {p.range === "all"
-                ? <><span className="rdate-nav off" aria-hidden="true">‹</span><span className="rdate-nav off" aria-hidden="true">›</span></>
+                ? <><span className="rdate-nav off" aria-hidden="true" aria-disabled="true">‹</span><span className="rdate-nav off" aria-hidden="true" aria-disabled="true">›</span></>
                 : <><Link className="rdate-nav" href={stepHref(prev)} aria-label="Previous period" scroll={false}>‹</Link><Link className="rdate-nav" href={stepHref(next)} aria-label="Next period" scroll={false}>›</Link></>}
             </div>
             {p.range === "custom" && <div className="rdate-c">

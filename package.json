@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && node scripts/migrate.mjs && next build",
     "start": "next start",
-    "lint": "tsc --noEmit",
+    "lint": "prisma generate && tsc --noEmit",
     "db:push": "prisma db push",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx prisma/seed.ts",

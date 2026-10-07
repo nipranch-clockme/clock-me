@@ -1,6 +1,6 @@
 import { db } from "./db";
 import type { Me } from "./auth";
-import { csvObjects } from "./csv";
+import { EXTRA_CELLS, csvObjects } from "./csv";
 import { CLIENT_COLORS, EMAIL_RE, clean, hasColumn, nameKey, parseAccess, parseBudget, pick, splitList } from "./importParse";
 import { columnNotes, type PreviewRow } from "./importTypes";
 
@@ -21,10 +21,11 @@ export type ProjectDraft = {
 
 /** Reads a Clients and Projects file (the Projects template, or our own Projects export) and says what would happen to each row. Nothing is saved here. */
 export async function checkProjects(me: Me, text: string) {
-  const { keys, rows } = csvObjects(text);
+  const { keys, rows, total, error: unreadable } = csvObjects(text, MAX_PROJECTS);
+  if (unreadable) return { error: unreadable };
   if (!keys.includes("project")) return { error: "The first row must name a Project column (and usually a Client column too)." };
-  if (!rows.length) return { error: "That file has no projects in it, only the first row." };
-  if (rows.length > MAX_PROJECTS) return { error: `Import at most ${MAX_PROJECTS.toLocaleString("en-US")} projects at a time.` };
+  if (!total) return { error: "That file has no projects in it, only the first row." };
+  if (total > MAX_PROJECTS) return { error: `That file has ${total.toLocaleString("en-US")} rows. Import at most ${MAX_PROJECTS.toLocaleString("en-US")} projects at a time.` };
   const [clients, projects, users, locations, tags] = await Promise.all([
     db.client.findMany(), db.project.findMany({ include: { client: true } }),
     db.user.findMany({ select: { id: true, email: true, role: true } }), db.location.findMany(), db.tag.findMany(),
@@ -33,7 +34,7 @@ export async function checkProjects(me: Me, text: string) {
   const newClients = new Map<string, string>(), newTags = new Map<string, string>();
   const hasClientColumn = hasColumn(keys, "client");
 
-  const out = rows.map(({ line, v: r }) => {
+  const out = rows.map(({ line, extra, v: r }) => {
     const notes: string[] = [];
     const projectName = clean(pick(r, "project"));
     const given = clean(pick(r, "client"));
@@ -58,7 +59,8 @@ export async function checkProjects(me: Me, text: string) {
     const wanted = splitList(pick(r, "tags", "tag")).map(clean).filter(Boolean);
     const missingTags = wanted.filter((t) => !tags.some((x) => nameKey(x.name) === nameKey(t)));
     const error =
-      !projectName ? "No project name"
+      extra ? EXTRA_CELLS
+      : !projectName ? "No project name"
       : projectName.length > 120 ? "Project name is too long"
       : clientName.length > 120 ? "Client name is too long"
       : dup ? "Already exists"
@@ -77,8 +79,8 @@ export async function checkProjects(me: Me, text: string) {
       : "";
     if (!error) {
       seen.set(key, line);
-      if (!client) newClients.set(nameKey(clientName), clientName);
-      if (missingTags.length && me.role === "ADMIN") for (const t of missingTags) newTags.set(nameKey(t), t);
+      if (!client && !newClients.has(nameKey(clientName))) newClients.set(nameKey(clientName), clientName);
+      if (missingTags.length && me.role === "ADMIN") for (const t of missingTags) { if (!newTags.has(nameKey(t))) newTags.set(nameKey(t), t); }
       else if (missingTags.length) notes.push(`Tag ${missingTags.join(", ")} doesn't exist; only admins add tags`);
     }
     const row: PreviewRow = { line, error, notes, cells: [clientName, projectName, usedPhases.join(", "), budget ? String(budget) : "", restricted ? "Restricted" : "Everyone"] };
@@ -97,7 +99,7 @@ export async function checkProjects(me: Me, text: string) {
     headers: ["Client", "Project", "Phases", "Budget h", "Access"],
     columnNotes: [
       ...(hasClientColumn ? [] : [`No Client column: every project is filed under ${NO_CLIENT}`]),
-      ...columnNotes(keys, USED, IGNORED),
+      ...columnNotes(keys, USED, IGNORED, [], rows.map((r) => r.v)),
     ],
     adds, out, newTags: [...newTags.values()], newClients: [...newClients.values()],
   };

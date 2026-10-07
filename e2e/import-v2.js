@@ -27,43 +27,39 @@ const ok = S.ok;
     // 2. People
     await d.load('people');
     let c = await d.check();
-    console.log('people check', JSON.stringify(c));
     ok(c.ready === 22 && c.bad === 3, 'people: 22 ready, 3 managers without a Group skipped');
     ok(c.reasons.some((r) => /need a team/.test(r)), 'people: the reason says managers need a team');
     ok(c.adds.some((a) => /New teams/.test(a)), 'people: new teams are announced');
     let msg = await d.commit();
-    console.log('people commit:', msg);
     ok(/22 people added/.test(msg), 'people: 22 added');
     ok(await p.locator('.ilinks tbody tr').count() === 22, 'people: 22 invite links shown');
     ok(sql(`select count(*) from "User" where email like '%@clockify-test.com' and "inviteToken" is not null and "passwordHash" is null`) === '22', 'people: all saved as invites');
     ok(sql(`select count(*) from "User" where email like '%@clockify-test.com' and role='ADMIN'`) !== '0', 'people: Admin role kept');
     const wk = sql(`select distinct "weeklyTarget" from "User" where email like '%@clockify-test.com' order by 1`);
-    console.log('weekly targets:', wk.replace(/\n/g, ','));
+    ok(wk.replace(/\n/g, ',') === '20,40', 'people: hours a week come out as 40 (most) and 20 (HR): ' + wk.replace(/\n/g, ','));
     // run it again: everyone already exists
     await d.load('people'); c = await d.check();
     ok(c.ready === 0 && c.reasons.some((r) => /Already has an account/.test(r)), 'people: the same file again adds nobody');
 
     // 3. Clients and projects
     await d.load('projects'); c = await d.check();
-    console.log('projects check', JSON.stringify(c));
     ok(c.ready === 9 && c.bad === 0, 'projects: 9 ready');
-    msg = await d.commit(); console.log('projects commit:', msg);
+    msg = await d.commit();
     ok(/9 projects added/.test(msg), 'projects: 9 added');
-    ok(sql(`select count(*) from "Project" p join "Client" c on c.id=p."clientId" where c.name='Internal'`) !== '0', 'projects: a blank client lands under Internal');
+    ok(sql(`select count(*) from "Project" p join "Client" c on c.id=p."clientId" where c.name='Internal' and p.name='Grants 2026'`) === '1', 'projects: a blank client lands under Internal');
     await d.load('projects'); c = await d.check();
     ok(c.ready === 0 && c.reasons.some((r) => /Already exists/.test(r)), 'projects: the same file again adds nothing');
 
     // 4. Timesheet
     await d.load('time'); c = await d.check();
-    console.log('time check (no create)', JSON.stringify(c));
+    ok(c.ready === 5 && c.bad === 15, `time: without "Add what's missing", 5 rows are ready and 15 are skipped: ${c.ready}/${c.bad}`);
     await d.load('time', { create: true }); c = await d.check();
-    console.log('time check (create)', JSON.stringify(c));
     const ready = c.ready;
-    ok(ready > 0, 'time: rows are ready once people and projects exist');
-    msg = await d.commit(); console.log('time commit:', msg);
+    ok(ready === 16 && c.bad === 4, `time: with it, 16 rows are ready (only Ethel's 4 are skipped): ${c.ready}/${c.bad}`);
+    msg = await d.commit();
     ok(new RegExp(`${ready} time entr`).test(msg), 'time: the ready rows were saved');
     const minutes = sql(`select coalesce(sum(minutes),0) from "TimeEntry" e join "User" u on u.id=e."userId" where u.email like '%@clockify-test.com'`);
-    console.log('saved minutes', minutes);
+    ok(minutes === '3900', 'time: the 16 entries add up to 3,900 minutes: ' + minutes);
     await d.load('time'); c = await d.check();
     ok(c.ready === 0 && c.reasons.some((r) => /Already imported/.test(r)), 'time: the same file again is recognised as already imported');
 

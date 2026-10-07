@@ -2,10 +2,10 @@ import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import type { Me } from "./auth";
 import { getSettings } from "./settings";
-import { visibleUsersWhere } from "./scope";
-import { csvObjects } from "./csv";
+import { visibleProjectsWhere, visibleUsersWhere } from "./scope";
+import { EXTRA_CELLS, csvObjects } from "./csv";
 import { monday, toDate, toStr } from "./dates";
-import { CLIENT_COLORS, clean, hasColumn, nameKey, parseDateFlexible, parseDurationFlexible, parseTimeFlexible, pick, splitList } from "./importParse";
+import { CLIENT_COLORS, clean, cleanText, hasColumn, nameKey, parseDateFlexible, parseDurationFlexible, parseTimeFlexible, pick, splitList } from "./importParse";
 import { MAX_TAG_LENGTH, NO_CLIENT } from "./importProjects";
 import { columnNotes, type PreviewRow } from "./importTypes";
 
@@ -47,15 +47,16 @@ export type TimePlan = { projects: Map<string, NewProject>; phases: Map<string, 
 export async function checkTime(me: Me, text: string, wantCreate: boolean) {
   const create = wantCreate && me.role === "ADMIN";
   const settings = await getSettings();
-  const { keys, rows } = csvObjects(text);
-  const need: [string, string[]][] = [["Date", ["date", "start date"]], ["Email", ["email"]], ["Project", ["project"]], ["Hours", ["hours", "duration (h)", "duration"]]];
+  const { keys, rows, total, error: unreadable } = csvObjects(text, MAX_TIME_ROWS);
+  if (unreadable) return { error: unreadable };
+  const need: [string, string[]][] = [["Start Date", ["date", "start date"]], ["Email", ["email"]], ["Project", ["project"]], ["Duration (h)", ["hours", "duration (h)", "duration"]]];
   const missingCols = need.filter(([, names]) => !hasColumn(keys, ...names)).map(([n]) => n);
   if (missingCols.length) return { error: `The first row must name these columns: Project, Email, Start Date, Duration (h). Missing: ${missingCols.join(", ")}.` };
-  if (!rows.length) return { error: "That file has no time entries in it, only the first row." };
-  if (rows.length > MAX_TIME_ROWS) return { error: `That file has ${rows.length} rows. Import at most ${MAX_TIME_ROWS} at a time.` };
+  if (!total) return { error: "That file has no time entries in it, only the first row." };
+  if (total > MAX_TIME_ROWS) return { error: `That file has ${total.toLocaleString("en-US")} rows. Import at most ${MAX_TIME_ROWS.toLocaleString("en-US")} at a time.` };
   const [users, projects, tags, fields, clients] = await Promise.all([
     db.user.findMany({ where: visibleUsersWhere(me), select: { id: true, email: true, name: true, role: true, locationId: true, teamId: true } }),
-    db.project.findMany({ include: projectInclude }),
+    db.project.findMany({ where: visibleProjectsWhere(me), include: projectInclude }), // projects this person can't see are treated as unknown, so the check can't be used to find them
     db.tag.findMany(),
     db.customField.findMany(),
     db.client.findMany({ select: { id: true, name: true } }),
@@ -67,7 +68,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
   const closedSet = new Set(closed.map((c) => `${c.userId}|${toStr(c.weekStart)}`));
   const plan: TimePlan = { projects: new Map(), phases: new Map(), tags: new Map(), clients: new Map() };
 
-  const out: { row: PreviewRow; data?: EntryDraft; key?: string }[] = rows.map(({ line, v: r }) => {
+  const out: { row: PreviewRow; data?: EntryDraft; key?: string }[] = rows.map(({ line, extra, v: r }) => {
     const notes: string[] = [];
     const dateText = pick(r, "date", "start date");
     const date = parseDateFlexible(dateText);
@@ -86,7 +87,8 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const minutes = parseDurationFlexible(pick(r, "hours", "duration (h)", "duration"));
     const startText = pick(r, "start", "start time");
     const startMin = startText ? parseTimeFlexible(startText) : 9 * 60;
-    const custom = Object.fromEntries(fields.map((f) => [f.id, r[f.name.toLowerCase()] ?? ""]));
+    const description = cleanText(pick(r, "description"));
+    const custom = Object.fromEntries(fields.map((f) => [f.id, cleanText(r[f.name.toLowerCase()] ?? "")]));
     const missingCustom = fields.filter((f) => f.required && !custom[f.id]).map((f) => f.name);
     const optionBad = fields.find((f) => f.type === "select" && custom[f.id] && !f.options.includes(custom[f.id]));
     // A project we don't have yet can be created from the file (admins, with the option on); so can a missing phase or tag.
@@ -95,10 +97,11 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const newPhase = (!!p || newProject) && !phase && create && !!phaseName;
     const newTag = !!tagName && !tagId && create;
     const error =
-      !date ? "Date must look like 03/31/2026 or 2026-03-31"
+      extra ? EXTRA_CELLS
+      : !date ? "Date must look like 03/31/2026 or 2026-03-31"
       : !u ? (emailText ? "Unknown person, or not someone you manage" : "No email")
       : !projectName ? "No project"
-      : !p && !newProject ? (matches.length > 1 ? "Two clients have a project with this name; add a Client column" : "Unknown project")
+      : !p && !newProject ? (matches.length > 1 ? "Two clients have a project with this name; add a Client column" : me.role === "ADMIN" ? "Unknown project (tick \"Add what's missing\" to create it)" : "Unknown project. Ask an admin to add it")
       : p?.archived ? "That project is archived"
       : p && !canTrack(p, u) ? "That person doesn't have access to this project"
       : newProject && (projectName.length > 120 || newClientName.length > 120) ? "Project and client names can be up to 120 characters"
@@ -107,17 +110,17 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       : !phase && !newPhase ? `Task (phase) must be one of: ${phases.map((x) => x.name).join(", ")}`
       : tagName && !tagId && !newTag ? `Unknown tag: ${tagName}`
       : newTag && tagName.length > MAX_TAG_LENGTH ? `A tag name can be up to ${MAX_TAG_LENGTH} characters`
-      : settings.requireTag && !tagName ? "Tag is required"
-      : settings.requireDescription && !pick(r, "description") ? "Description is required"
-      : pick(r, "description").length > 3000 ? "Description can be up to 3000 characters"
+      : settings.requireTag && !tagName ? "A tag is required (see Settings)"
+      : settings.requireDescription && !description ? "A description is required (see Settings)"
+      : description.length > 3000 ? "Description can be up to 3000 characters"
       : missingCustom.length ? `${missingCustom.join(", ")} required`
       : optionBad ? `${optionBad.name} must be one of: ${optionBad.options.join(", ")}`
       : !(minutes > 0) || minutes > 1440 ? "Duration must be like 1.5 or 1:30"
       : startMin === null ? "Start must be a time like 09:30 or 9:30 AM"
-      : settings.lockBeforeStr && date <= settings.lockBeforeStr ? "Date is locked"
+      : settings.lockBeforeStr && date <= settings.lockBeforeStr ? "That date is locked (on or before the lock date in Settings)"
       : closedSet.has(`${u.id}|${monday(date)}`) ? "That week is already submitted or approved"
       : "";
-    const cells = [date ?? dateText, u?.name ?? emailText, p ? `${p.name} (${p.client.name})` : projectName ? `${projectName} (${clientGiven || (newProject ? NO_CLIENT : "?")})` : "", phase?.name ?? phaseName, pick(r, "hours", "duration (h)", "duration")];
+    const cells = [date ?? dateText, u?.name ?? emailText, p ? `${p.name} (${p.client.name})` : projectName ? `${projectName} (${clientGiven || (newProject ? NO_CLIENT : "?")})` : "", phase?.name ?? phaseName, tagName, pick(r, "hours", "duration (h)", "duration")];
     const row: PreviewRow = { line, cells, error, notes };
     if (error) return { row };
 
@@ -129,14 +132,13 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       const np = plan.projects.get(projectKey) ?? { key: projectKey, name: projectName, clientName: newClientName, clientId: clients.find((c) => nameKey(c.name) === clientKey)?.id, phases: [] };
       if (!np.phases.some((x) => nameKey(x) === nameKey(phaseName))) np.phases.push(phaseName);
       plan.projects.set(projectKey, np);
-      if (!np.clientId) plan.clients.set(clientKey, newClientName);
+      if (!np.clientId && !plan.clients.has(clientKey)) plan.clients.set(clientKey, newClientName);
     } else if (newPhase) {
       const list = plan.phases.get(p!.id) ?? [];
       if (!list.some((x) => nameKey(x) === nameKey(phaseName))) list.push(phaseName);
       plan.phases.set(p!.id, list);
     }
-    if (newTag) plan.tags.set(nameKey(tagName), tagName);
-    const description = pick(r, "description");
+    if (newTag && !plan.tags.has(nameKey(tagName))) plan.tags.set(nameKey(tagName), tagName);
     const draft: EntryDraft = {
       userId: u!.id, date: date!, startMin: startMin!, minutes, description, custom,
       projectId: p?.id, projectKey, phaseId: phase?.id, phaseName: phase?.name ?? phaseName, tagId, tagKey: newTag ? nameKey(tagName) : undefined,
@@ -177,13 +179,13 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
   const list = (items: string[]) => (items.length > 6 ? `${items.slice(0, 6).join(", ")} and ${items.length - 6} more` : items.join(", "));
   const adds = [
     ...(plan.clients.size ? [`New clients: ${list([...plan.clients.values()])}`] : []),
-    ...(plan.projects.size ? [`New projects: ${list([...plan.projects.values()].map((np) => np.name))}`] : []),
+    ...(plan.projects.size ? [`New projects: ${list([...plan.projects.values()].map((np) => `${np.name} (${np.clientName})`))}`] : []),
     ...(phaseCount ? [`${phaseCount} new phase${phaseCount === 1 ? "" : "s"} (from the Task column)`] : []),
     ...(plan.tags.size ? [`New tags: ${list([...plan.tags.values()])}`] : []),
   ];
   return {
-    headers: ["Date", "Person", "Project", "Phase", "Hours"],
-    columnNotes: columnNotes(keys, USED, IGNORED, fields.map((f) => f.name.toLowerCase())),
+    headers: ["Date", "Person", "Project", "Phase", "Tag", "Hours"],
+    columnNotes: columnNotes(keys, USED, IGNORED, fields.map((f) => f.name.toLowerCase()), rows.map((r) => r.v)),
     adds, out, plan, create,
   };
 }

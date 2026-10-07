@@ -1,16 +1,18 @@
 import type { Role } from "@prisma/client";
 import { db } from "./db";
 import type { Me } from "./auth";
-import { manageError } from "./scope";
+import { getSettings } from "./settings";
+import { manageError, visibleProjectsWhere } from "./scope";
 import { roleName } from "./roles";
-import { csvObjects } from "./csv";
+import { EXTRA_CELLS, csvObjects } from "./csv";
 import { isDateStr, today, toDate } from "./dates";
-import { EMAIL_RE, clean, nameKey, parseDateFlexible, parseRole, pick, projectRefs, splitList, weeklyFromCapacity } from "./importParse";
-import { columnNotes, type PreviewRow } from "./importTypes";
+import { EMAIL_RE, clean, nameKey, parseDateFlexible, parseRole, pick, projectRefs, splitList, weeklyFromCapacity, weeklyProblem } from "./importParse";
+import { columnNotes, type InviteLink, type PreviewRow } from "./importTypes";
 import { INVITE_HOURS, newLinkToken } from "./tokens";
 import { appUrl } from "./email";
 
 export const MAX_PEOPLE = 2000;
+const MAX_MANAGED = 50; // projects listed in one Projects Managed cell
 
 const USED = ["name", "email", "role", "group", "team", "office", "location", "title", "job title", "employee id", "joining date", "expected hours per week",
   "daily work capacity", "working days", "projects managed", "groups managed"];
@@ -29,18 +31,22 @@ export type NewTeam = { name: string; locationId: string };
 /** Reads a People file (the Users template, or our own People export) and says what would happen to each row. Nothing is saved here. */
 export async function checkPeople(me: Me, text: string, officeId: string) {
   if (me.role !== "ADMIN" && me.role !== "LOCATION") return { error: "Only admins and location managers can import people." };
-  const { keys, rows } = csvObjects(text);
+  await getSettings(); // sets the company time zone, which decides what "today" is for the joining date
+  const { keys, rows, total, error: unreadable } = csvObjects(text, MAX_PEOPLE);
+  if (unreadable) return { error: unreadable };
   const missing = ["name", "email"].filter((k) => !keys.includes(k));
   if (missing.length) return { error: `The first row must name these columns: Name, Email. Missing: ${missing.map((m) => m[0].toUpperCase() + m.slice(1)).join(", ")}.` };
-  if (!rows.length) return { error: "That file has no people in it, only the first row." };
-  if (rows.length > MAX_PEOPLE) return { error: `That file has ${rows.length} rows. Import at most ${MAX_PEOPLE} at a time.` };
+  if (!total) return { error: "That file has no people in it, only the first row." };
+  if (total > MAX_PEOPLE) return { error: `That file has ${total.toLocaleString("en-US")} rows. Import at most ${MAX_PEOPLE.toLocaleString("en-US")} at a time.` };
 
   const [locations, teams, users, projects] = await Promise.all([
     db.location.findMany(), db.team.findMany(),
     db.user.findMany({ select: { email: true, employeeId: true } }),
-    db.project.findMany({ include: { client: true, managers: { select: { userId: true } } } }),
+    db.project.findMany({ where: visibleProjectsWhere(me), include: { client: true, managers: { select: { userId: true } } } }),
   ]);
-  const hasOfficeColumn = keys.includes("office") || keys.includes("location");
+  const hasOfficeColumn = keys.includes("office") || keys.includes("location"); // a Location column only counts on rows where it names one of our offices
+  const projectsByName = new Map<string, typeof projects>();
+  for (const pr of projects) { const k = nameKey(pr.name); projectsByName.set(k, [...(projectsByName.get(k) ?? []), pr]); }
   const defaultLoc = locations.find((l) => l.id === (me.role === "LOCATION" ? me.locationId : officeId));
   if (!defaultLoc && !hasOfficeColumn) return { error: "Choose which office these people join." };
   const emails = new Map(users.map((u) => [u.email.toLowerCase(), true]));
@@ -48,10 +54,11 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
   const seenEmail = new Map<string, number>(), seenEmp = new Map<string, number>();
   const newTeams = new Map<string, NewTeam>();
 
-  const out = rows.map(({ line, v: r }) => {
+  const out = rows.map(({ line, extra, v: r }) => {
     const notes: string[] = [];
     const name = clean(pick(r, "name")), email = pick(r, "email").toLowerCase();
-    const officeName = pick(r, "office", "location");
+    const locationCell = pick(r, "location");
+    const officeName = pick(r, "office") || (locations.some((l) => nameKey(l.name) === nameKey(locationCell)) ? locationCell : "");
     const loc = officeName ? locations.find((l) => nameKey(l.name) === nameKey(officeName)) : defaultLoc;
     const roleP = parseRole(r["role"]);
     const groups = splitList(pick(r, "team", "group")).map(clean).filter(Boolean);
@@ -61,18 +68,24 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     else if (!groups.length && roleP.role === "LEADER" && managedGroups.length > 1) notes.push(`Manages ${managedGroups.length} groups; only ${managedGroups[0]} is used as their team`);
     const team = loc && teamName ? teams.find((t) => t.locationId === loc.id && nameKey(t.name) === nameKey(teamName)) : undefined;
 
-    const emp = pick(r, "employee id").replace(/\s+/g, " ");
+    const emp = clean(pick(r, "employee id"));
     const joinText = pick(r, "joining date");
-    const joined = joinText ? parseDateFlexible(joinText) : null;
+    const joined = joinText ? parseDateFlexible(joinText, 1900, 9999) : null;
     const target = pick(r, "expected hours per week");
-    let weekly: number | null | undefined;
-    if (target) weekly = /^\d+(\.\d+)?$/.test(target) ? parseFloat(target) : null;
-    else weekly = weeklyFromCapacity(r["daily work capacity"], r["working days"]);
+    const capacity = r["daily work capacity"], days = r["working days"];
+    let weekly: number | null | undefined, weeklyError = "";
+    if (target) { weekly = /^\d+(\.\d+)?$/.test(target) ? parseFloat(target) : null; if (weekly === null) weeklyError = "Expected hours per week should be a number like 40"; }
+    else {
+      weekly = weeklyFromCapacity(capacity, days);
+      if (weekly === null) weeklyError = weeklyProblem(capacity, days);
+      else if (weekly === undefined && (capacity?.trim() || days?.trim())) notes.push("No Daily Work Capacity given: the usual 40 hours a week is used");
+    }
 
     const firstEmail = email ? seenEmail.get(email) : undefined;
     const firstEmp = emp ? seenEmp.get(emp.toLowerCase()) : undefined;
     const error =
-      !name ? "No name"
+      extra ? EXTRA_CELLS
+      : !name ? "No name"
       : name.length > 100 ? "Name can be up to 100 characters"
       : !email ? "No email"
       : !EMAIL_RE.test(email) ? "That isn't a valid email address"
@@ -89,7 +102,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
         : joinText && !joined ? "Joining date should look like 2021-03-12 or 03/12/2021"
         : joined && joined > today() ? "Joining date can't be in the future"
         : joined && joined < "1950-01-01" ? "Check the joining date. It's before 1950"
-        : weekly === null ? "Check Expected hours per week, Daily Work Capacity and Working Days"
+        : weekly === null ? weeklyError
         : weekly !== undefined && (weekly < 0 || weekly > 80) ? "Expected hours per week should be between 0 and 80"
         : "") ?? "";
 
@@ -99,18 +112,19 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     // Projects Managed: only people who can manage can be added as a manager, and only on projects this person may change.
     const projectIds: string[] = [];
     const managed = splitList(r["projects managed"]);
+    if (managed.length > MAX_MANAGED) notes.push(`Only the first ${MAX_MANAGED} projects in Projects Managed are used`);
     if (managed.length && roleP.role === "MEMBER") notes.push("Projects Managed ignored: Team Members can't manage projects");
     else if (managed.length) {
-      for (const entry of managed) {
+      for (const entry of managed.slice(0, MAX_MANAGED)) {
         let hit: typeof projects = [];
         for (const c of projectRefs(entry)) {
-          hit = projects.filter((p) => nameKey(p.name) === nameKey(c.name) && (!c.client || nameKey(p.client.name) === nameKey(c.client)));
+          hit = (projectsByName.get(nameKey(c.name)) ?? []).filter((p) => !c.client || nameKey(p.client.name) === nameKey(c.client));
           if (hit.length) break;
         }
         if (!hit.length) notes.push(`Project "${entry}" doesn't exist yet. Add them as a manager on the project later`);
         else if (hit.length > 1) notes.push(`"${entry}" matches projects of several clients. Write it as Project:Client`);
         else if (me.role !== "ADMIN" && !hit[0].managers.some((m) => m.userId === me.id)) notes.push(`You can't make someone a manager of ${hit[0].name}`);
-        else projectIds.push(hit[0].id);
+        else if (!projectIds.includes(hit[0].id)) projectIds.push(hit[0].id);
       }
     }
 
@@ -121,7 +135,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     }
     const row: PreviewRow = {
       line, error, notes,
-      cells: [name, email, roleName(roleP.role), loc?.name ?? officeName, teamName ?? "", weekly === undefined || weekly === null ? (target ? target : "") : String(weekly)],
+      cells: [name, email, roleName(roleP.role), loc?.name ?? officeName, teamName ?? "", weekly === null ? target : String(weekly ?? 40)],
     };
     const data: PersonDraft | undefined = error ? undefined : {
       name, email, title: clean(pick(r, "title", "job title")).slice(0, 100), role: roleP.role, locationId: loc!.id, teamKey, weeklyTarget: weekly ?? undefined,
@@ -136,13 +150,13 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     : [];
   return {
     headers: ["Name", "Email", "Role", "Office", "Team", "Hours a week"],
-    columnNotes: columnNotes(keys, USED, IGNORED), adds, out, newTeams,
+    columnNotes: columnNotes(keys, USED, IGNORED, [], rows.map((r) => r.v)), adds, out, newTeams,
   };
 }
 
 /** Saves the checked people together (or none, if anything fails), each with an invite link that works for a week. */
 export async function savePeople(drafts: PersonDraft[], newTeams: Map<string, NewTeam>) {
-  const links: { name: string; email: string; link: string }[] = [];
+  const links: (InviteLink & { id: string; role: Role })[] = [];
   await db.$transaction(async (tx) => {
     const teamIds = new Map<string, string>();
     const used = new Set(drafts.map((d) => d.teamKey).filter(Boolean) as string[]);
@@ -153,7 +167,7 @@ export async function savePeople(drafts: PersonDraft[], newTeams: Map<string, Ne
     }
     for (const d of drafts) {
       const { token, expires } = newLinkToken(INVITE_HOURS);
-      await tx.user.create({
+      const made = await tx.user.create({
         data: {
           name: d.name, email: d.email, title: d.title, role: d.role, locationId: d.locationId,
           teamId: d.teamKey ? (teamIds.get(d.teamKey) ?? d.teamKey) : null,
@@ -163,7 +177,7 @@ export async function savePeople(drafts: PersonDraft[], newTeams: Map<string, Ne
           ...(d.projectIds.length ? { managing: { create: d.projectIds.map((projectId) => ({ projectId })) } } : {}),
         },
       });
-      links.push({ name: d.name, email: d.email, link: `${appUrl()}/invite/${token}` });
+      links.push({ id: made.id, role: d.role, name: d.name, email: d.email, link: `${appUrl()}/invite/${token}` });
     }
   }, { maxWait: 10_000, timeout: 120_000 });
   return links;

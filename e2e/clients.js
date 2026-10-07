@@ -220,10 +220,9 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   }
 
   // --- CSV project import makes new clients with no commitment
-  await go(a,'/import-export');
-  await a.fill('#imp-text-projects',`Client,Project\nImported ${t},First job ${t}`);
-  await a.locator('section:has(#imp-text-projects) button:has-text("Check file")').click();await a.waitForSelector('section:has(#imp-text-projects) table');
-  await a.locator('section:has(#imp-text-projects) button:has-text("Import")').click();await a.waitForSelector('section:has(#imp-text-projects) .alert.ok');
+  const imp=require('./import-util').desk(a,BASE);
+  await imp.paste('projects',`Client,Project\nImported ${t},First job ${t}`);
+  await imp.check();await imp.commit();
   ok('imported client has no commitment',sql(`select type||':'||coalesce("monthlyHours"::text,'-') from "Client" where name='Imported ${t}'`)==='FLOATING:-');
 
   }

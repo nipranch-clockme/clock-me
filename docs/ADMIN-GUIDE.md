@@ -20,15 +20,17 @@ Move all three into accounts the company owns (not one person's personal login) 
 5. Settings: choose time format, required fields, lock date, tags and phase templates.
 
 ## Bringing people, projects and time in from CSV
-Import and export, Import tab. Do the three in this order, because each needs the one before it:
-1. **People.** Download the template (`the-time-sink-people-template.csv`), fill it in, choose the office, check it, import. Everyone gets an invite link that works for 7 days (copy them from the result, or tick the email option if email is switched on). Managers need a Group, because a Team/Project Manager looks after one team. A Group that doesn't exist yet is created. Only admins and location managers can import people, and location managers can only add to their own office.
-2. **Clients and projects.** `the-time-sink-clients-projects-template.csv`. Tasks become the project's phases (blank gives the five Submission phases). A blank Client files the project under *Internal*. Only admins create new clients and tags.
+Import & export, Import tab. Do the three in this order: projects first, so the People file's *Projects Managed* column can link people to them; time last, because it needs the people and the projects.
+1. **Clients and projects.** `the-time-sink-clients-projects-template.csv`. Tasks become the project's phases (blank gives the five Submission phases). A blank Client files the project under *Internal*. Only admins create new clients and tags.
+2. **People.** Download the template (`the-time-sink-people-template.csv`), fill it in, choose the office, check it, import. Everyone gets an invite link that works for 7 days. The links are shown once, so copy them or download the file straight away (or tick the email option if email is switched on). Managers need a Group, because a Team/Project Manager looks after one team (if the Group is blank, the first group in *Groups Managed* is used). A Group that doesn't exist yet is created. *Projects Managed* links only projects that already exist. Only admins and location managers can import people, and location managers can only add to their own office, as Team Members or Team/Project Managers. Working Days can be written like `Mon, Tue, Wed, Thu, Fri`, `Mon-Fri` or `Monday to Friday`.
 3. **Timesheet.** `the-time-sink-timesheet-template.csv`. Needs the people and projects to exist. Admins can tick *Add what's missing* to create unknown projects, clients, phases and tags from the file. A row identical to time already saved is skipped, so a file can be imported twice safely.
 
 Things to know:
 - Nothing is saved until you press Import, and rows with a problem are left out with the reason shown. Fix the file and check it again.
 - Billing columns (Billable, Billable Rate, Cost Rate) are accepted and ignored. Week Start, Employees Managed and Assigned team manager are ignored too.
-- Settings can reject Clockify rows: if tags or descriptions are required, rows without them are skipped, and dates before the lock date are refused. Relax the setting for the import if needed.
+- Settings can reject Clockify rows: if tags or descriptions are required, rows without them are skipped, dates on or before the lock date are refused, and so is time in a week that is already submitted or approved. Relax the setting for the import if needed.
+- If a file still has the template's example rows in it, the check says so and asks you to confirm before it will import them.
+- A file that can't be read (an Excel file, semicolons instead of commas, a quote that is never closed, more values in a row than the header has columns) is refused with the reason, rather than imported wrongly.
 - Only the first tag on a row is kept (one tag per time entry).
 - There is no undo for an import, and clients and projects can't be deleted (only archived), so check the "This import will also add" box before you import.
 

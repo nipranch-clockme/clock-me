@@ -80,10 +80,10 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHead title="Import and export" sub="Bring people, projects and time in from CSV files, or take them out."
+      <PageHead title="Import & export" sub="Bring people, projects and time in from CSV files, or take them out."
         beside={<nav className="seg vt" aria-label="Import or export">
-          <Link href="/import-export" aria-pressed={tab === "import"}>Import</Link>
-          <Link href="/import-export?tab=export" aria-pressed={tab === "export"}>Export</Link>
+          <Link href="/import-export" aria-current={tab === "import" ? "page" : undefined}>Import</Link>
+          <Link href="/import-export?tab=export" aria-current={tab === "export" ? "page" : undefined}>Export</Link>
         </nav>} />
       {tab === "import" ? (
         <>
@@ -97,7 +97,8 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
           </nav>
           <section className="panel">
             <ImportDesk key={kind} kind={kind} info={k.info} templateHref={`/import-export/template/${kind}`} templateFile={t.file}
-              offices={offices.map((o) => ({ id: o.id, name: o.name }))} canCreate={me.role === "ADMIN"} emailOn={emailConfigured()} />
+              offices={offices.map((o) => ({ id: o.id, name: o.name }))} defaultOffice={me.locationId} canCreate={me.role === "ADMIN"} emailOn={emailConfigured()}
+              viewHref={kind === "people" ? "/people" : kind === "projects" ? "/projects" : "/reports"} />
           </section>
         </>
       ) : (

@@ -49,7 +49,7 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     ok(c.rows.some((r) => /up to 100 characters/.test(check(r))), 'people: a 101 character name is refused');
     ok(c.rows.some((r) => r[1] === 'Spacey Name'), 'people: extra spaces in a name are tidied');
     ok(c.ready === 3 && c.adds.some((a) => /Rules Team \(AMD\)/.test(a)), 'people: 3 ready and the new team is announced');
-    ok(c.colnotes.some((n) => /Not used/.test(n)) || c.colnotes.length === 0, 'people: column notes render');
+    ok(c.colnotes.length === 0, 'people: a file with only ordinary columns has no column notes');
     const msg = await d.commit();
     ok(/3 people added/.test(msg), 'people: the three good rows were saved: ' + msg);
     ok(sql(`select count(*) from "User" where email like '%@rules-test.com'`) === '3', 'people: only the good rows are in the database');
@@ -70,7 +70,7 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
       'Rules Zeta,Rules Client,,,0x10,',
     ].join('\n'));
     c = await d.check();
-    ok(check(byName(c.rows, 'Rules Alpha')) === 'Ready' || /Ready/.test(check(c.rows[0])), 'projects: a good row is ready');
+    ok(check(byName(c.rows, 'Rules Alpha')) === 'Ready', 'projects: a good row is ready');
     ok(c.rows[0][1] === 'Rules Client' && c.rows[0][2] === 'Rules Alpha', 'projects: extra spaces in names are tidied');
     ok(/Same project as row 2/.test(check(c.rows[1])), 'projects: the same project twice in one file is refused');
     ok(/Budget must be/.test(check(c.rows[2])), 'projects: a budget of Infinity is refused');
@@ -105,7 +105,7 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     c = await d.check();
     const find = (t) => c.rows.find((r) => r.some((x) => x === t || x.includes(t))) || [];
     ok(c.rows.length === 9, 'time: nine rows listed');
-    ok(c.rows[0][5] === '8:00:00' && check(c.rows[0]) === 'Ready', 'time: 08:00:00 style durations are accepted');
+    ok(c.rows[0][6] === '8:00:00' && check(c.rows[0]) === 'Ready', 'time: 08:00:00 style durations are accepted');
     ok(/Duration must be/.test(check(c.rows[1])), 'time: 1:75 is refused');
     ok(check(c.rows[2]) === 'Ready', 'time: decimal hours and 24 hour start accepted');
     ok(/Only the first tag/.test(check(c.rows[3])), 'time: several tags keep the first, with a heads-up');
@@ -116,7 +116,7 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     ok(/Ready/.test(check(c.rows[8])), 'time: a blank tag is fine when Settings do not require one');
     S.setSettings(true, false, null);
     await d.paste('time', sheet()); c = await d.check();
-    ok(/Tag is required/.test(check(c.rows[8])), 'time: a blank tag is refused when Settings require one');
+    ok(/tag is required/i.test(check(c.rows[8])), 'time: a blank tag is refused when Settings require one');
     S.setSettings(false, true, '2026-10-05');
     await d.paste('time', sheet()); c = await d.check();
     ok(/locked/.test(check(c.rows[0])) && /locked/.test(check(c.rows[2])), 'time: dates on or before the lock date are refused');

@@ -8,12 +8,17 @@ export async function sendEmail(to: string, subject: string, text: string): Prom
     console.log(`[email not configured] To: ${to} | ${subject}\n${text}`);
     return { sent: false };
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM ?? "The Time Sink <onboarding@resend.dev>", to, subject, text }),
-  });
-  return res.ok ? { sent: true } : { sent: false, error: `Email service said ${res.status}` };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM ?? "The Time Sink <onboarding@resend.dev>", to, subject, text }),
+      signal: AbortSignal.timeout(10_000), // a slow email service must never hold up what someone is doing
+    });
+    return res.ok ? { sent: true } : { sent: false, error: `Email service said ${res.status}` };
+  } catch {
+    return { sent: false, error: "The email service couldn't be reached" };
+  }
 }
 
 export const appUrl = () =>
