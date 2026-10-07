@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
-import { parseReportParams, reportWhere, toCsv } from "@/lib/report";
+import { parseReportParams, reportWhere, spToRecord, toCsv } from "@/lib/report";
 import { toStr } from "@/lib/dates";
 import { clock } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
@@ -9,9 +9,9 @@ export async function GET(req: Request) {
   const me = await currentUser();
   if (!me) return new Response("Sign in first", { status: 401 });
   await getSettings(); // sets the company time zone used for date ranges
-  const sp = Object.fromEntries(new URL(req.url).searchParams);
+  const sp = spToRecord(new URL(req.url).searchParams);
   const p = parseReportParams(sp, me);
-  const { where, from, to } = reportWhere(me, p);
+  const { where, from, to } = await reportWhere(me, p);
   const [entries, fields] = await Promise.all([
     db.timeEntry.findMany({
       where, orderBy: [{ date: "asc" }, { startMin: "asc" }],

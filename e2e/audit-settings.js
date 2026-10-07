@@ -9,7 +9,7 @@ const {start,login,BASE}=require('./helpers');
  console.log('fields:',(await a.locator('section:has(h3:has-text("Custom fields")) .item').allInnerTexts()).map(t=>t.replace(/\n/g,' ')).join(' / '));
  await a.fill('#st-tpl','Video');await a.fill('#st-tpl-ph','Script, Shoot, Edit');await a.click('button:has-text("Add template")');await a.waitForTimeout(1000);
  await a.screenshot({path:'/tmp/claude-0/shots/settings.png',fullPage:true});
- await a.goto(BASE+'/reports');await a.waitForLoadState('networkidle');console.log('hh:mm format in reports:',(await a.locator('.stat b').first().innerText()));
+ await a.goto(BASE+'/reports');await a.waitForLoadState('networkidle');console.log('hh:mm format in reports:',(await a.locator('.rtotal b').first().innerText()));
  // revert format, remove Priority field
  await a.goto(BASE+'/settings');await a.check('input[value=decimal]');await a.click('button:has-text("Save settings")');await a.waitForSelector('text=Saved.');
  a.on('dialog',d=>d.accept());await a.locator('.item:has-text("Priority") button:has-text("Remove")').click();await a.waitForTimeout(1200);

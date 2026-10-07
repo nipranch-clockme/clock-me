@@ -30,7 +30,7 @@ Run one office for 1 to 2 weeks. Check that people submit, managers approve, and
 - **Someone leaves:** People, set them inactive (their history stays).
 - **Wrong time entered:** unlock by sending the week back in Approvals, or edit as admin.
 - **Close a month:** set the lock date in Settings.
-- **Export everything:** Import and export, or Reports, Export CSV.
+- **Export everything:** Import and export, or Reports, Export, Save as CSV (it follows whatever filters are applied).
 
 ## Backups
 Neon keeps point-in-time history on its free plan (short window). For a company of this size, upgrade Neon to a paid plan and also export the time CSV monthly.

@@ -18,12 +18,12 @@ const sam=`sam${process.pid}@example.com`;
  console.log('jonas row:',(await p.locator('tr:has-text("Jonas")').innerText()).replace(/\s+/g,' '));
  console.log('errors',p.errs);
  // accept invite in a new context
- const ctx=await b.newContext();const q=await ctx.newPage();await q.goto(link);await q.waitForLoadState('networkidle');console.log('invite page:',await q.textContent('h2'));
+ const ctx=await b.newContext();const q=await ctx.newPage();await q.goto(link.replace(/^https?:\/\/[^/]+/,BASE));await q.waitForLoadState('networkidle');console.log('invite page:',await q.textContent('h2'));
  await q.fill('input[name=password]','samsam123');await q.fill('input[name=confirm]','samsam123');await q.click('button');await q.waitForURL(/\/(timesheet|dashboard)$/,{timeout:60000});console.log('invite accepted ->',q.url().replace(BASE,''));
  // forgot password page
  const r=await ctx.newPage();await r.goto(BASE+'/login/forgot');await r.waitForLoadState('networkidle');
  if(await r.isVisible('#email')){await r.fill('#email','priya@example.com');await r.click('button');await r.waitForSelector('[role=status]:not(:empty)');}
  console.log('forgot:',(await r.locator('[role=status]').textContent()).slice(0,60));
  // the used invite link no longer works
- const q2=await (await b.newContext()).newPage();await q2.goto(link);console.log('used link:',await q2.textContent('h2'));
+ const q2=await (await b.newContext()).newPage();await q2.goto(link.replace(/^https?:\/\/[^/]+/,BASE));console.log('used link:',await q2.textContent('h2'));
  await b.close()})();
