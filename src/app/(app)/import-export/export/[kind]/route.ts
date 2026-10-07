@@ -26,5 +26,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ kind: stri
     rows = [["Name", "Employee ID", "Email", "Title", "Role", "Office", "Team", "Joining date", "Expected hours per week", "Status"],
       ...people.map((u) => [u.name, u.employeeId ?? "", u.email, u.title, roleName(u.role), u.location.name, u.team?.name ?? "", u.joiningDate ? toStr(u.joiningDate) : "", u.weeklyTarget, !u.active ? "Inactive" : u.passwordHash ? "Active" : "Invite pending"])];
   } else return new Response("Not found", { status: 404 });
-  return new Response(toCsv(rows), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="clock-me-${kind}-${today()}.csv"` } });
+  return new Response(toCsv(rows), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="the-time-sink-${kind}-${today()}.csv"` } });
 }

@@ -1,0 +1,21 @@
+Project,Client,Description,Task,Email,Tags,Billable,Start Date,Start Time,Duration (h)
+Cloud Migration,FinStream Partners,Configuring AWS instances,Infrastructure Dev,james.white@clockify-test.com,"T4, T2",No,03/30/2026,9:00 AM,8:00
+Website Redesign,Aura Wellness,Client feedback presentation,Meetings,james.white@clockify-test.com,clientmeeting,Yes,04/04/2026,11:00 AM,1:00
+E-comm Mobile App,Peak Retail Group,Checkout flow refactoring,Development,yvonne.gardner.ivy@clockify-test.com,bugfixing,Yes,04/01/2026,3:00 PM,2:00
+API Integration,HealthSync,Connecting 3rd party lab data,Development,jake.touchstone.dev@clockify-test.com,,Yes,04/02/2026,1:00 PM,4:00
+Monthly Managed Services,Tech-Corp International,Server patching & backups,Maintenance,yvonne.gardner.ivy@clockify-test.com,,Yes,04/08/2026,9:00 AM,3:00
+Brand Identity Redesign,Bloom Floral Studio,Moodboard & color palette,Concept Design,dale.the.knight@clockify-test.com,"research, workshop",Yes,03/31/2026,9:00 AM,8:00
+Skyline Tower - Phase 1,Urban Dev Corp,,Development,ethel.rose.parker@clockify-test.com,T2,No,04/10/2026,9:00 AM,5:00
+Security Audit,,Monthly penetration testing,Testing,dale.the.knight@clockify-test.com,"high priority, internal",Yes,04/05/2026,9:00 AM,8:00
+QA,,Regression testing build #405,Testing,james.white@clockify-test.com,internal,No,04/09/2026,1:00 PM,4:00
+Bridge Renovation,Infrastructure Dept,Blueprint CAD updates,Infrastructure Dev,dale.the.knight@clockify-test.com,,No,04/13/2026,9:00 AM,8:00
+Database Optimization,E-Shop Plus,SQL query tuning for peak load,Review,james.white@clockify-test.com,,Yes,04/12/2026,2:00 PM,1:00
+Helpdesk Support,Logistics Pro,Resolving user access tickets,Managed Services,james.white@clockify-test.com,,Yes,04/11/2026,3:00 PM,2:00
+Q2 Marketing Assets,Solaris Energy,Social media ad campaign,Graphic Design,yvonne.gardner.ivy@clockify-test.com,,Yes,04/03/2026,12:00 PM,3:00
+Site Safety Audit,Petro-Chemical Ltd,Reviewing safety protocols,Review,yvonne.gardner.ivy@clockify-test.com,high priority,Yes,04/14/2026,9:00 AM,4:00
+Core Product V4.0,Internal (Product X),Sprint 12 planning session,Meetings,ethel.rose.parker@clockify-test.com,,No,04/15/2026,9:00 AM,1:00
+Training & Onboarding,,New hire orientation,Education,ethel.rose.parker@clockify-test.com,,No,04/06/2026,12:00 PM,5:00
+Website Redesign,StoreFlow App,Dark mode: CSS variable refactoring,Development,jake.touchstone.dev@clockify-test.com,,Yes,04/16/2026,5:00 PM,4:00
+Platform Development,,"Inventory Sync, optimizing DB sync intervals",Performance,yvonne.gardner.ivy@clockify-test.com,internal,Yes,04/18/2026,9:00 AM,3:00
+Support Bugs,,Fixing race condition on cart,,ethel.rose.parker@clockify-test.com,"bugfixing, internal",No,04/07/2026,3:00 PM,1:00
+Internal,,All Hands Meeting,Meetings,james.white@clockify-test.com,internal,No,04/08/2026,9:00 AM,2:00

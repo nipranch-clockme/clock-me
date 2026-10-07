@@ -41,7 +41,7 @@ const unguard = (v: string) => (/^'[=+\-@]/.test(v) ? v.slice(1) : v);
 /** Turns rows into objects keyed by lower-cased header names, with each row's line number in the file. */
 export function csvObjects(text: string) {
   const [head = { line: 1, cells: [] }, ...rows] = parseCsv(text);
-  const keys = head.cells.map((h) => h.toLowerCase());
+  const keys = head.cells.map((h) => h.toLowerCase().replace(/\s+/g, " "));
   return {
     keys,
     rows: rows.map((r) => ({ line: r.line, v: Object.fromEntries(keys.map((k, i) => [k, unguard(r.cells[i] ?? "")])) as Record<string, string> })),

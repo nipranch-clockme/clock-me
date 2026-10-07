@@ -1,0 +1,26 @@
+Name,Email,Role,Projects Managed,Groups Managed,Employees Managed,Assigned team manager,Group,Billable Rate,Cost Rate,Week Start,Working Days,Daily Work Capacity
+James White,james.white@clockify-test.com,Admin,,,,,,,,Monday,"Mon, Tue, Wed, Thu, Fri",8
+Dale Knight,dale.the.knight@clockify-test.com,"Admin, Project Manager",Aviatica Doo,,,james.white@clockify-test.com,,,,Tuesday,"Mon, Tue, Wed, Thu, Fri",8
+Ethel Rose,ethel.rose.parker@clockify-test.com,Project Manager,"Shiping Frame, Milenials",,,james.white@clockify-test.com,,,,Wednesday,"Mon, Tue, Wed, Thu, Fri",8
+Olivia Green,olivia.green.test@clockify-test.com,Project Manager,"Laventura, New Project:New Client, Another Project:New Client",,,james.white@clockify-test.com,,,,Thursday,"Mon, Tue, Wed, Thu, Fri",8
+Yvonne Gardner,yvonne.gardner.ivy@clockify-test.com,"Admin, Team Manager",,"Team 7, External Team",,james.white@clockify-test.com,,,,Friday,"Mon, Tue, Wed, Thu, Fri",8
+Ben Cyan,ben.cyan.dummy@clockify-test.com,Team Manager,,,"james.orange.dev@clockify-test.com, mia.purple.test@clockify-test.com, chloe.magenta.temp@clockify-test.com, ethan.lime.user@clockify-test.com, lily.pink.qa@clockify-test.com, noah.indigo.dev@clockify-test.com, grace.teal.test@clockify-test.com, sam.violet.dummy@clockify-test.com",james.white@clockify-test.com,,,,Saturday,"Mon, Tue, Wed, Thu, Fri",8
+Jake Touchstone,jake.touchstone.dev@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,50,30,Sunday,"Mon, Tue, Wed, Thu, Fri",8
+Sarah Connor,sarah.connor.test@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,60,30,Monday,"Mon, Tue, Wed, Thu, Fri",8
+John Doe,john.doe.dummy@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,100,70,Tuesday,"Mon, Tue, Wed, Thu, Fri",8
+James Orange,james.orange.dev@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,20,10,Wednesday,"Mon, Tue, Wed, Thu, Fri",8
+Lily Pink,lily.pink.qa@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,20,10,Thursday,"Mon, Tue, Wed, Thu, Fri",8
+Grace Teal,grace.teal.test@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,External Team,20,10,Friday,"Mon, Tue, Wed, Thu, Fri",8
+Jane Smith,jane.smith.temp@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,Team 7,50,30,Saturday,"Mon, Tue, Wed, Thu, Fri",8
+Alex Grey,alex.grey.user@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,Team 7,50,30,Sunday,"Mon, Tue, Wed, Thu, Fri",8
+Emily White,emily.white.qa@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,Team 7,100,70,Monday,"Mon, Tue, Wed, Thu, Fri",8
+Mia Purple,mia.purple.test@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,Team 7,50,30,Tuesday,"Mon, Tue, Wed, Thu, Fri",8
+Sam Violet,sam.violet.dummy@clockify-test.com,,,,,yvonne.gardner.ivy@clockify-test.com,Team 7,50,30,Wednesday,"Mon, Tue, Wed, Thu, Fri",8
+Chris Brown,chris.brown.dev@clockify-test.com,,,,,james.white@clockify-test.com,HR,20,10,Thursday,"Mon, Tue, Wed, Thu, Fri",4
+Michael Black,michael.black.dummy@clockify-test.com,,,,,james.white@clockify-test.com,HR,50,30,Friday,"Mon, Tue, Wed, Thu, Fri",4
+Sophia Blue,sophia.blue.temp@clockify-test.com,,,,,james.white@clockify-test.com,HR,60,50,Saturday,"Mon, Tue, Wed, Thu, Fri",4
+Daniel Red,daniel.red.user@clockify-test.com,,,,,james.white@clockify-test.com,HR,100,80,Sunday,"Mon, Tue, Wed, Thu, Fri",4
+Ava Yellow,ava.yellow.qa@clockify-test.com,,,,,james.white@clockify-test.com,HR,20,10,Monday,"Mon, Tue, Wed, Thu, Fri",4
+Chloe Magenta,chloe.magenta.temp@clockify-test.com,,,,,james.white@clockify-test.com,HR,40,20,Tuesday,"Mon, Tue, Wed, Thu, Fri",4
+Ethan Lime,ethan.lime.user@clockify-test.com,,,,,james.white@clockify-test.com,HR,40,20,Wednesday,"Mon, Tue, Wed, Thu, Fri",4
+Noah Indigo,noah.indigo.dev@clockify-test.com,,,,,james.white@clockify-test.com,HR,40,20,Thursday,"Mon, Tue, Wed, Thu, Fri",4

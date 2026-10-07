@@ -19,6 +19,19 @@ Move all three into accounts the company owns (not one person's personal login) 
 4. People: invite a second admin straight away, then the pilot office's location manager, managers and members.
 5. Settings: choose time format, required fields, lock date, tags and phase templates.
 
+## Bringing people, projects and time in from CSV
+Import and export, Import tab. Do the three in this order, because each needs the one before it:
+1. **People.** Download the template (`the-time-sink-people-template.csv`), fill it in, choose the office, check it, import. Everyone gets an invite link that works for 7 days (copy them from the result, or tick the email option if email is switched on). Managers need a Group, because a Team/Project Manager looks after one team. A Group that doesn't exist yet is created. Only admins and location managers can import people, and location managers can only add to their own office.
+2. **Clients and projects.** `the-time-sink-clients-projects-template.csv`. Tasks become the project's phases (blank gives the five Submission phases). A blank Client files the project under *Internal*. Only admins create new clients and tags.
+3. **Timesheet.** `the-time-sink-timesheet-template.csv`. Needs the people and projects to exist. Admins can tick *Add what's missing* to create unknown projects, clients, phases and tags from the file. A row identical to time already saved is skipped, so a file can be imported twice safely.
+
+Things to know:
+- Nothing is saved until you press Import, and rows with a problem are left out with the reason shown. Fix the file and check it again.
+- Billing columns (Billable, Billable Rate, Cost Rate) are accepted and ignored. Week Start, Employees Managed and Assigned team manager are ignored too.
+- Settings can reject Clockify rows: if tags or descriptions are required, rows without them are skipped, and dates before the lock date are refused. Relax the setting for the import if needed.
+- Only the first tag on a row is kept (one tag per time entry).
+- There is no undo for an import, and clients and projects can't be deleted (only archived), so check the "This import will also add" box before you import.
+
 ## Roles
 Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
 
