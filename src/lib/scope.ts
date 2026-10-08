@@ -47,6 +47,17 @@ export function timeOffError(me: Me, p: { id: string; locationId: string; teamId
 }
 export const canManageTimeOff = (me: Me, p: Parameters<typeof timeOffError>[1]) => !timeOffError(me, p);
 
+/** Why this person can't add or change someone's time entries, or null when they can. Everyone changes their own. Location managers
+ *  can for their own office (never admins or other location managers, as with people), admins for everyone. */
+export function timeEditError(me: Me, p: { id: string; locationId: string; role: Role }): string | null {
+  if (p.id === me.id || me.role === "ADMIN") return null;
+  if (me.role !== "LOCATION") return "Only location managers and admins can add or change someone else's time.";
+  if (p.locationId !== me.locationId) return "You can only change time for people in your own office.";
+  if (p.role === "ADMIN" || p.role === "LOCATION") return "Only admins can change an admin's or location manager's time.";
+  return null;
+}
+export const canEditTimeFor = (me: Me, p: Parameters<typeof timeEditError>[1]) => !timeEditError(me, p);
+
 /** Why this person can't change an office's public holidays, or null when they can: admins any office, location managers their own. */
 export function holidayError(me: Me, locationId: string): string | null {
   if (me.role === "ADMIN" || (me.role === "LOCATION" && locationId === me.locationId)) return null;

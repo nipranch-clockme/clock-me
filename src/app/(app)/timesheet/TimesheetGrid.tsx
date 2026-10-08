@@ -17,7 +17,7 @@ type Tip = { id: string; el: HTMLElement };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
-export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight }: {
+export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight, ownerId, ownerName }: {
   opts: EntryOptions; entries: SheetEntry[]; rows: SheetRow[]; dates: string[]; locked: (string | null)[]; weekStart: string; rowsLocked: boolean;
   /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
   marks?: (DayMark | null)[];
@@ -25,6 +25,8 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   today?: string;
   /** Week actions from the page (copy last week, submit), shown beside "Add project row". */
   footerLeft?: ReactNode; footerRight?: ReactNode;
+  /** Set when the week belongs to someone else whose time the viewer may change (location managers and admins). */
+  ownerId?: string; ownerName?: string;
 }) {
   const router = useRouter();
   const [edit, setEdit] = useState<EntryValue | null>(null);
@@ -79,13 +81,13 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   const showTip = (id: string, el: HTMLElement) => { setTipPos(null); setTip({ id, el }); };
   const openAdd = (r: SheetRow, d: string) => {
     setTip(null);
-    setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
+    setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, ownerName: ownerId ? ownerName : undefined, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
   };
   const openEntry = (e: SheetEntry) => {
     setTip(null);
     // On a project that's closed for new time, the full form lets the person move the entry to another project.
-    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), context: `${e.projectName} is archived or no longer open to you. You can move this entry to another project or delete it.` });
-    setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` });
+    setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
   };
   const changeRow = (fn: typeof addRow, fd: FormData, setError: (m: string) => void, after?: () => void) => {
     setBusy(true);
@@ -98,7 +100,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
       router.refresh();
     });
   };
-  const rowForm = (projectId: string) => { const fd = new FormData(); fd.set("week", weekStart); fd.set("projectId", projectId); return fd; };
+  const rowForm = (projectId: string) => { const fd = new FormData(); fd.set("week", weekStart); fd.set("projectId", projectId); if (ownerId) fd.set("userId", ownerId); return fd; };
 
   return (
     <>
@@ -169,7 +171,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
         <div className="panel">
           <div className="row between" style={{ marginBottom: 8 }}><h2 id="addrow-title">Add a project row</h2><button type="button" className="btn sm" onClick={() => addRef.current?.close()}>Close</button></div>
           {available.length ? (
-            <form ref={addFormRef} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
+            <form ref={addFormRef} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); fd.set("week", weekStart); if (ownerId) fd.set("userId", ownerId); changeRow(addRow, fd, setAddError, () => addRef.current?.close()); }}>
               <label htmlFor="addrow-project">Project</label>
               <SearchSelect id="addrow-project" name="projectId" required alwaysList placeholder="Choose a project" searchLabel="Search projects"
                 options={available.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
@@ -177,12 +179,12 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
               <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={busy}>{busy ? "Adding…" : "Add row"}</button></div>
             </form>
           ) : (
-            <p className="sub" style={{ margin: 0 }}>You already have a row for every project you can log time on.</p>
+            <p className="sub" style={{ margin: 0 }}>{ownerName ? `${ownerName} already has` : "You already have"} a row for every project {ownerName ? "they" : "you"} can log time on.</p>
           )}
         </div>
       </dialog>
       {/* Closing the dialog puts focus back on the chip; don't let that pop the tooltip up. */}
-      <EntryDialog opts={opts} value={edit} onClose={() => { setEdit(null); setTip(null); }} />
+      <EntryDialog opts={opts} value={edit} ownerId={ownerId} onClose={() => { setEdit(null); setTip(null); }} />
     </>
   );
 }

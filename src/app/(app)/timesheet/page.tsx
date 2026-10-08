@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, type Me } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { entryOptions } from "@/lib/entryOptions";
 import { isDayLocked, missingFields } from "@/lib/entries";
+import { canEditTimeFor, visibleUsersWhere } from "@/lib/scope";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
 import { tagText } from "@/lib/tags";
@@ -11,6 +12,7 @@ import { dayMark } from "@/lib/dayMark";
 import { PageHead, Pill, statusTone } from "@/components/ui";
 import CalendarView from "./CalendarView";
 import TimerView from "./TimerView";
+import PersonPicker from "./PersonPicker";
 import DayOffList from "./DayOffList";
 import { ICONS } from "@/components/icons";
 import TimesheetGrid, { type SheetEntry, type SheetRow } from "./TimesheetGrid";
@@ -26,16 +28,24 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const offset = view === "cal" ? rawOffset : Math.min(0, rawOffset); // the calendar can look ahead
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
+  // Whose week this is. Location managers and admins can switch to someone else and add or change their time (never the Timer, which is
+  // always your own); a Team/Project Manager can look at a team member on the Calendar, read only.
+  const canSwitch = view !== "timer" && me.role !== "MEMBER" && !(me.role === "LEADER" && view === "sheet");
+  const people = canSwitch ? await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true }] }, orderBy: { name: "asc" }, include: { team: true, location: true } }) : [];
+  const pickable = view === "sheet" ? people.filter((p) => canEditTimeFor(me, p)) : people;
+  const subject: Me = (sp.u && sp.u !== me.id ? pickable.find((p) => p.id === sp.u) : undefined) ?? me;
+  const others = subject.id !== me.id;
+  const editable = !others || canEditTimeFor(me, subject); // someone else's week is read only unless you may change their time
   const [rows, sheet, opts, savedRows, offs, ex] = await Promise.all([
-    db.timeEntry.findMany({ where: { userId: me.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
-    db.timesheet.findUnique({ where: { userId_weekStart: { userId: me.id, weekStart: toDate(ws) } } }),
-    entryOptions(me),
-    db.timesheetRow.findMany({ where: { userId: me.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
-    dayMarks(me, dates), // public holidays of my office and my time off, for the badges
-    loadExpected([me], { from: ws, to: dates[6] }),
+    db.timeEntry.findMany({ where: { userId: subject.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
+    db.timesheet.findUnique({ where: { userId_weekStart: { userId: subject.id, weekStart: toDate(ws) } } }),
+    entryOptions(subject),
+    db.timesheetRow.findMany({ where: { userId: subject.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
+    dayMarks(subject, dates), // public holidays of their office and their time off, for the badges
+    loadExpected([subject], { from: ws, to: dates[6] }),
   ]);
   const marks = offs.map(dayMark);
-  const want = ex(me, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
+  const want = ex(subject, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
   const adminLocked = (d: string) => !!settings.lockBeforeStr && d <= settings.lockBeforeStr;
@@ -55,7 +65,8 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   for (const r of savedRows) if (open.has(r.projectId)) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
   for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
   const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
-  const href = (v: string, w: number, u?: string) => {
+  const uParam = others ? subject.id : undefined; // the week nav and view buttons stay on the same person
+  const href = (v: string, w: number, u: string | undefined = v === "timer" ? undefined : uParam) => {
     const q = new URLSearchParams();
     if (v !== "sheet") q.set("view", v);
     if (w) q.set("w", String(w));
@@ -67,8 +78,8 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
 
   const run = view === "timer" ? await db.timerRun.findUnique({ where: { userId: me.id } }) : null;
   const blocked = view === "timer" ? await isDayLocked(me.id, today(), settings) : null;
-  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null));
-  const others = view === "cal" && !!sp.u && sp.u !== me.id;
+  const waiting = others ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. Cancel the submission to change it.";
+  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const toggle = (
     <div className="seg vt" role="group" aria-label="Timesheet view">
       {([["sheet", "Timesheet"], ["cal", "Calendar"], ["timer", "Timer"]] as const).map(([k, l]) => (
@@ -86,19 +97,27 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     <>
     <PageHead title="Timesheet" beside={toggle} actions={submitBtn} />
     <section className="panel">
+      {view === "sheet" && pickable.length > 1 && (
+        <div className="row" style={{ marginBottom: 12 }}>
+          <PersonPicker view="sheet" label="Whose time" people={pickable.map((p) => ({ id: p.id, name: p.name }))} current={subject.id} meId={me.id} offset={offset} />
+        </div>
+      )}
+      {others && editable && view === "sheet" && (
+        <p className="alert info" role="status">You are adding and changing time for <strong>{subject.name}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>
+      )}
       <div className="row between" style={{ marginBottom: 14 }}>
         <div className="weeknav">
           <Link className="btn sm" href={href(view, offset - 1)} aria-label="Previous week">‹</Link>
           <strong>{weekLabel(ws)}</strong>
           {view === "cal" || offset < 0 ? <Link className="btn sm" href={href(view, offset + 1)} aria-label="Next week">›</Link> : <span className="btn sm" aria-disabled="true" style={{ opacity: 0.45 }}>›</span>}
           {offset !== 0 && <Link className="linkbtn" href={href(view, 0)}>This week</Link>}
-          {!others && <Pill tone={statusTone(status)}>{status.toLowerCase()}</Pill>}
+          {(!others || editable) && <Pill tone={statusTone(status)}>{status.toLowerCase()}</Pill>}
           {dates.some(adminLocked) && <Pill tone="locked">Locked period</Pill>}
         </div>
-        {!others && (
+        {(!others || editable) && (
           <div className="stats">
             <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
-            <div className="stat"><b>{want ? Math.round((total / want) * 100) : me.weeklyTarget ? "–" : 0}{want || !me.weeklyTarget ? "%" : ""}</b><span title={want < me.weeklyTarget * 60 ? "Your weekly target less public holidays and time off" : undefined}>{want === me.weeklyTarget * 60 ? `of ${me.weeklyTarget} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
+            <div className="stat"><b>{want ? Math.round((total / want) * 100) : subject.weeklyTarget ? "–" : 0}{want || !subject.weeklyTarget ? "%" : ""}</b><span title={want < subject.weeklyTarget * 60 ? "The weekly target less public holidays and time off" : undefined}>{want === subject.weeklyTarget * 60 ? `of ${subject.weeklyTarget} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
           </div>
         )}
       </div>
@@ -124,7 +143,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} locked={dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it." : "This week is approved.") : null))} footerLeft={statusLocked ? <span className="note">{canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subject.name : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
@@ -133,7 +152,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       </p>
       </>}
       {view !== "cal" && <DayOffList dates={dates} marks={marks} />}
-      {view === "cal" && <CalendarView me={me} settings={settings} offset={offset} u={sp.u} />}
+      {view === "cal" && <CalendarView me={me} subject={subject} people={people.map((p) => ({ id: p.id, name: p.name }))} editable={editable} opts={opts} settings={settings} offset={offset} />}
       {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
     </section>
     </>

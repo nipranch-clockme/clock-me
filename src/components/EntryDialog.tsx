@@ -9,7 +9,8 @@ import TagPicker from "@/components/TagPicker";
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const dur = (m: number | undefined, f: "decimal" | "hhmm") => (m == null ? (f === "hhmm" ? "1:00" : "1.00") : f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
 
-export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void }) {
+/** `ownerId` is set when the time belongs to someone else (a location manager or admin adding or changing it on their behalf). */
+export default function EntryDialog({ opts, value, onClose, ownerId }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void; ownerId?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -19,12 +20,12 @@ export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptio
   }, [value]);
   return (
     <dialog ref={ref} className="wide" onClose={onClose} aria-labelledby="entry-title">
-      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "")} opts={opts} value={value} onDone={() => ref.current?.close()} />}
+      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "")} opts={opts} value={value} ownerId={ownerId} onDone={() => ref.current?.close()} />}
     </dialog>
   );
 }
 
-function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryValue; onDone: () => void }) {
+function EntryForm({ opts, value, onDone, ownerId }: { opts: EntryOptions; value: EntryValue; onDone: () => void; ownerId?: string }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<EntryResult, FormData>(saveEntry, null);
   const [projectId, setProjectId] = useState(value.projectId ?? opts.projects[0]?.id ?? "");
@@ -82,12 +83,13 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
         <button type="button" className="btn sm" onClick={onDone}>Close</button>
       </div>
       {value.context && <p className="sub" style={{ marginBottom: 6 }}>{value.context}</p>}
-      {value.ownerName && <p className="sub">{value.ownerName}</p>}
+      {value.ownerName && <p className="sub">{ownerId ? `On behalf of ${value.ownerName}` : value.ownerName}</p>}
       {value.lockedReason && <p className="alert info">{value.lockedReason}</p>}
       {!ro && <p className="sub">Required fields are marked *</p>}
       <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }}>
         <fieldset disabled={ro} style={{ border: 0, padding: 0, margin: 0 }}>
           <input type="hidden" name="id" value={value.id ?? ""} />
+          {ownerId && <input type="hidden" name="userId" value={ownerId} />}
           {fixed ? (
             <div className="row">
               <input type="hidden" name="projectId" value={projectId} />

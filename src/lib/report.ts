@@ -21,6 +21,8 @@ export type Tab = (typeof TABS)[number][0];
 
 export type ReportParams = {
   tab: Tab; range: string; from?: string; to?: string; group: string; group2?: string; est?: string; desc?: string;
+  /** "approvals" when the page was opened from Approvals (Review Time): it keeps the way back and shows overtime for that week. */
+  ref?: string;
 } & Record<FilterKey, string[]>;
 
 type SP = Record<string, string | string[] | undefined>;
@@ -42,6 +44,7 @@ export function parseReportParams(sp: SP, me: Me): ReportParams {
     group2: GROUPS.some((g) => g[0] === s("group2")) && s("group2") !== group ? s("group2") : undefined,
     est: s("est") === "1" && group === "project" ? "1" : undefined,
     desc: s("desc")?.slice(0, 200),
+    ref: s("ref") === "approvals" ? "approvals" : undefined,
     person: list("person"), team: list("team"), client: list("client"), project: list("project"), phase: list("phase"), tag: list("tag"),
     status: list("status").filter((x) => STATUSES.some((t) => t[0] === x)), location: me.role === "ADMIN" ? list("location") : [], // only admins filter by office
   };

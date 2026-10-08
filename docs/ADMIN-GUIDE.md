@@ -43,7 +43,7 @@ Clients, open the client, **Client link**, Create link. Copy it and send it to t
 - The panel shows when the link was last opened. Only admins can create or change links.
 
 ## Roles
-Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
+Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers (their own office) and admins (anyone) can also add and change time on someone's behalf. Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
 
 ## Pilot, then roll out
 Run one office for 1 to 2 weeks. Check that people submit, managers approve, and Reports match expectations. Then add one office at a time.
@@ -51,7 +51,8 @@ Run one office for 1 to 2 weeks. Check that people submit, managers approve, and
 ## Everyday tasks
 - **Forgot password:** People, create a password reset link, send it to the person.
 - **Someone leaves:** People, set them inactive (their history stays).
-- **Wrong time entered:** unlock by sending the week back in Approvals, or edit as admin.
+- **Wrong time entered, or someone forgot to log:** location managers (for people in their own office) and admins (for anyone) can add and change time on the person's behalf. Open Timesheet or Calendar and pick the person in **Whose time**. A submitted or approved week must be sent back from Approvals first, and a day on or before the lock date can't be changed. Every change is written to the change log as "on behalf of", and the person still submits their own week.
+- **Overtime:** Approvals and *Review Time* highlight time above the week's expected hours (the weekly target less public holidays and time off) with an *OT* mark. Reports and CSV exports do not show it.
 - **Close a month:** set the lock date in Settings. Holidays and time off on or before the lock date can't be added or removed either.
 - **Public holiday:** Time off, Public holidays, pick the office (admins) and add it. "All offices" is for a holiday everyone shares. Paste several at once with one line each, like `2026-12-25, Christmas Day` (add `(half)` for a half day).
 - **Someone is on leave:** Time off, Add time off. Managers can add it for the people they manage. Hours logged on a day off still count, as extra. Changing a holiday or time off changes the numbers for past periods too.

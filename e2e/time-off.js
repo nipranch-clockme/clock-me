@@ -259,6 +259,7 @@ const esc=(s)=>String(s).replace(/'/g,"''");
    const secret=(require('fs').readFileSync(process.env.ENVFILE||'/tmp/cm-demo/.env','utf8').match(/^CRON_SECRET="?([^"\n]+)"?/m)||[])[1];
    const cron=async()=>(await (await fetch(BASE+'/api/cron/reminders',{headers:{authorization:`Bearer ${secret}`}})).json()).sent.daily;
    const pv=dow(today)===0?addDays(today,-3):addDays(today,-1);
+   sql(`delete from "Holiday" where id='${t}h2'`); // this week's test holiday is Wednesday, which is "yesterday" on a Thursday
    sql(`update "User" set "createdAt"=now()-interval '200 days' where id='${M}'`);
    sql(`delete from "TimeEntry" where "userId"='${M}' and date='${pv}'`);
    const c0=await cron();

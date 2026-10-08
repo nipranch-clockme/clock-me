@@ -11,6 +11,7 @@ export const roleName = (r: Role) => ROLES.find((x) => x[0] === r)?.[1] ?? r;
 type Cell = "y" | "n" | string;
 export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Add own time in timesheet and calendar", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
+  ["Add or change time on someone else's behalf (written to the change log)", { MEMBER: "n", LEADER: "n", LOCATION: "Own office, not admins or location managers", ADMIN: "y" }],
   ["See own reports", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
   ["See other people's entries, reports, profiles and dashboard", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Approve or send back timesheets", { MEMBER: "n", LEADER: "Own team, own included", LOCATION: "Own office, if really needed", ADMIN: "Everyone, if really needed" }],

@@ -31,7 +31,9 @@ type Drag = { date: string; anchor: number; cur: number; y0: number; moved: bool
 const range = (d: Drag) => (d.cur === d.anchor ? [d.anchor, d.anchor + SNAP] : [Math.min(d.anchor, d.cur), Math.max(d.anchor, d.cur)]);
 const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-export default function CalendarWeek({ opts, dates, entries, today, editable, locked, marks = [], ownerName }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string;
+export default function CalendarWeek({ opts, dates, entries, today, editable, locked, marks = [], ownerName, ownerId }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string;
+  /** Set when the week belongs to someone else whose time the viewer may change (location managers and admins). */
+  ownerId?: string;
   /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
   marks?: (DayMark | null)[] }) {
   // The grid shows 07:00 to 20:00, and stretches when an entry starts earlier or ends later so nothing is cut off.
@@ -96,7 +98,8 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
     setDragBoth(null);
     const [start, end] = range(cur);
     // A plain click adds the default hour at that slot; a drag adds exactly the dragged time.
-    setEdit(cur.moved ? { date: cur.date, startMin: start, minutes: end - start } : { date: cur.date, startMin: Math.min(cur.anchor, (H1 - 1) * 60) });
+    const who = ownerId ? { ownerName } : {};
+    setEdit(cur.moved ? { date: cur.date, startMin: start, minutes: end - start, ...who } : { date: cur.date, startMin: Math.min(cur.anchor, (H1 - 1) * 60), ...who });
   };
 
   return (
@@ -119,7 +122,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
                 if (lastPointer.current !== "touch" || !canAdd(i) || (ev.target as HTMLElement).closest(".ev")) return;
                 const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
                 const mins = Math.max(H0 * 60, Math.min((H1 - 1) * 60, H0 * 60 + Math.floor(((ev.clientY - r.top) / PX) * 4) * 15));
-                setEdit({ date: d, startMin: mins });
+                setEdit({ date: d, startMin: mins, ...(ownerId ? { ownerName } : {}) });
               }}>
               {drag?.date === d && drag.moved && (() => {
                 const [a, b] = range(drag);
@@ -138,7 +141,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
               })()}
               {(() => { const day = entries.filter((e) => e.date === d); const pos = layout(day); return day.map((e) => { const { col, cols } = pos.get(e.id)!; return (
                 <button key={e.id} className="ev" style={{ top: Math.max(0, (e.startMin / 60 - H0) * PX), height: Math.max(18, (e.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left", left: `calc(${(col / cols) * 100}% + 3px)`, right: "auto", width: `calc(${100 / cols}% - 6px)` }}
-                  onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerName: editable ? undefined : ownerName })}>
+                  onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerName: editable && !ownerId ? undefined : ownerName })}>
                   <b>{e.projectName}</b><span>{hm(e.startMin)} · {f(e.minutes)}</span>
                 </button>
               ); }); })()}
@@ -146,7 +149,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
           ))}
         </div>
       </div>
-      <EntryDialog opts={opts} value={edit} onClose={() => setEdit(null)} />
+      <EntryDialog opts={opts} value={edit} ownerId={ownerId} onClose={() => setEdit(null)} />
     </>
   );
 }

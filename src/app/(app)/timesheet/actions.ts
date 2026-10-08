@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { isDayLocked, missingFields } from "@/lib/entries";
+import { isDayLocked, missingFields, timeSubject } from "@/lib/entries";
 import { readTagIds } from "@/lib/tags";
 import { trackableProjectsWhere } from "@/lib/scope";
 import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
@@ -12,8 +12,12 @@ import { fmtHours, parseDuration } from "@/lib/format";
 
 export type EntryResult = { ok: boolean; error?: string; fields?: string[] } | null;
 
+/** Adds or changes a time entry for the signed-in person, or on someone's behalf when the form names them (location managers and admins). */
 export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryResult> {
   const me = await requireUser();
+  const who = await timeSubject(me, String(form.get("userId") ?? ""));
+  if ("error" in who) return { ok: false, error: who.error };
+  const person = who.person, onBehalf = person.id !== me.id;
   const settings = await getSettings();
   const id = String(form.get("id") ?? "");
   const projectId = String(form.get("projectId") ?? "");
@@ -25,8 +29,8 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const [hh, mm] = start.split(":").map(Number);
   const startMin = (hh || 0) * 60 + (mm || 0);
 
-  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(me) }, include: { phases: true } });
-  if (!project) return { ok: false, error: "Choose a project you can log time on.", fields: ["projectId"] };
+  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, include: { phases: true } });
+  if (!project) return { ok: false, error: onBehalf ? `Choose a project ${person.name} can log time on.` : "Choose a project you can log time on.", fields: ["projectId"] };
   const phaseId = String(form.get("phaseId") ?? "") || null;
   const phase = phaseId ? project.phases.find((p) => p.id === phaseId) : null;
   if (phaseId && !phase) return { ok: false, error: "That phase doesn't belong to this project.", fields: ["phaseId"] };
@@ -42,17 +46,17 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   // A phase the project manager removed can stay on old entries, but can't be picked for new time.
   if (phase && phase.sort >= 999 && old?.phaseId !== phase.id) return { ok: false, error: "That phase has been removed from the project. Choose another.", fields: ["Phase"] };
   if (id) {
-    if (!old || old.userId !== me.id) return { ok: false, error: "You can only change your own entries." };
-    const lockOld = await isDayLocked(me.id, toStr(old.date), settings);
+    if (!old || old.userId !== person.id) return { ok: false, error: onBehalf ? `That entry isn't ${person.name}'s.` : "You can only change your own entries." };
+    const lockOld = await isDayLocked(person.id, toStr(old.date), settings, onBehalf);
     if (lockOld) return { ok: false, error: lockOld };
   }
-  const lock = await isDayLocked(me.id, date, settings);
+  const lock = await isDayLocked(person.id, date, settings, onBehalf);
   if (lock) return { ok: false, error: lock };
 
   const data = { projectId, phaseId, tagIds, description, custom, date: toDate(date), startMin, minutes };
   if (id) await db.timeEntry.update({ where: { id }, data });
-  else await db.timeEntry.create({ data: { ...data, userId: me.id } });
-  await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}`, me.id);
+  else await db.timeEntry.create({ data: { ...data, userId: person.id } });
+  await logAction(me.id, `${id ? "Changed" : "Added"} ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}${onBehalf ? ` on behalf of ${person.name}` : ""}`, person.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
   return { ok: true };
@@ -62,17 +66,21 @@ export async function deleteEntry(form: FormData) {
   const me = await requireUser();
   const settings = await getSettings();
   const e = await db.timeEntry.findUnique({ where: { id: String(form.get("id")) }, include: { project: true } });
-  if (!e || e.userId !== me.id) throw new Error("You can only delete your own entries.");
-  const lock = await isDayLocked(me.id, toStr(e.date), settings);
+  if (!e) throw new Error("You can only delete your own entries.");
+  // Someone else's entry can be deleted by a location manager or admin who may change that person's time.
+  const who = e.userId === me.id ? { person: me } : await timeSubject(me, e.userId);
+  if ("error" in who) throw new Error(me.role === "ADMIN" || me.role === "LOCATION" ? who.error : "You can only delete your own entries.");
+  const person = who.person, onBehalf = person.id !== me.id;
+  const lock = await isDayLocked(person.id, toStr(e.date), settings, onBehalf);
   if (lock) throw new Error(lock);
   await db.timeEntry.delete({ where: { id: e.id } });
   // Deleting the last entry on a project that week keeps its timesheet row, so the person can add time again straight away.
   const ws = monday(toStr(e.date));
-  const left = await db.timeEntry.count({ where: { userId: me.id, projectId: e.projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
-  if (!left && (await db.project.count({ where: { id: e.projectId, ...trackableProjectsWhere(me) } }))) {
-    await db.timesheetRow.createMany({ data: [{ userId: me.id, weekStart: toDate(ws), projectId: e.projectId }], skipDuplicates: true });
+  const left = await db.timeEntry.count({ where: { userId: person.id, projectId: e.projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  if (!left && (await db.project.count({ where: { id: e.projectId, ...trackableProjectsWhere(person) } }))) {
+    await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId: e.projectId }], skipDuplicates: true });
   }
-  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}`, me.id);
+  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}${onBehalf ? ` on behalf of ${person.name}` : ""}`, person.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
 }
@@ -80,38 +88,44 @@ export async function deleteEntry(form: FormData) {
 export type RowResult = { ok: boolean; error?: string };
 
 /** The week's own status lock (submitted or approved). Admin lock dates only stop changes to time, not rows. */
-async function weekClosed(userId: string, ws: string) {
+async function weekClosed(userId: string, ws: string, onBehalf = false) {
   const sheet = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(ws) } } });
-  return sheet?.status === "SUBMITTED" ? "This week is waiting for approval. Cancel the submission to change it."
+  return sheet?.status === "SUBMITTED" ? (onBehalf ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. Cancel the submission to change it.")
     : sheet?.status === "APPROVED" ? "This week is approved." : null;
 }
 
 export async function addRow(form: FormData): Promise<RowResult> {
   const me = await requireUser();
+  const who = await timeSubject(me, String(form.get("userId") ?? ""));
+  if ("error" in who) return { ok: false, error: who.error };
+  const person = who.person;
   const week = String(form.get("week") ?? "");
   const projectId = String(form.get("projectId") ?? "");
   if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
   const ws = monday(week);
-  const closed = await weekClosed(me.id, ws);
+  const closed = await weekClosed(person.id, ws, person.id !== me.id);
   if (closed) return { ok: false, error: closed };
-  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(me) }, select: { id: true } });
-  if (!project) return { ok: false, error: "Choose a project you can log time on." };
-  await db.timesheetRow.createMany({ data: [{ userId: me.id, weekStart: toDate(ws), projectId }], skipDuplicates: true });
+  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, select: { id: true } });
+  if (!project) return { ok: false, error: person.id === me.id ? "Choose a project you can log time on." : `Choose a project ${person.name} can log time on.` };
+  await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId }], skipDuplicates: true });
   revalidatePath("/timesheet");
   return { ok: true };
 }
 
 export async function removeRow(form: FormData): Promise<RowResult> {
   const me = await requireUser();
+  const who = await timeSubject(me, String(form.get("userId") ?? ""));
+  if ("error" in who) return { ok: false, error: who.error };
+  const person = who.person;
   const week = String(form.get("week") ?? "");
   const projectId = String(form.get("projectId") ?? "");
   if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
   const ws = monday(week);
-  const closed = await weekClosed(me.id, ws);
+  const closed = await weekClosed(person.id, ws, person.id !== me.id);
   if (closed) return { ok: false, error: closed };
-  const hasTime = await db.timeEntry.count({ where: { userId: me.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
+  const hasTime = await db.timeEntry.count({ where: { userId: person.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
   if (hasTime) return { ok: false, error: "This row has time on it. Delete its entries first." };
-  await db.timesheetRow.deleteMany({ where: { userId: me.id, weekStart: toDate(ws), projectId } });
+  await db.timesheetRow.deleteMany({ where: { userId: person.id, weekStart: toDate(ws), projectId } });
   revalidatePath("/timesheet");
   return { ok: true };
 }
