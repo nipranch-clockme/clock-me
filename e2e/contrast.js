@@ -134,13 +134,15 @@ async function withOverlays(p, path) {
   sql(`insert into "Holiday"(id,"locationId",date,name,fraction) values('ctrh1','${priya[1]}','${dt(2)}','Contrast Day',1),('ctrh2','${priya[1]}','${dt(4)}','Contrast Half',0.5)`);
   sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,"updatedAt") values('ctro1','${priya[0]}','${dt(3)}','${dt(3)}',1,'PTO',now())`);
   sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,source,"externalId","updatedAt") values('ctro2','${priya[0]}','${dt(21)}','${dt(22)}',0.5,'Sick leave','keka','ctr-1',now())`);
-  // Overtime marks (Approvals card, Review Time banner and entry rows) and the "on behalf of" banner: a member of Daniel's team with a submitted 45 h week.
+  // Overtime marks (Approvals card, Review Time banner and entry rows) and the "on behalf of" banner: a member of Daniel's team with a submitted week that has time tagged OT.
   const dan = sql(`select "locationId"||'|'||"teamId"||'|'||"passwordHash" from "User" where email='daniel@example.com'`).split('|');
   const ow = dt(-14);
   const ot = 'ctrot';
   const [opr, oph] = sql(`select p.id||'|'||ph.id from "Project" p join "Phase" ph on ph."projectId"=p.id where p.access='PUBLIC' and not p.archived and ph.sort<999 order by p.name, ph.sort limit 1`).split('|');
   sql(`insert into "User"(id,email,name,"passwordHash",role,"locationId","teamId","weeklyTarget","createdAt") values('${ot}','${ot}@example.com','Contrast Overtime','${dan[2]}','MEMBER','${dan[0]}','${dan[1]}',40,now()-interval '200 days')`);
-  for (let i = 0; i < 5; i++) sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${ot}e${i}','${ot}','${opr}','${oph}','{}','${dt(-14 + i)}',540,540,'work','{}',now())`);
+  if (sql(`select count(*) from "Tag" where lower(name)='ot'`) === '0') sql(`insert into "Tag"(id,name) values('${ot}t','OT')`);
+  const otTag = sql(`select id from "Tag" where lower(name)='ot' order by name limit 1`);
+  for (let i = 0; i < 5; i++) sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${ot}e${i}','${ot}','${opr}','${oph}','{${i >= 3 ? otTag : ''}}','${dt(-14 + i)}',540,540,'work','{}',now())`);
   sql(`insert into "Timesheet"(id,"userId","weekStart",status,"updatedAt") values('${ot}s','${ot}','${ow}','SUBMITTED',now())`);
   const review = `/reports?range=custom&from=${ow}&to=${dt(-8)}&person=${ot}&group=project&tab=detailed&ref=approvals`;
   ROLES['admin@example.com'].push(review, `/timesheet?u=${ot}`, `/timesheet?view=cal&u=${ot}`);
@@ -189,7 +191,7 @@ async function withOverlays(p, path) {
       }
     }
   } catch (e) { console.log('ERR', e.message.slice(0, 600)); fails++; }
-  finally { sql(`delete from "User" where id='${ot}'`); sql(`delete from "Holiday" where id in ('ctrh1','ctrh2')`); sql(`delete from "TimeOff" where id in ('ctro1','ctro2')`); sql(`update "Client" set "shareToken"=null where "shareToken"='${token}'`); await b.close(); }
+  finally { sql(`delete from "User" where id='${ot}'`); sql(`delete from "Tag" where id='${ot}t'`); sql(`delete from "Holiday" where id in ('ctrh1','ctrh2')`); sql(`delete from "TimeOff" where id in ('ctro1','ctro2')`); sql(`update "Client" set "shareToken"=null where "shareToken"='${token}'`); await b.close(); }
   console.log(fails ? `${fails} FAILED` : 'ALL PASSED');
   process.exit(fails ? 1 : 0);
 })();

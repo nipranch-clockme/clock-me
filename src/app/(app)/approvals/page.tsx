@@ -9,7 +9,7 @@ import { PageHead, Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
 import { loadExpected } from "@/lib/timeoff";
-import { weekOvertime } from "@/lib/overtime";
+import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import { staleText } from "@/lib/approvalText";
 
 export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ stale?: string; skipped?: string }> }) {
@@ -38,9 +38,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const entries = pending.length
     ? await db.timeEntry.findMany({
         where: { OR: pending.map((s) => ({ userId: s.userId, date: { gte: s.weekStart, lte: toDate(addDays(toStr(s.weekStart), 6)) } })) },
-        select: { id: true, userId: true, date: true, startMin: true, minutes: true, projectId: true, project: { select: { name: true, client: { select: { name: true, color: true } } } } },
+        select: { userId: true, date: true, minutes: true, tagIds: true, projectId: true, project: { select: { name: true, client: { select: { name: true, color: true } } } } },
       })
     : [];
+  const otIds = await loadOtTagIds();
   // Sent-back weeks still count as not submitted. People who started after that week aren't listed.
   const submitted = new Set(lastWeekSheets.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED").map((s) => s.userId));
   // Expected hours for each person and week: weekly hours over Monday to Friday, less their office's public holidays and their time off.
@@ -56,15 +57,15 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             const total = es.reduce((a, e) => a + e.minutes, 0);
             const want = ex(s.user, ws, we, { whole: true });
             const fullWeek = s.user.weeklyTarget * 60;
-            // Overtime: time above this week's expected hours, highlighted here and in Review Time (not in the reports).
-            const ot = weekOvertime(es.map((e) => ({ id: e.id, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes })), want, s.user.weeklyTarget > 0).ot;
+            // Overtime: the time tagged OT, highlighted here and in Review Time (not in the reports).
+            const ot = es.reduce((a, e) => a + (hasOtTag(e.tagIds, otIds) ? e.minutes : 0), 0);
             const byP = new Map<string, { m: number; color: string; name: string }>();
             es.forEach((e) => { const x = byP.get(e.projectId) ?? { m: 0, color: e.project.client.color, name: e.project.name }; x.m += e.minutes; byP.set(e.projectId, x); });
             return (
               <div className={"item" + (ot > 0 ? " ot" : "")} style={{ flexWrap: "wrap" }} key={s.id}>
                 <div style={{ minWidth: 0, flex: "1 1 300px" }}>
                   <strong><Link className="plink" href={`/profile/${s.userId}`}>{s.user.name}</Link></strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
-                  <div className="meta">{f(total)} of {f(want)} h {want < fullWeek ? "expected" : "target"} {want < fullWeek && <span title="Weekly target less public holidays and time off">({f(fullWeek)} h target less holidays and time off) </span>}{want > 0 && total < want && <Pill tone="warn">Under target</Pill>}{ot > 0 && <span title="Time logged above this week's expected hours"><Pill tone="ot">OT {f(ot)} h</Pill></span>}</div>
+                  <div className="meta">{f(total)} of {f(want)} h {want < fullWeek ? "expected" : "target"} {want < fullWeek && <span title="Weekly target less public holidays and time off">({f(fullWeek)} h target less holidays and time off) </span>}{want > 0 && total < want && <Pill tone="warn">Under target</Pill>}{ot > 0 && <span title="Time tagged OT this week"><Pill tone="ot">OT {f(ot)} h</Pill></span>}</div>
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>

@@ -7,8 +7,7 @@ import { GROUPS, TIME_GROUPS, TABS, STATUSES, parseReportParams, reportWhere, re
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
 import { clock, fmtHours, pct } from "@/lib/format";
 import { tagText } from "@/lib/tags";
-import { loadExpected } from "@/lib/timeoff";
-import { weekOvertime } from "@/lib/overtime";
+import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
 import { PageHead, Ifld, Pill } from "@/components/ui";
@@ -73,18 +72,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const dupProjectName = (name: string) => scopeProjects.filter((x) => x.name === name).length > 1;
   const dupPersonName = (name: string) => people.filter((x) => x.name === name).length > 1;
 
-  // Review Time (from Approvals) for one person and one whole week also shows their overtime: the time above that week's expected
-  // hours. It is for reviewing only, so the other reports never show it.
-  const reviewPerson = fromApprovals && me.role !== "MEMBER" && p.person.length === 1 && from === monday(from) && to === addDays(from, 6) ? U.get(p.person[0]) : undefined;
-  const ot = reviewPerson && reviewPerson.weeklyTarget > 0
-    ? await (async () => {
-        const [weekEntries, ex] = await Promise.all([
-          db.timeEntry.findMany({ where: { userId: reviewPerson.id, date: { gte: toDate(from), lte: toDate(to) } }, select: { id: true, date: true, startMin: true, minutes: true } }),
-          loadExpected([reviewPerson], { from, to }),
-        ]);
-        const want = ex(reviewPerson, from, to, { whole: true });
-        return { want, ...weekOvertime(weekEntries.map((e) => ({ id: e.id, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes })), want) };
-      })()
+  // Review Time (from Approvals) also marks the time tagged OT (overtime). It is for reviewing only, so the other reports never show it.
+  const otIds = fromApprovals && me.role !== "MEMBER" ? await loadOtTagIds() : [];
+  const otCombos = otIds.length ? combos.filter((c) => hasOtTag(c.tagIds, otIds)) : [];
+  const ot = otCombos.length
+    ? { minutes: otCombos.reduce((a, c) => a + (c._sum.minutes ?? 0), 0), entries: otCombos.reduce((a, c) => a + c._count, 0), people: [...new Set(otCombos.map((c) => c.userId))] }
     : undefined;
 
   const total = combos.reduce((a, c) => a + (c._sum.minutes ?? 0), 0);
@@ -199,9 +191,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <PageHead title="Reports"
         actions={fromApprovals ? <Link className="btn" href="/approvals">Back to Approvals</Link> : undefined}
         sub={`Showing: ${scopeLabel(me)} · ${longDate(shownFrom)} to ${longDate(shownTo)}`} />
-      {ot && ot.ot > 0 && (
+      {ot && (
         <p className="alert ot" role="status">
-          <Pill tone="ot">OT {f(ot.ot)} h</Pill> {reviewPerson!.name} logged {f(ot.logged)} h this week against {f(ot.want)} h expected. In the Detailed view, the time after the expected hours were used up is marked OT.
+          <Pill tone="ot">OT {f(ot.minutes)} h</Pill> {plural(ot.entries, "entry", "entries")} tagged OT in this view{ot.people.length === 1 ? ` (${U.get(ot.people[0])?.name ?? "one person"})` : `, from ${plural(ot.people.length, "person", "people")}`}. {p.tab === "detailed" ? "Each one is marked below." : "The Detailed view marks each one."}
         </p>
       )}
       <AutoForm key={reportQuery(p)} manual className="rform">
@@ -305,13 +297,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th><th>CLIENT</th><th>PROJECT</th><th>PHASE</th><th>TAGS</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => (
-                    <tr key={e.id} className={ot?.byEntry.has(e.id) ? "otrow" : undefined}>
+                    <tr key={e.id} className={hasOtTag(e.tagIds, otIds) ? "otrow" : undefined}>
                       <td data-l="Date">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
                       <td data-l="Time" className="nw">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}</td>
                       <td data-l="Person"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
                       <td data-l="Client">{e.project.client.name}</td>
                       <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td><td data-l="Description">{e.description}</td>
-                      <td className="num" data-l="Hours">{f(e.minutes)}{ot?.byEntry.has(e.id) && <> <span title="Time above this week's expected hours"><Pill tone="ot">{ot.byEntry.get(e.id)! < e.minutes ? `OT ${f(ot.byEntry.get(e.id)!)}` : "OT"}</Pill></span></>}</td>
+                      <td className="num" data-l="Hours">{f(e.minutes)}{hasOtTag(e.tagIds, otIds) && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
                     </tr>
                   ))}
                   {!detailRows.length && <tr><td colSpan={9} className="empty">No time in this range.</td></tr>}
