@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireUser, type Me } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { entryOptions } from "@/lib/entryOptions";
-import { isDayLocked, missingFields } from "@/lib/entries";
+import { HIDDEN_PROJECT, hiddenProjectIds, isDayLocked, missingFields } from "@/lib/entries";
 import { canEditTimeFor, visibleUsersWhere } from "@/lib/scope";
 import { addDays, monday, today, toDate, toStr, weekLabel, DAYS } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -49,7 +49,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     loadExpected([subject], { from: ws, to: dates[6] }),
   ]);
   const marks = offs.map(dayMark);
-  const weekly = ex.weekly(subject, ws); // their weekly hours this month
+  // Someone else's week: a project the signed-in manager can't see is shown without its name, client or phase.
+  const hidden = await hiddenProjectIds(me, subject.id, [...rows, ...savedRows].map((x) => x.projectId));
+  const weekly = ex.plain(subject, ws, dates[6]) / 60; // the week's expected hours before public holidays and time off, each month at its own weekly hours
   const want = ex(subject, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
@@ -60,14 +62,14 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const missingList = sp.missing ? (await Promise.all(rows.map(async (e) => ({ e, miss: await missingFields(e, settings) })))).filter((x) => x.miss.length) : [];
   const tagNames = new Map(opts.tags.map((t) => [t.id, t.name]));
   const entries: SheetEntry[] = rows.map((e) => ({
-    id: e.id, projectId: e.projectId, projectName: e.project.name, clientName: e.project.client.name, clientColor: e.project.client.color,
-    phaseId: e.phaseId, phaseName: e.phase?.name ?? "No phase", tagIds: e.tagIds, tagName: tagText(e.tagIds, tagNames), description: e.description,
+    id: e.id, projectId: e.projectId, projectName: hidden.has(e.projectId) ? HIDDEN_PROJECT : e.project.name, clientName: hidden.has(e.projectId) ? "" : e.project.client.name, clientColor: e.project.client.color,
+    phaseId: e.phaseId, phaseName: hidden.has(e.projectId) ? "" : (e.phase?.name ?? "No phase"), tagIds: e.tagIds, tagName: tagText(e.tagIds, tagNames), description: e.description,
     custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes,
   }));
   // One row per project: the ones added for this week (while still open to log on) plus any with time this week.
   const sheetRows = new Map<string, SheetRow>();
   const open = new Set(opts.projects.map((p) => p.id));
-  for (const r of savedRows) if (open.has(r.projectId)) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: r.project.name, clientName: r.project.client.name, clientColor: r.project.client.color });
+  for (const r of savedRows) if (open.has(r.projectId)) sheetRows.set(r.projectId, { projectId: r.projectId, projectName: hidden.has(r.projectId) ? HIDDEN_PROJECT : r.project.name, clientName: hidden.has(r.projectId) ? "" : r.project.client.name, clientColor: r.project.client.color });
   for (const e of entries) if (!sheetRows.has(e.projectId)) sheetRows.set(e.projectId, { projectId: e.projectId, projectName: e.projectName, clientName: e.clientName, clientColor: e.clientColor });
   const rowList = [...sheetRows.values()].sort((a, b) => a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName));
   const uParam = others ? subject.id : undefined; // the week nav and view buttons stay on the same person

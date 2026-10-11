@@ -111,6 +111,12 @@ export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
   return { AND: [visibleProjectsWhere(me), { archived: false }] };
 }
 
+/** Projects time can be logged on for this person. When someone does it on their behalf, the signed-in manager must see the project too:
+ *  a manager never gets to log time on, or change time on, a project they could not see. */
+export function loggableProjectsWhere(me: Me, person: Me): Prisma.ProjectWhereInput {
+  return { AND: [trackableProjectsWhere(person), ...(me.id === person.id ? [] : [visibleProjectsWhere(me)])] };
+}
+
 export const canCreateProject = (me: Me) => me.role !== "MEMBER";
 export const canEditProject = (me: Me, managerIds: string[]) => me.role === "ADMIN" || (me.role !== "MEMBER" && managerIds.includes(me.id));
 

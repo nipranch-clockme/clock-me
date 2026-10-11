@@ -94,7 +94,7 @@ const cron = async () => (await fetch(BASE + "/api/cron/reminders", { headers: {
     ok(r.status() < 400 && !(await p.locator("text=Application error").count()), `${path} loads with demo data`);
   }
   await p.goto(BASE + "/people"); await p.waitForLoadState("networkidle");
-  ok(await p.locator("tbody tr", { hasText: "Invite pending" }).count() === 0, "no demo person shows as an invite pending");
+  ok(n(`select count(*) from "User" u where ${DEMO} and u."passwordHash" is null`) === 0, "no demo person is waiting for an invite");
   ok(await p.locator("tbody tr", { hasText: "demo.timesink.example" }).count() >= 30, "demo people are listed");
 
   // a second add is not offered, and the server refuses it too

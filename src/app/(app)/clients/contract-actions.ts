@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
-import { logAction } from "@/lib/settings";
+import { getSettings, logAction } from "@/lib/settings";
 import { toDate } from "@/lib/dates";
 import { contractOf, loadContractMonths } from "@/lib/clients";
 import { changeText, gridYear, readCells, rowEdit, yearMonths, type GridResult } from "@/lib/monthGrid";
@@ -14,6 +14,7 @@ const same = (a: string[], b: string[]) => a.length === b.length && [...a].sort(
 export async function saveContractMonths(_: GridResult, form: FormData): Promise<GridResult> {
   const me = await requireTab("clients");
   if (me.role !== "ADMIN") return { ok: false, error: "Only admins can change contracts." };
+  await getSettings(); // sets the company time zone, which decides which years the table offers
   const year = gridYear(String(form.get("year") ?? ""));
   const months = yearMonths(year);
   const cells = readCells(form, months);

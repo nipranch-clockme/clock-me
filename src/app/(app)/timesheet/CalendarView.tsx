@@ -4,6 +4,7 @@ import type { Me } from "@/lib/auth";
 import { addDays, monday, today, toDate, toStr, DAYS } from "@/lib/dates";
 import { dayMarks } from "@/lib/timeoff";
 import { dayMark } from "@/lib/dayMark";
+import { HIDDEN_PROJECT, hiddenProjectIds } from "@/lib/entries";
 import type { EntryOptions } from "@/components/entryTypes";
 import type { AppSettings } from "@/lib/settings";
 import CalendarWeek from "./CalendarWeek";
@@ -22,6 +23,7 @@ export default async function CalendarView({ me, subject, subjectName = subject.
   ]);
   const marks = offs.map(dayMark);
   const others = subject.id !== me.id;
+  const hidden = await hiddenProjectIds(me, subject.id, rows.map((e) => e.projectId)); // another person's projects the signed-in manager can't see
   const statusLocked = sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED";
   const waiting = others ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. To change it, cancel the submission.";
   const locked = dates.map((d) => (settings.lockBeforeStr && d <= settings.lockBeforeStr ? "This date is locked by an admin." : statusLocked ? (sheet!.status === "SUBMITTED" ? waiting : "This week is approved.") : null));
@@ -35,7 +37,7 @@ export default async function CalendarView({ me, subject, subjectName = subject.
         opts={opts} dates={dates} today={today()} editable={editable} locked={locked} marks={marks}
         ownerId={others && editable ? subject.id : undefined}
         ownerName={subjectName}
-        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: e.phase?.name ?? "", tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
+        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: hidden.has(e.projectId) ? HIDDEN_PROJECT : e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: hidden.has(e.projectId) ? "" : (e.phase?.name ?? ""), tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
       />
       <DayOffList dates={dates} marks={marks} />
       <div className="legend">{clients.map((c) => <span key={c.id}><i style={{ background: `var(--${c.color})` }} />{c.name}</span>)}</div>

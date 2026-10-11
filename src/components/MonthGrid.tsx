@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useMemo, useState } from "react";
 import TableFilter from "./TableFilter";
 import { MONTH_ABBR, cellName, type GridResult } from "@/lib/monthGrid";
 
@@ -41,26 +41,46 @@ const show = (v: number, usual: number) => (v > 0 ? String(v) : usual > 0 ? "0" 
 const num = (s: string) => { const n = s.trim() === "" ? 0 : Number(s); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 const same = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+type Cells = Record<string, string[]>;
+type Kinds = Record<string, string[]>;
+const cellsOf = (rs: GridRow[], usualOf: (r: GridRow) => number) => Object.fromEntries(rs.map((r) => [r.id, r.values.map((v) => show(v, usualOf(r)))]));
+const kindsOfRows = (rs: GridRow[]): Kinds => Object.fromEntries(rs.map((r) => [r.id, r.workTypes ?? []]));
 
-/** A table with one row per client or person and a box for each month, saved together. */
+/** A table with one row per client or person and a box for each month, saved together. Only the boxes and ticks the person changed are sent,
+ *  so a page left open while someone else changes another figure cannot write back the old one. */
 export default function MonthGrid({ action, kind, year, months, heads, leadCols, rows, now, refMonth, refDays, tags = [], searchLabel, noun }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
-  const initial = useMemo(() => Object.fromEntries(rows.map((r) => [r.id, r.values.map((v) => show(v, r.usual))])), [rows]);
-  const [vals, setVals] = useState<Record<string, string[]>>(initial);
-  const kindsOf = () => Object.fromEntries(rows.map((r) => [r.id, r.workTypes ?? []]));
-  const [wts, setWts] = useState<Record<string, string[]>>(kindsOf);
-  // When the server sends fresh figures (after a save), the boxes show them: a blank box becomes the 0 it was stored as.
-  const [seen, setSeen] = useState(initial);
-  if (seen !== initial) { setSeen(initial); setVals(initial); setWts(kindsOf()); }
+  const contracts = kind === "contracts";
+  const usualOf = (r: GridRow) => r.usual;
+  const initial = useMemo(() => cellsOf(rows, usualOf), [rows]); // the figures the server sent last
+  const kinds = useMemo(() => kindsOfRows(rows), [rows]);
+  const fromServer = JSON.stringify([initial, kinds]); // by content, so a re-render with the same figures changes nothing
+  const [vals, setVals] = useState<Cells>(initial);
+  const [wts, setWts] = useState<Kinds>(kinds);
+  const [base, setBase] = useState({ json: fromServer, cells: initial, kinds });
+  // The server sent figures again (after a save, or a refresh): take them, but keep what the person has changed and not yet saved.
+  if (base.json !== fromServer) {
+    const nextVals: Cells = Object.fromEntries(Object.entries(initial).map(([id, cs]) => [id, cs.map((c, i) => {
+      const typed = vals[id]?.[i] ?? c, was = base.cells[id]?.[i] ?? c;
+      return typed !== was ? typed : c;
+    })]));
+    const nextWts: Kinds = Object.fromEntries(Object.keys(kinds).map((id) => [id, same(wts[id] ?? kinds[id], base.kinds[id] ?? []) ? kinds[id] : (wts[id] ?? kinds[id])]));
+    setBase({ json: fromServer, cells: initial, kinds });
+    setVals(nextVals);
+    setWts(nextWts);
+  }
   const editable = rows.filter((r) => r.editable);
-  const valsOf = (r: GridRow) => vals[r.id] ?? initial[r.id]; // a row that appeared after the table was loaded starts from what the server sent
-  const dirty = editable.some((r) => valsOf(r).some((s, i) => num(s) !== num(initial[r.id][i])) || (kind === "contracts" && !same(wts[r.id] ?? [], r.workTypes ?? [])));
+  const valsOf = (r: GridRow) => vals[r.id] ?? initial[r.id];
+  const changedCell = (r: GridRow, i: number) => num(valsOf(r)[i]) !== num(initial[r.id][i]);
+  const changedKinds = (r: GridRow) => !same(wts[r.id] ?? [], kinds[r.id] ?? []);
+  const dirty = editable.some((r) => valsOf(r).some((_, i) => changedCell(r, i)) || (contracts && changedKinds(r)));
   const cell = (r: GridRow, i: number, s: string) => setVals((p) => ({ ...p, [r.id]: (p[r.id] ?? initial[r.id]).map((x, j) => (j === i ? s : x)) }));
   const sums = months.map((_, i) => rows.reduce((a, r) => a + num(valsOf(r)[i]), 0));
-  const contracts = kind === "contracts";
+  // Saved by hand, not by a form action, so the browser does not clear the search box (or anything else) when the save comes back.
+  const save = (ev: React.FormEvent<HTMLFormElement>) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => formAction(fd)); };
 
   return (
-    <form action={formAction}>
+    <form onSubmit={save}>
       <input type="hidden" name="year" value={year} />
       <TableFilter label={searchLabel} placeholder={`${searchLabel}…`} />
       <div className="tablebox"><table className="mgrid">
@@ -74,6 +94,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
           {rows.map((r) => {
             const v = valsOf(r), total = v.reduce((a, s) => a + num(s), 0), perDay = refDays ? num(v[refMonth]) / refDays : 0;
             const picked = tags.filter((t) => (wts[r.id] ?? []).includes(t.id)).map((t) => t.name); // in the tags' own order, however they were ticked
+            const kindsName = contracts && changedKinds(r) ? `w|${r.id}` : undefined;
             return (
               <tr key={r.id}>
                 {r.lead}
@@ -82,7 +103,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                   return (
                     <td key={m} className="num mc" data-l={MONTH_ABBR[i]}>
                       {r.editable
-                        ? <input className={`cell${diff ? " chg" : ""}`} type="number" min="0" step="any" inputMode="decimal" name={cellName(r.id, m)} value={v[i]}
+                        ? <input className={`cell${diff ? " chg" : ""}`} type="number" min="0" step="any" inputMode="decimal" name={changedCell(r, i) ? cellName(r.id, m) : undefined} value={v[i]}
                             onChange={(e) => cell(r, i, e.target.value)} aria-label={`${r.name}, ${MONTH_ABBR[i]} ${year}`} title={diff ? `Different from the usual ${fmt(r.usual)}` : undefined} />
                         : <span className={diff ? "chgtxt" : undefined}>{v[i] || "–"}</span>}
                     </td>
@@ -96,9 +117,9 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                     {r.editable && tags.length > 0
                       ? <details className="wtpick">
                           <summary>{picked.length ? picked.join(" + ") : <span className="note">Choose</span>}</summary>
-                          <input type="hidden" name={`w|${r.id}`} value="" />
+                          {kindsName && <input type="hidden" name={kindsName} value="" />}
                           <div className="wtbox">{tags.map((t) => (
-                            <label key={t.id} className="tagpick-i"><input type="checkbox" name={`w|${r.id}`} value={t.id} checked={(wts[r.id] ?? []).includes(t.id)}
+                            <label key={t.id} className="tagpick-i"><input type="checkbox" name={kindsName} value={t.id} checked={(wts[r.id] ?? []).includes(t.id)}
                               onChange={(e) => setWts((p) => ({ ...p, [r.id]: e.target.checked ? [...(p[r.id] ?? []), t.id] : (p[r.id] ?? []).filter((x) => x !== t.id) }))} />{t.name}</label>
                           ))}</div>
                         </details>

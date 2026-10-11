@@ -39,6 +39,8 @@ const count=(q)=>+sql(q);
  const act=(page,url,name,fields)=>page.evaluate(async({url,action,fields})=>{const fd=new FormData();for(const [k,v] of Object.entries(fields)){if(Array.isArray(v))v.forEach((x)=>fd.append('_1_'+k,x));else fd.append('_1_'+k,v);}fd.append('0','[null,"$K1"]');
   const r=await fetch(url,{method:'POST',headers:{'next-action':action,accept:'text/x-component'},body:fd});return {status:r.status,text:await r.text()};},{url:BASE+url,action:watched[name],fields});
  const refused=(r,sub)=>/"ok":false/.test(r.text)&&(!sub||new RegExp(sub).test(r.text));
+// The refusal reads the same whether the person is in another office or an admin, so nobody can tell who exists there.
+const GENERIC="isn't in your list|can't change the hours";
  const go=async(p,path)=>{await p.goto(BASE+path);await p.waitForLoadState('networkidle');};
  const saved=async(p,text)=>{await p.waitForFunction((x)=>[...document.querySelectorAll('.mg-save .note')].some((n)=>n.textContent.includes(x)),text,{timeout:20000}).catch(()=>{});};
  const pages=[];
@@ -185,13 +187,13 @@ const count=(q)=>+sql(q);
   r=await act(rav,'/people','saveHours',{year:String(y),[`m|${M}|${ymAt(mi)}`]:'81'});
   ok('crafted: more than 80 hours a week is refused',refused(r,'0 to 80')&&snapH()===beforeH,r.text.slice(-140));
   r=await act(rav,'/people','saveHours',{year:String(y),[`m|${M}|${ymAt(mi)}`]:'30',[`m|${LM2}|${ymAt(mi)}`]:'30'});
-  ok('crafted: a manager cannot change another location manager, and nothing else in that save is kept',refused(r,'permission')&&snapH()===beforeH,r.text.slice(-140));
+  ok('crafted: a manager cannot change another location manager, and nothing else in that save is kept',refused(r,GENERIC)&&snapH()===beforeH,r.text.slice(-140));
   r=await act(rav,'/people','saveHours',{year:String(y),[`m|${OM}|${ymAt(mi)}`]:'30'});
-  ok('crafted: nor someone in another office',refused(r,'permission')&&snapH()===beforeH);
+  ok('crafted: nor someone in another office',refused(r,GENERIC)&&snapH()===beforeH);
   r=await act(rav,'/people','saveHours',{year:String(y),[`m|${KA}|${ymAt(mi)}`]:'30'});
-  ok('crafted: nor an admin',refused(r,'permission')&&snapH()===beforeH);
+  ok('crafted: nor an admin',refused(r,GENERIC)&&snapH()===beforeH);
   r=await act(rav,'/people','saveHours',{year:String(y),[`m|${RAVI}|${ymAt(mi)}`]:'30'});
-  ok('crafted: nor themselves',refused(r,'permission')&&snapH()===beforeH);
+  ok('crafted: nor themselves',refused(r,GENERIC)&&snapH()===beforeH);
   r=await act(mp,'/dashboard','saveHours',{year:String(y),[`m|${M}|${ymAt(mi)}`]:'10'});
   ok('crafted: a team member cannot change their own hours',snapH()===beforeH);
   // admin

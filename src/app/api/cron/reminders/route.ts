@@ -34,8 +34,8 @@ export async function GET(req: Request) {
     const prev = dow(t) === 0 ? addDays(t, -3) : addDays(t, -1);
     if (!s.lockBeforeStr || prev > s.lockBeforeStr) {
       const totals = new Map((await db.timeEntry.groupBy({ by: ["userId"], where: { date: toDate(prev) }, _sum: { minutes: true } })).map((x) => [x.userId, x._sum.minutes ?? 0]));
-      // A half day off halves the minimum; a whole day off (holiday or time off) skips the person.
-      const owed = (p: (typeof people)[number]) => s.dailyMinimum * 60 * ex.days(p, prev, prev, { whole: true });
+      // A half day off halves the minimum; a whole day off (holiday or time off) skips the person. A day with no expected hours at all (a month set to 0) is owed nothing.
+      const owed = (p: (typeof people)[number]) => (ex(p, prev, prev, { whole: true }) > 0 ? s.dailyMinimum * 60 * ex.days(p, prev, prev, { whole: true }) : 0);
       for (const u of people.filter((p) => owed(p) > 0 && (totals.get(p.id) ?? 0) < owed(p) && starts.get(p.id)! <= prev)) {
         await sendEmail(u.email, `Time missing for ${longDate(prev)}`, `Hi ${u.name.split(" ")[0]},\n\nYou logged less than ${s.dailyMinimum} hours on ${longDate(prev)}. Please add the rest: ${link}`);
         sent.daily++;

@@ -2,13 +2,18 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, type Me } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
 import { isDayLocked, missingFields, timeSubject } from "@/lib/entries";
 import { readTagIds } from "@/lib/tags";
-import { trackableProjectsWhere } from "@/lib/scope";
+import { loggableProjectsWhere, trackableProjectsWhere, visibleProjectsWhere } from "@/lib/scope";
 import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, parseDuration } from "@/lib/format";
+
+/** On someone's behalf, a project the signed-in manager can see (see loggableProjectsWhere). Anyone's own projects are always fine. */
+async function canSeeProject(me: Me, projectId: string) {
+  return !!(await db.project.count({ where: { id: projectId, ...visibleProjectsWhere(me) } }));
+}
 
 export type EntryResult = { ok: boolean; error?: string; fields?: string[] } | null;
 
@@ -29,7 +34,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const [hh, mm] = start.split(":").map(Number);
   const startMin = (hh || 0) * 60 + (mm || 0);
 
-  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, include: { phases: true } });
+  const project = await db.project.findFirst({ where: { id: projectId, ...loggableProjectsWhere(me, person) }, include: { phases: true } });
   if (!project) return { ok: false, error: onBehalf ? `Choose a project ${person.name} can log time on.` : "Choose a project you can log time on.", fields: ["projectId"] };
   const phaseId = String(form.get("phaseId") ?? "") || null;
   const phase = phaseId ? project.phases.find((p) => p.id === phaseId) : null;
@@ -47,6 +52,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   if (phase && phase.sort >= 999 && old?.phaseId !== phase.id) return { ok: false, error: "That phase has been removed from the project. Choose another.", fields: ["Phase"] };
   if (id) {
     if (!old || old.userId !== person.id) return { ok: false, error: onBehalf ? `That entry isn't ${person.name}'s.` : "You can only change your own entries." };
+    if (onBehalf && !(await canSeeProject(me, old.projectId))) return { ok: false, error: `That entry isn't ${person.name}'s.` };
     const lockOld = await isDayLocked(person.id, toStr(old.date), settings, onBehalf);
     if (lockOld) return { ok: false, error: lockOld };
   }
@@ -71,13 +77,14 @@ export async function deleteEntry(form: FormData) {
   const who = e.userId === me.id ? { person: me } : await timeSubject(me, e.userId);
   if ("error" in who) throw new Error(me.role === "ADMIN" || me.role === "LOCATION" ? who.error : "You can only delete your own entries.");
   const person = who.person, onBehalf = person.id !== me.id;
+  if (onBehalf && !(await canSeeProject(me, e.projectId))) throw new Error(`That entry isn't ${person.name}'s.`);
   const lock = await isDayLocked(person.id, toStr(e.date), settings, onBehalf);
   if (lock) throw new Error(lock);
   await db.timeEntry.delete({ where: { id: e.id } });
   // Deleting the last entry on a project that week keeps its timesheet row, so the person can add time again straight away.
   const ws = monday(toStr(e.date));
   const left = await db.timeEntry.count({ where: { userId: person.id, projectId: e.projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
-  if (!left && (await db.project.count({ where: { id: e.projectId, ...trackableProjectsWhere(person) } }))) {
+  if (!left && (await db.project.count({ where: { id: e.projectId, ...loggableProjectsWhere(me, person) } }))) {
     await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId: e.projectId }], skipDuplicates: true });
   }
   await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}${onBehalf ? ` on behalf of ${person.name}` : ""}`, person.id);
@@ -105,7 +112,7 @@ export async function addRow(form: FormData): Promise<RowResult> {
   const ws = monday(week);
   const closed = await weekClosed(person.id, ws, person.id !== me.id);
   if (closed) return { ok: false, error: closed };
-  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, select: { id: true, name: true } });
+  const project = await db.project.findFirst({ where: { id: projectId, ...loggableProjectsWhere(me, person) }, select: { id: true, name: true } });
   if (!project) return { ok: false, error: person.id === me.id ? "Choose a project you can log time on." : `Choose a project ${person.name} can log time on.` };
   await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId }], skipDuplicates: true });
   if (person.id !== me.id) await logAction(me.id, `Added the ${project.name} row for ${weekLabel(ws)} on behalf of ${person.name}`, person.id);
@@ -124,6 +131,7 @@ export async function removeRow(form: FormData): Promise<RowResult> {
   const ws = monday(week);
   const closed = await weekClosed(person.id, ws, person.id !== me.id);
   if (closed) return { ok: false, error: closed };
+  if (person.id !== me.id && !(await canSeeProject(me, projectId))) return { ok: false, error: `Choose a project ${person.name} can log time on.` };
   const hasTime = await db.timeEntry.count({ where: { userId: person.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
   if (hasTime) return { ok: false, error: "This row has time on it. Delete its entries first." };
   const gone = await db.timesheetRow.deleteMany({ where: { userId: person.id, weekStart: toDate(ws), projectId } });

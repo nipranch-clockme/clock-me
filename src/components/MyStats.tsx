@@ -51,12 +51,13 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
   const bars = weeks.map((ws) => ({ ws, m: logged(ws, addDays(ws, 6)), e: ex(me, ws, addDays(ws, 6), { whole: true }) }));
   const top = Math.max(target * 60, ...bars.map((b) => b.m), 1);
 
-  if (!target) {
+  // The card stays while any period has expected hours: a month set to 0 (a sabbatical, say) still has last week and last month to compare.
+  if (!target && !lwE && !lmE && !monthE) {
     return <section className="panel full"><h3>Your numbers</h3><p className="empty">{me.role === "ADMIN" ? "Admins are not counted in utilisation, so there are no numbers to compare your time with." : "Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change."}</p></section>;
   }
   return (
     <section className="panel full" aria-label="Your numbers">
-      <div className="ch"><h3>Your numbers</h3><span className="cd">Hours logged divided by your {f(target * 60)} expected hours a week, counting complete working days, less public holidays and your time off</span>{collapsible && <CollapseButton bodyId="mynumbers-body" cookie="tsink-mynumbers" closed={closed} />}</div>
+      <div className="ch"><h3>Your numbers</h3><span className="cd">{target ? <>Hours logged divided by your {f(target * 60)} expected hours a week</> : <>Hours logged divided by the expected hours of each period</>}, counting complete working days, less public holidays and your time off</span>{collapsible && <CollapseButton bodyId="mynumbers-body" cookie="tsink-mynumbers" closed={closed} />}</div>
       <div id="mynumbers-body" hidden={collapsible && closed}>
       <div className="insights">
         <div className="insight">

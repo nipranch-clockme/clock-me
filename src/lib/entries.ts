@@ -2,7 +2,7 @@ import { db } from "./db";
 import { monday, toDate } from "./dates";
 import type { AppSettings } from "./settings";
 import type { Me } from "./auth";
-import { timeEditError, visibleUsersWhere } from "./scope";
+import { timeEditError, visibleProjectsWhere, visibleUsersWhere } from "./scope";
 
 /** A day is locked when an admin has locked it, or the person's week is submitted or approved. */
 export async function isDayLocked(userId: string, date: string, settings: AppSettings, onBehalf = false) {
@@ -41,4 +41,16 @@ export async function timeSubject(me: Me, userId: string | null | undefined): Pr
   if (denied) return { error: denied };
   if (!person.active) return { error: `${person.name} is not active.` };
   return { person };
+}
+
+/** The label shown in place of a project's name, client and phase when the signed-in person may not see that project. */
+export const HIDDEN_PROJECT = "A project you can't see";
+
+/** Of these projects, the ids the signed-in person may not see. Only someone else's time is looked at: their own time, and everything for an
+ *  admin, is always shown in full. Used so a manager reads another person's week without learning the names of projects they can't see. */
+export async function hiddenProjectIds(me: Me, ownerId: string, projectIds: string[]): Promise<Set<string>> {
+  if (me.id === ownerId || me.role === "ADMIN" || !projectIds.length) return new Set();
+  const seen = await db.project.findMany({ where: { id: { in: [...new Set(projectIds)] }, ...visibleProjectsWhere(me) }, select: { id: true } });
+  const ok = new Set(seen.map((p) => p.id));
+  return new Set(projectIds.filter((id) => !ok.has(id)));
 }

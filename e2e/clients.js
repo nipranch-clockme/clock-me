@@ -230,7 +230,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   await go(a,'/settings');
   const row=(await a.locator('table.matrix tr:has-text("See the client dashboard")').textContent());
   ok('roles table lists the client dashboard',row.includes('Yes, people in own office only'));
-  ok('roles table lists setting contracts',(await a.locator('table.matrix tr:has-text("contracted hours per month")').count())===1);
+  ok('roles table lists setting contracts',(await a.locator('table.matrix tr:has-text("usual contracted hours")').count())===1);
   const ph=await (await b.newContext({viewport:{width:390,height:800}})).newPage();
   await ph.goto(BASE+'/login');await ph.fill('#email','oliver@example.com');await ph.fill('#password','password123');await ph.click('button:has-text("Sign in")');await ph.waitForURL(u=>!u.pathname.startsWith('/login'));
   for(const path of ['/clients',`/clients/${t}fx`]){await go(ph,path);ok(`phone: ${path.replace(t,'…')} fits the screen`,(await ph.evaluate(()=>document.documentElement.scrollWidth))<=390);}

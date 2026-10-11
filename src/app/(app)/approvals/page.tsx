@@ -55,8 +55,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
-            const want = ex(s.user, ws, we, { whole: true });
-            const fullWeek = ex.weekly(s.user, ws) * 60;
+            const admin = s.user.role === "ADMIN"; // admins are not a resource: no target, so no under-target flag
+            const want = admin ? 0 : ex(s.user, ws, we, { whole: true });
+            const fullWeek = admin ? 0 : ex.plain(s.user, ws, we); // the week's expected hours before public holidays and time off, each month at its own hours
             // Overtime: the time tagged OT, highlighted here and in Review Time (not in the reports).
             const ot = es.reduce((a, e) => a + (hasOtTag(e.tagIds, otIds) ? e.minutes : 0), 0);
             const byP = new Map<string, { m: number; color: string; name: string }>();
@@ -65,7 +66,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
               <div className={"item" + (ot > 0 ? " ot" : "")} style={{ flexWrap: "wrap" }} key={s.id}>
                 <div style={{ minWidth: 0, flex: "1 1 300px" }}>
                   <strong><Link className="plink" href={`/profile/${s.userId}`}>{s.user.name}</Link></strong> <span className="meta">· {s.user.team?.name ?? "No team"} · {s.user.location.name} · {weekLabel(ws)}</span>
-                  <div className="meta">{f(total)} of {f(want)} h {want < fullWeek ? "expected" : "target"} {want < fullWeek && <span title="Weekly target less public holidays and time off">({f(fullWeek)} h target less holidays and time off) </span>}{want > 0 && total < want && <Pill tone="warn">Under target</Pill>}{ot > 0 && <span title="Time tagged OT this week"><Pill tone="ot">OT {f(ot)} h</Pill></span>}</div>
+                  <div className="meta">{admin ? <>{f(total)} h logged. Admins are not a resource, so there is no target.</> : <>{f(total)} of {f(want)} h {want < fullWeek ? "expected" : "target"} {want < fullWeek && <span title="Weekly target less public holidays and time off">({f(fullWeek)} h target less holidays and time off) </span>}{want > 0 && total < want && <Pill tone="warn">Under target</Pill>}{ot > 0 && <span title="Time tagged OT this week"><Pill tone="ot">OT {f(ot)} h</Pill></span>}</>}</div>
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>

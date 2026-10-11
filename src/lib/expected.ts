@@ -50,6 +50,8 @@ export type Expected = {
   starts: Map<string, string>;
   /** A person's expected hours per week in the month of this date: the month's own figure, or their usual weekly hours. */
   weekly(u: { id: string; weeklyTarget: number }, date: string): number;
+  /** Expected minutes over these days before any public holiday or time off is taken out, each month at its own weekly hours. */
+  plain(u: { id: string; weeklyTarget: number }, from: string, to: string): number;
 };
 
 const dayNum = (s: string) => Math.floor(toDate(s).getTime() / 864e5);
@@ -148,6 +150,15 @@ export function buildExpected(i: {
   };
   const ex = minutes as Expected;
   ex.weekly = (u, date) => weeklyAt(u, date.slice(0, 7));
+  ex.plain = (u, from, to) => {
+    if (to < from) return 0;
+    let total = 0;
+    for (let m = from.slice(0, 7); m <= to.slice(0, 7); m = addMonths(m, 1)) {
+      const sa = m + "-01" > from ? m + "-01" : from, sb = endOfMonth(m) < to ? endOfMonth(m) : to;
+      total += (weeklyAt(u, m) / 5) * weekdaysBetween(sa, sb) * 60;
+    }
+    return total;
+  };
   ex.days = daysOf;
   ex.starts = i.starts;
   ex.dates = (u, from, to, o) => {
