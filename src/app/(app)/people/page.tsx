@@ -7,11 +7,30 @@ import { getSettings } from "@/lib/settings";
 import Link from "next/link";
 import PeopleClient from "./PeopleClient";
 import { OfficeForm, TeamForm } from "./SmallForms";
+import HoursView from "./HoursView";
+import YearPicker from "@/components/YearPicker";
+import { gridYear } from "@/lib/monthGrid";
 
-export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
-  const { welcome } = await searchParams;
+export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ welcome?: string; view?: string; year?: string }> }) {
+  const { welcome, view, year } = await searchParams;
   const me = await requireTab("people");
   const admin = me.role === "ADMIN";
+  const hours = view === "hours";
+  const views = (
+    <nav className="seg vt" aria-label="People view">
+      <Link href="/people" aria-current={hours ? undefined : "page"}>People</Link>
+      <Link href="/people?view=hours" aria-current={hours ? "page" : undefined}>Monthly hours</Link>
+    </nav>
+  );
+  if (hours) {
+    await getSettings(); // sets the company time zone for "today"
+    return (
+      <>
+        <PageHead title="People" beside={views} actions={<YearPicker year={gridYear(year)} view="hours" />} sub="Expected hours per week for each person, month by month. Hours can go up or down through the year, and productivity follows the month." />
+        <div className="grid"><HoursView me={me} yearParam={year} /></div>
+      </>
+    );
+  }
   const [people, locations, teams] = await Promise.all([
     db.user.findMany({ where: admin ? {} : { locationId: me.locationId }, include: { team: true, location: true }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
     db.location.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { users: { where: { active: true } } } } } }),
@@ -21,7 +40,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   await getSettings(); // sets the company time zone for "today"
   return (
     <>
-      <PageHead title="People" sub="Offices, teams and the people in them." />
+      <PageHead title="People" beside={views} sub="Offices, teams and the people in them." />
     <div className="grid g2">
       {welcome && (
         <section className="panel full" role="status">

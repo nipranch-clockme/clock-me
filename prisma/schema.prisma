@@ -83,6 +83,7 @@ model User {
   access         ProjectUserAccess[]
   audit          AuditLog[]
   timer          TimerRun?
+  monthlyHours   UserMonth[]
   timeOff        TimeOff[]           @relation("TimeOffPerson")
   timeOffAdded   TimeOff[]           @relation("TimeOffAddedBy")
 }
@@ -105,6 +106,8 @@ model Client {
   teamId       String? // the team that looks after this client
   team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
   contacts     ClientContact[]
+  workTypeIds  String[]        @default([]) // the kinds of work done for this client (ids of Tags), kept for the record
+  months       ClientMonth[]
   shareToken        String?   @unique // the secret in the client's view-only report link; null while the link is off
   shareApprovedOnly Boolean   @default(false) // the shared report counts only time in approved timesheets
   shareViewedAt     DateTime? // when the link was last opened (updated at most once an hour)
@@ -344,4 +347,27 @@ model AuthAttempt {
 model AppSecret {
   key   String @id
   value String
+}
+
+// A client's contracted hours for one month. A month with no row uses the client's usual monthly hours, so a contract that
+// changes or ends part-way through the year only needs the months that differ. 0 means no contracted hours that month.
+model ClientMonth {
+  id       String   @id @default(cuid())
+  clientId String
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  month    DateTime @db.Date // the first day of the month
+  hours    Float
+
+  @@unique([clientId, month])
+}
+
+// A person's expected hours per week during one month. A month with no row uses the person's usual weekly hours.
+model UserMonth {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month       DateTime @db.Date // the first day of the month
+  weeklyHours Float
+
+  @@unique([userId, month])
 }

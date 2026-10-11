@@ -1,6 +1,6 @@
 import { Prisma, type ClientType } from "@prisma/client";
 import { db } from "./db";
-import { addDays, addMonths, daysBetween, endOfMonth, toDate, today } from "./dates";
+import { addDays, addMonths, daysBetween, endOfMonth, toDate, toStr, today } from "./dates";
 import { monthDone } from "./productivity";
 
 export const CLIENT_TYPES: [ClientType, string][] = [["FLOATING", "No commitment"], ["FIXED", "Fixed monthly hours"]];
@@ -8,6 +8,31 @@ export const clientTypeName = (t: ClientType) => CLIENT_TYPES.find((x) => x[0] =
 
 /** A client's contracted hours per month, or null when it has no commitment. */
 export const contractOf = (c: { type: ClientType; monthlyHours: number | null }) => (c.type === "FIXED" && c.monthlyHours && c.monthlyHours > 0 ? c.monthlyHours : null);
+/** Contracted hours for months that differ from the client's usual ones: client id, then "YYYY-MM", then hours (0 = none that month). */
+export type ContractMonths = Map<string, Map<string, number>>;
+export async function loadContractMonths(clientId?: string): Promise<ContractMonths> {
+  const out: ContractMonths = new Map();
+  for (const r of await db.clientMonth.findMany({ where: clientId ? { clientId } : {} })) {
+    let m = out.get(r.clientId);
+    if (!m) out.set(r.clientId, (m = new Map()));
+    m.set(toStr(r.month).slice(0, 7), r.hours);
+  }
+  return out;
+}
+/** A client's contracted hours in one month, or null when it has no commitment that month: the month's own figure from the monthly table,
+ *  else the client's usual monthly hours. Everything that divides by a contract (utilisation, hours left, pace) uses this. */
+export const contractFor = (c: { id: string; type: ClientType; monthlyHours: number | null }, ym: string, cm: ContractMonths) => {
+  const own = cm.get(c.id)?.get(ym);
+  return own !== undefined ? (own > 0 ? own : null) : contractOf(c);
+};
+/** Contracted minutes over these months. */
+export const contractMinutes = (c: Parameters<typeof contractFor>[0], months: string[], cm: ContractMonths) => months.reduce((a, m) => a + (contractFor(c, m, cm) ?? 0) * 60, 0);
+/** How a contract reads over a stretch of months: "108 h a month" when every month is the same, otherwise "varies by month". Null with no contract at all. */
+export function contractText(c: Parameters<typeof contractFor>[0], months: string[], cm: ContractMonths) {
+  const hs = months.map((m) => contractFor(c, m, cm));
+  if (!hs.some((h) => h)) return null;
+  return hs.every((h) => h === hs[0]) ? perMonth(hs[0]!) : "varies by month";
+}
 export const perMonth = (h: number) => `${h.toLocaleString("en-US", { maximumFractionDigits: 2 })} h a month`;
 
 export const CLIENT_PERIODS: [string, string][] = [["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["lastquarter", "Last quarter"], ["thisyear", "This year"], ["last12", "Last 12 months"]];

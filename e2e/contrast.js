@@ -8,9 +8,9 @@ const { start, login, BASE } = require('./helpers');
 const PSQL = (process.env.PSQL || 'psql -h /var/run/postgresql clockme').split(' ');
 const sql = (q) => execFileSync(PSQL[0], [...PSQL.slice(1), '-Atc', q]).toString().trim();
 const ROLES = {
-  'admin@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/clients', '/people', '/approvals', '/reports', '/reports?tab=detailed', '/reports?tab=weekly', '/import-export', '/settings', '/profile', '/time-off', '/time-off?view=holidays'],
+  'admin@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/clients', '/people', '/approvals', '/reports', '/reports?tab=detailed', '/clients?view=contracts', '/people?view=hours', '/import-export', '/settings', '/profile', '/time-off', '/time-off?view=holidays'],
   'aisha@example.com': ['/dashboard', '/timesheet', '/time-off', '/approvals', '/reports', '/people', '/projects'],
-  'fatima@example.com': ['/dashboard', '/approvals', '/reports', '/people', '/clients'],
+  'fatima@example.com': ['/dashboard', '/approvals', '/reports', '/people', '/clients', '/clients?view=contracts', '/people?view=hours'],
   'priya@example.com': ['/dashboard', '/timesheet', '/calendar', '/projects', '/profile', '/time-off'],
 };
 const MIN = 4.5; // WCAG AA for normal text; large text (18px, or 14px bold) only needs 3

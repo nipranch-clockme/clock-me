@@ -1,12 +1,14 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
+import { expectsHoursWhere, scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { addMonths, endOfMonth, longDate, rangeDates, today, toDate } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
+import { contractFor, loadContractMonths } from "@/lib/clients";
 import AutoForm from "@/components/AutoForm";
 import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
@@ -27,10 +29,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
+  const closedMyNumbers = (await cookies()).get("tsink-mynumbers")?.value === "0"; // "Your numbers" folded up, kept per browser
   const [a, bRaw] = rangeDates(range);
   const b = completeEnd(bRaw); // count complete days only, so hours and targets cover the same days
 
-  const users = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
+  const users = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
   const ids = users.map((u) => u.id);
   const sums = b >= a ? await db.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: ids }, date: { gte: toDate(a), lte: toDate(b) } }, _sum: { minutes: true } }) : [];
   const byUser = new Map(sums.map((s) => [s.userId, s._sum.minutes ?? 0]));
@@ -71,14 +74,36 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     }),
   }));
 
+  // Location managers and admins also see, for each office, the hours it has available (capacity), the hours its clients have contracted, and the hours its people logged.
+  // Contracts belong to an office through the team a client is assigned to, so a client with no team is not in any office's chart.
+  const inventory: { id: string; name: string; series: { id: string; name: string; color: string; dashed?: boolean; v: (number | null)[] }[] }[] = [];
+  if (me.role === "LOCATION" || me.role === "ADMIN") {
+    const [clients, cm] = await Promise.all([
+      db.client.findMany({ where: { team: me.role === "LOCATION" ? { locationId: me.locationId } : { isNot: null } }, select: { id: true, type: true, monthlyHours: true, team: { select: { locationId: true } } } }),
+      loadContractMonths(),
+    ]);
+    for (const l of locs) {
+      const us = users.filter((u) => u.locationId === l.id), mine = clients.filter((c) => c.team?.locationId === l.id);
+      const capacity = months.map((m) => us.reduce((t, u) => t + target(u, m + "-01", endOfMonth(m)), 0) / 60);
+      const logged = months.map((m) => us.reduce((t, u) => t + (mm.get(`${u.id}|${m}`) ?? 0), 0) / 60);
+      const contracted = months.map((m) => mine.reduce((t, c) => t + (contractFor(c, m, cm) ?? 0), 0));
+      inventory.push({ id: l.id, name: l.name, series: [
+        { id: "logged", name: "Logged", color: "s1", v: logged.map((v, i) => (v || capacity[i] ? v : null)) },
+        { id: "capacity", name: "Capacity", color: "s4", dashed: true, v: capacity.map((v) => v || null) },
+        ...(contracted.some(Boolean) ? [{ id: "contracted", name: "Contracted", color: "s2", dashed: true, v: contracted.map((v) => v || null) }] : []),
+      ] });
+    }
+  }
+  const hoursText = (v: number) => `${Math.round(v).toLocaleString("en-US")} h`;
+
   const topTable = (list: Row[], showOffice: boolean) => (
     <div className="tablebox"><table>
-      <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th><th className="num">Target h</th></tr></thead>
+      <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th></tr></thead>
       <tbody>
         {top(list).map((r, i) => (
-          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td><td className="num">{f(r.tg)}</td></tr>
+          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
         ))}
-        {!list.length && <tr><td colSpan={6} className="empty">Nobody to show.</td></tr>}
+        {!list.length && <tr><td colSpan={showOffice ? 5 : 4} className="empty">Nobody to show.</td></tr>}
       </tbody>
     </table></div>
   );
@@ -90,9 +115,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with a target of 0 are left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with a target of 0 and admins (who are not a resource) are left out.`} />
       <div className="grid g3">
-        <MyStats me={me} timeFormat={settings.timeFormat} />
+        <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
           <div className="stats spread">
@@ -147,6 +172,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly productivity by team" : "Monthly productivity by office"} />
           <div className="legend">{series.map((s) => <span key={s.id}><i style={{ background: `var(--${s.color})` }} />{s.name}</span>)}</div>
         </section>
+        {inventory.map((o) => (
+          <section className="panel full" key={o.id}>
+            <h3>Inventory vs actual, last 12 full months, {o.name}</h3>
+            <TrendChart months={months} series={o.series} unit="hours" fmt={hoursText} label={`Capacity, contracted and logged hours by month, ${o.name}`} />
+            <div className="legend">{o.series.map((x) => <span key={x.id}><i style={{ background: `var(--${x.color})` }} />{x.name}</span>)}</div>
+            <p className="note" style={{ margin: "8px 0 0" }}>Capacity is the hours expected of the office&apos;s people that month (their weekly hours for the month, less public holidays and time off; admins are not counted). Contracted is the contracted hours that month of the clients assigned to the office&apos;s teams. Logged is the hours the office&apos;s people logged.</p>
+          </section>
+        ))}
         <section className="panel full">
           <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {me.role === "ADMIN" ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>

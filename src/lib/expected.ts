@@ -1,12 +1,15 @@
-import { addDays, dow, toDate } from "./dates";
+import { addDays, addMonths, dow, endOfMonth, toDate } from "./dates";
 
 // Expected hours, in one place. A person's expected hours over a stretch of days are their weekly hours spread over
-// Monday to Friday, less the public holidays of their office and the time off they have booked. Every number that
+// Monday to Friday, less the public holidays of their office and the time off they have booked. Weekly hours can differ
+// from month to month (a person's usual hours, with any month set differently in the monthly table), and each day uses its own month's. Every number that
 // divides by expected hours (Dashboard, profiles, "Your numbers", approvals, reminders) comes from here, so they agree.
 //
 // This file does only arithmetic on plain data (no database), so it can be checked on its own. timeoff.ts loads the data.
 
 export type HolidayRow = { locationId: string; date: string; name: string; fraction: number };
+/** Weekly hours that differ from a person's usual ones: person id, then "YYYY-MM", then hours per week. */
+export type MonthlyHours = Map<string, Map<string, number>>;
 export type LeaveRow = { id: string; userId: string; from: string; to: string; fraction: number; label: string; source: string };
 
 /** What takes part of a day off one person's expected hours. */
@@ -45,6 +48,8 @@ export type Expected = {
   breakdown(u: Who, from: string, to: string, o?: Opts): Breakdown;
   /** The first day each person counts (see trackingStarts). */
   starts: Map<string, string>;
+  /** A person's expected hours per week in the month of this date: the month's own figure, or their usual weekly hours. */
+  weekly(u: { id: string; weeklyTarget: number }, date: string): number;
 };
 
 const dayNum = (s: string) => Math.floor(toDate(s).getTime() / 864e5);
@@ -70,6 +75,8 @@ export function buildExpected(i: {
   today: string;
   /** Leave is only looked at inside this window, which keeps very long rows cheap. Holidays are always all used. */
   window?: { from: string; to: string };
+  /** Months in which a person's weekly hours differ from their usual ones. */
+  monthly?: MonthlyHours;
 }): Expected {
   const yesterday = addDays(i.today, -1);
 
@@ -126,7 +133,21 @@ export function buildExpected(i: {
     return Math.max(0, n);
   };
 
-  const ex = ((u: Who & { weeklyTarget: number }, from: string, to: string, o?: Opts) => (u.weeklyTarget / 5) * daysOf(u, from, to, o) * 60) as Expected;
+  const weeklyAt = (u: { id: string; weeklyTarget: number }, ym: string) => i.monthly?.get(u.id)?.get(ym) ?? u.weeklyTarget;
+  // Minutes: each month in the stretch counts its working days at that month's weekly hours over five.
+  const minutes = (u: Who & { weeklyTarget: number }, from: string, to: string, o?: Opts) => {
+    const [a, b] = span(u, from, to, o);
+    if (b < a) return 0;
+    if (!i.monthly?.get(u.id)?.size) return (u.weeklyTarget / 5) * daysOf(u, from, to, o) * 60;
+    let total = 0;
+    for (let m = a.slice(0, 7); m <= b.slice(0, 7); m = addMonths(m, 1)) {
+      const sa = m + "-01" > a ? m + "-01" : a, sb = endOfMonth(m) < b ? endOfMonth(m) : b;
+      total += (weeklyAt(u, m) / 5) * daysOf(u, sa, sb, { whole: true }) * 60; // the stretch is already cut at yesterday by span()
+    }
+    return total;
+  };
+  const ex = minutes as Expected;
+  ex.weekly = (u, date) => weeklyAt(u, date.slice(0, 7));
   ex.days = daysOf;
   ex.starts = i.starts;
   ex.dates = (u, from, to, o) => {

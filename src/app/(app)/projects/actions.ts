@@ -92,6 +92,12 @@ async function readTeamAndContacts(form: FormData): Promise<{ teamId: string | n
   if (contacts.length > 20) return { error: "Add up to 20 contacts." };
   return { teamId, contacts };
 }
+/** The kinds of work for a client (ids of tags), from a form. Ids that aren't tags are an error. */
+async function readWorkTypes(form: FormData): Promise<{ workTypeIds: string[] } | { error: string }> {
+  const ids = [...new Set(form.getAll("workTypeIds").map(String).filter(Boolean))];
+  if (ids.length && (await db.tag.count({ where: { id: { in: ids } } })) !== ids.length) return { error: "Choose work types from the list." };
+  return { workTypeIds: ids };
+}
 const contractText = (c: { type: ClientType; monthlyHours: number | null }) => (c.type === "FIXED" && c.monthlyHours ? `fixed monthly hours, ${perMonth(c.monthlyHours)}` : "no commitment");
 
 export async function addClient(_: FormResult, form: FormData): Promise<FormResult> {
@@ -103,9 +109,11 @@ export async function addClient(_: FormResult, form: FormData): Promise<FormResu
   if ("error" in contract) return { ok: false, error: contract.error };
   const tc = await readTeamAndContacts(form);
   if ("error" in tc) return { ok: false, error: tc.error };
+  const wt = await readWorkTypes(form);
+  if ("error" in wt) return { ok: false, error: wt.error };
   if (await db.client.findFirst({ where: { name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "That client already exists." };
   const n = await db.client.count();
-  await db.client.create({ data: { name, color: ["s1", "s2", "s3", "s8", "s6"][n % 5], ...contract, teamId: tc.teamId, contacts: { create: tc.contacts.map((c, sort) => ({ ...c, sort })) } } });
+  await db.client.create({ data: { name, color: ["s1", "s2", "s3", "s8", "s6"][n % 5], ...contract, teamId: tc.teamId, workTypeIds: wt.workTypeIds, contacts: { create: tc.contacts.map((c, sort) => ({ ...c, sort })) } } });
   await logAction(me.id, `Added client ${name} (${contractText(contract)})`);
   revalidatePath("/projects");
   revalidatePath("/clients", "layout");
@@ -121,13 +129,16 @@ export async function updateClient(_: FormResult, form: FormData): Promise<FormR
   if ("error" in contract) return { ok: false, error: contract.error };
   const tc = await readTeamAndContacts(form);
   if ("error" in tc) return { ok: false, error: tc.error };
+  const wt = await readWorkTypes(form);
+  if ("error" in wt) return { ok: false, error: wt.error };
   await db.$transaction([
-    db.client.update({ where: { id: client.id }, data: { ...contract, teamId: tc.teamId } }),
+    db.client.update({ where: { id: client.id }, data: { ...contract, teamId: tc.teamId, workTypeIds: wt.workTypeIds } }),
     db.clientContact.deleteMany({ where: { clientId: client.id } }),
     db.clientContact.createMany({ data: tc.contacts.map((c, sort) => ({ ...c, sort, clientId: client.id })) }),
   ]);
   if (contractText(client) !== contractText(contract)) await logAction(me.id, `Changed client ${client.name} to ${contractText(contract)}`);
   if ((client.teamId ?? null) !== tc.teamId) await logAction(me.id, `Changed the team for client ${client.name}`);
+  if ([...client.workTypeIds].sort().join() !== [...wt.workTypeIds].sort().join()) await logAction(me.id, `Changed work types for client ${client.name}`);
   revalidatePath("/projects");
   revalidatePath("/clients", "layout");
   return { ok: true };

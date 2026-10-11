@@ -114,9 +114,9 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     await go(a, rep + '&tab=detailed');
     const detail = (await a.locator('.rtable tbody tr').evaluateAll((trs) => trs.map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()))).join(' | ');
     ok(/CAD, ENG/.test(detail), 'the detailed list shows both tags in one cell', detail.slice(0, 200));
-    await go(a, rep + '&tab=weekly&group=tag');
-    const foot = (await a.locator('tfoot td').allInnerTexts()).join(' ');
-    ok(/3\.50/.test(foot) && !/5\.50/.test(foot), 'weekly column totals count each entry once', foot);
+    await go(a, rep + '&group=tag');
+    const tot = await a.locator('.rtotal b').first().innerText();
+    ok(num(tot) === 3.5, 'the total counts each entry once, however many tags it has', tot);
     const csv = await (await a.request.get(BASE + '/reports/export?range=custom&from=2020-03-01&to=2020-03-31&person=' + uid)).text();
     const header = csv.split('\r\n')[0].split(',');
     ok(header.includes('Tags') && !header.includes('Tag'), 'the export has a Tags column');

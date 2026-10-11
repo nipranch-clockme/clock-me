@@ -16,7 +16,7 @@ export const FILTER_KEYS = ["person", "team", "client", "project", "phase", "tag
 export type FilterKey = (typeof FILTER_KEYS)[number];
 /** The timesheet status of the week an entry belongs to. */
 export const STATUSES: [string, string][] = [["DRAFT", "Not submitted"], ["SUBMITTED", "Submitted"], ["APPROVED", "Approved"], ["REJECTED", "Sent back"]];
-export const TABS = [["summary", "Summary"], ["detailed", "Detailed"], ["weekly", "Weekly"]] as const;
+export const TABS = [["summary", "Summary"], ["detailed", "Detailed"]] as const; // an old link with tab=weekly opens the Summary
 export type Tab = (typeof TABS)[number][0];
 
 export type ReportParams = {

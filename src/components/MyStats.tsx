@@ -4,16 +4,18 @@ import type { Me } from "@/lib/auth";
 import { addDays, addMonths, daysBetween, endOfMonth, monday, shortDate, today, toDate, toStr } from "@/lib/dates";
 import { fmtHours, pct, type TimeFormat } from "@/lib/format";
 import { loadExpected } from "@/lib/timeoff";
+import CollapseButton from "./CollapseButton";
 
 const STATUS: Record<string, string> = { DRAFT: "not submitted yet", SUBMITTED: "waiting for approval", APPROVED: "approved", REJECTED: "sent back to you" };
 
 /** One person's own numbers: how much of their expected hours they logged last week and last month, how this month compares with last month,
  *  and whether they are on pace. Hours over expected hours is the same utilisation figure the manager Dashboard and profiles use. */
-export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: TimeFormat }) {
+/** `collapsible` (everyone but team members) adds a Hide/Show button; `closed` is how the person left it. */
+export default async function MyStats({ me, timeFormat, collapsible = false, closed = false }: { me: Me; timeFormat: TimeFormat; collapsible?: boolean; closed?: boolean }) {
   const f = (m: number) => fmtHours(m, timeFormat);
   const t = today(), y = addDays(t, -1);
-  const target = me.weeklyTarget;
   const ex = await loadExpected([me]); // expected hours: weekly hours over Monday to Friday, less the office's public holidays and my time off
+  const target = ex.weekly(me, t); // this month's weekly hours (the usual ones unless the month is set differently)
   const expected = (a: string, b: string) => ex(me, a, b);
 
   const thisWs = monday(t), lastWs = addDays(thisWs, -7), lastWe = addDays(thisWs, -1);
@@ -50,11 +52,12 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
   const top = Math.max(target * 60, ...bars.map((b) => b.m), 1);
 
   if (!target) {
-    return <section className="panel full"><h3>Your numbers</h3><p className="empty">Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change.</p></section>;
+    return <section className="panel full"><h3>Your numbers</h3><p className="empty">{me.role === "ADMIN" ? "Admins are not counted in utilisation, so there are no numbers to compare your time with." : "Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change."}</p></section>;
   }
   return (
     <section className="panel full" aria-label="Your numbers">
-      <div className="ch"><h3>Your numbers</h3><span className="cd">Hours logged divided by your {f(target * 60)} expected hours a week, counting complete working days, less public holidays and your time off</span></div>
+      <div className="ch"><h3>Your numbers</h3><span className="cd">Hours logged divided by your {f(target * 60)} expected hours a week, counting complete working days, less public holidays and your time off</span>{collapsible && <CollapseButton bodyId="mynumbers-body" cookie="tsink-mynumbers" closed={closed} />}</div>
+      <div id="mynumbers-body" hidden={collapsible && closed}>
       <div className="insights">
         <div className="insight">
           <b>{lwE ? pct(lwM / lwE) : "–"}</b>
@@ -97,6 +100,7 @@ export default async function MyStats({ me, timeFormat }: { me: Me; timeFormat: 
         <b>Your timesheet:</b> this week is <strong>{STATUS[sheet?.status ?? "DRAFT"]}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
         {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE || lwM) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
       </p>
+      </div>
     </section>
   );
 }

@@ -7,7 +7,7 @@ import { Ifld, Pill } from "@/components/ui";
 /** The dates a period covers and how the numbers are worked out (shown under the page title). */
 export function periodNote(per: ClientPeriod, contract = true) {
   const n = per.months.length;
-  const months = n > 1 ? `the monthly hours times the ${n} months in this period${per.current ? ", with this month counted in full" : ""}` : per.current ? "one full month of the monthly hours, even though the month isn't over" : "one month of the monthly hours";
+  const months = n > 1 ? `each month's contracted hours added up over the ${n} months in this period${per.current ? ", with this month counted in full" : ""}` : per.current ? "this month's contracted hours in full, even though the month isn't over" : "that month's contracted hours";
   return `${longDate(per.from)} to ${longDate(per.to)}. Hours count time logged by everyone in the company on the client's projects, archived ones included.${contract ? ` Contracted hours are ${months}. Utilisation is hours logged divided by contracted hours.` : ""}`;
 }
 

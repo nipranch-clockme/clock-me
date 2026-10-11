@@ -54,6 +54,8 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   const byDay = new Map(perDay.map((r) => [toStr(r.date), r._sum.minutes ?? 0]));
   const m = perDay.reduce((s, r) => s + (r._sum.minutes ?? 0), 0);
   const tg = ex(person, a, b);
+  const weeklyNow = ex.weekly(person, t); // this month's weekly hours: the usual ones unless the month is set differently in the monthly hours table
+  const hasHours = person.weeklyTarget > 0 || weeklyNow > 0 || tg > 0;
   const workdays = ex.dates(person, a, b); // working days that count: public holidays and time off are not workdays
   const worked = new Set([...workdays, ...[...byDay].filter(([d, v]) => v > 0 && dow(d) < 5).map(([d]) => d)]); // plus a weekday off that time was logged on anyway (weekends stay out, as before)
   const cut = ex.breakdown(person, a, b);
@@ -112,7 +114,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
           <div><dt>Team</dt><dd>{person.team?.name ?? "No team"}</dd></div>
           <div><dt>Office</dt><dd>{person.location.name}</dd></div>
           <div><dt>Email</dt><dd><a href={`mailto:${person.email}`}>{person.email}</a></dd></div>
-          <div><dt>Expected hours per week</dt><dd>{person.weeklyTarget} h</dd></div>
+          <div><dt>Expected hours per week</dt><dd>{weeklyNow} h{weeklyNow !== person.weeklyTarget && <span className="note"> this month (usually {person.weeklyTarget} h)</span>}</dd></div>
         </dl>
       </section>
 
@@ -129,8 +131,8 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
           <div className="stat"><b>{worked.size ? f(m / worked.size) : "–"}</b><span>average hours per workday</span></div>
           <div className="stat"><b>{workdays.filter((d) => !byDay.get(d)).length}</b><span>workdays with no time</span></div>
         </div>
-        {!person.weeklyTarget && <p className="note" style={{ margin: "12px 0 0" }}>Expected hours per week is 0, so there&apos;s no utilisation to show.</p>}
-        {!!person.weeklyTarget && (cut.holidayDays > 0 || cut.leaveDays > 0) && (
+        {!hasHours && <p className="note" style={{ margin: "12px 0 0" }}>Expected hours per week is 0, so there&apos;s no utilisation to show.</p>}
+        {hasHours && (cut.holidayDays > 0 || cut.leaveDays > 0) && (
           <p className="note" style={{ margin: "12px 0 0" }}>
             Of {cut.weekdays} working {cut.weekdays === 1 ? "day" : "days"} in this period, {[
               cut.holidayDays > 0 ? `${dayText(cut.holidayDays)} ${cut.holidayDays === 1 ? "is a" : "are"} public ${cut.holidayDays === 1 ? "holiday" : "holidays"}${cut.holidays.length && cut.holidays.length <= 3 ? ` (${cut.holidays.map((h) => h.name).join(", ")})` : ""}` : "",
@@ -145,7 +147,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
         <h3>Utilisation by month, last 12 full months</h3>
         {trend.some((v) => v != null)
           ? <TrendChart months={months} series={[{ id: person.id, name: "Utilisation", color: "s1", v: trend }]} label={`Utilisation of ${person.name} by month`} />
-          : <p className="empty">{person.weeklyTarget ? "No full months to show yet." : "Nothing to show while expected hours per week is 0."}</p>}
+          : <p className="empty">{hasHours ? "No full months to show yet." : "Nothing to show while expected hours per week is 0."}</p>}
       </section>
 
       <section className="panel"><h3>Hours by project</h3>{shareTable("Project", projectRows)}</section>

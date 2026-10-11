@@ -1,7 +1,7 @@
 import { toDate } from "@/lib/dates";
 import { niceStep, pct } from "@/lib/format";
 
-export type TrendSeries = { id: string; name: string; color: string; v: (number | null)[] };
+export type TrendSeries = { id: string; name: string; color: string; v: (number | null)[]; /** Draw the line dashed, for a plan or contract next to what really happened. */ dashed?: boolean };
 type Props = {
   months: string[]; series: TrendSeries[]; label: string;
   /** "pct": values are shares (0.75 is 75%). "hours": values are hours. */
@@ -39,7 +39,7 @@ export default function TrendChart({ months, series, label, unit = "pct", fmt = 
         {level && <line className="level" x1={pl} x2={W - pr} y1={y(level.value)} y2={y(level.value)} stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="6 4"><title>{level.title}</title></line>}
         {lines.map(({ s, pts }) => (
           <g key={s.id}>
-            <polyline points={pts.map((p) => `${p[0]},${p[1]}`).join(" ")} fill="none" stroke={`var(--${s.color})`} strokeWidth="2" strokeLinejoin="round" />
+            <polyline points={pts.map((p) => `${p[0]},${p[1]}`).join(" ")} fill="none" stroke={`var(--${s.color})`} strokeWidth="2" strokeLinejoin="round" strokeDasharray={s.dashed ? "6 4" : undefined} />
             {pts.map((p) => <circle key={p[3]} cx={p[0]} cy={p[1]} r="4" fill={`var(--${s.color})`} stroke="var(--surface)" strokeWidth="2"><title>{`${s.name}, ${mlabel(months[p[3]], true)}: ${fmt(p[2])}`}</title></circle>)}
           </g>
         ))}

@@ -49,6 +49,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     loadExpected([subject], { from: ws, to: dates[6] }),
   ]);
   const marks = offs.map(dayMark);
+  const weekly = ex.weekly(subject, ws); // their weekly hours this month
   const want = ex(subject, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
@@ -121,7 +122,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
         {(!others || editable) && (
           <div className="stats">
             <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
-            <div className="stat"><b>{want ? Math.round((total / want) * 100) : subject.weeklyTarget ? "–" : 0}{want || !subject.weeklyTarget ? "%" : ""}</b><span title={want < subject.weeklyTarget * 60 ? "The weekly target less public holidays and time off" : undefined}>{want === subject.weeklyTarget * 60 ? `of ${subject.weeklyTarget} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
+            <div className="stat"><b>{want ? Math.round((total / want) * 100) : weekly ? "–" : 0}{want || !weekly ? "%" : ""}</b><span title={want < weekly * 60 ? "The weekly target less public holidays and time off" : undefined}>{want === weekly * 60 ? `of ${weekly} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
           </div>
         )}
       </div>

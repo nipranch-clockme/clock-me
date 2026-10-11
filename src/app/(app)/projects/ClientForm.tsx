@@ -2,12 +2,14 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientType } from "@prisma/client";
+import TagPicker from "@/components/TagPicker";
 import { addClient, updateClient, type FormResult } from "./actions";
 
 export type TeamOpt = { id: string; label: string };
 export type ContactInput = { name: string; email: string; phone: string };
-type EditableClient = { id: string; name: string; type: ClientType; monthlyHours: number | null; teamId: string | null; contacts: ContactInput[] };
-const TYPE_HELP = "Fixed monthly hours: the client agreed to a set number of hours each month, and the Clients tab shows how much of it is used. No commitment: work as it comes, with no set hours.";
+export type TagOpt = { id: string; name: string };
+type EditableClient = { id: string; name: string; type: ClientType; monthlyHours: number | null; teamId: string | null; workTypeIds: string[]; contacts: ContactInput[] };
+const TYPE_HELP = "Fixed monthly hours: the client agreed to a set number of hours each month, and the Clients tab shows how much of it is used. No commitment: work as it comes, with no set hours. A month that changes or ends part-way is set in the Monthly contracts view on the Clients tab, and keeps its own figure when the usual hours change here.";
 
 // Submitting by hand keeps what was typed if the server sends back an error (a plain form action would clear it).
 const submit = (ev: React.FormEvent<HTMLFormElement>, action: (fd: FormData) => void) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); };
@@ -53,7 +55,7 @@ function TeamAndContacts({ id, teams, teamId, contacts }: { id: string; teams: T
   </>;
 }
 
-export default function ClientForm({ teams, onAdded }: { teams: TeamOpt[]; onAdded?: () => void }) {
+export default function ClientForm({ teams, tags = [], onAdded }: { teams: TeamOpt[]; tags?: TagOpt[]; onAdded?: () => void }) {
   const [state, action, pending] = useActionState(addClient, null);
   const [type, setType] = useState<ClientType>("FLOATING");
   const ref = useRef<HTMLFormElement>(null);
@@ -63,6 +65,7 @@ export default function ClientForm({ teams, onAdded }: { teams: TeamOpt[]; onAdd
       <div><label htmlFor="nc-name">New client</label><input id="nc-name" name="name" placeholder="e.g. Greenleaf Foods" /></div>
       <ContractFields id="nc" type={type} setType={setType} />
       <TeamAndContacts key={String(state?.ok)} id="nc" teams={teams} />
+      <div key={`wt${state?.ok}`} style={{ flexBasis: "100%" }}><TagPicker id="nc-wt" name="workTypeIds" legend="Work types" tags={tags} selected={[]} required={false} /></div>
       <button className="btn primary" disabled={pending}>Add client</button>
       {state?.error && <p className="err-text" role="alert" style={{ flexBasis: "100%" }}>{state.error}</p>}
       <p className="note" style={{ flexBasis: "100%", margin: 0 }}>{TYPE_HELP}</p>
@@ -71,19 +74,19 @@ export default function ClientForm({ teams, onAdded }: { teams: TeamOpt[]; onAdd
 }
 
 /** Admins change a client's type and contracted hours here. */
-export function EditClient({ client, teams }: { client: EditableClient; teams: TeamOpt[] }) {
+export function EditClient({ client, teams, tags = [] }: { client: EditableClient; teams: TeamOpt[]; tags?: TagOpt[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
   return <>
     <button type="button" className="btn sm" onClick={() => setOpen(true)} aria-label={`Edit ${client.name}`}>Edit</button>
     <dialog ref={ref} onClose={() => setOpen(false)} aria-labelledby={`ec-${client.id}-title`}>
-      {open && <EditClientForm client={client} teams={teams} onDone={() => ref.current?.close()} />}
+      {open && <EditClientForm client={client} teams={teams} tags={tags} onDone={() => ref.current?.close()} />}
     </dialog>
   </>;
 }
 
-function EditClientForm({ client, teams, onDone }: { client: EditableClient; teams: TeamOpt[]; onDone: () => void }) {
+function EditClientForm({ client, teams, tags, onDone }: { client: EditableClient; teams: TeamOpt[]; tags: TagOpt[]; onDone: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<FormResult, FormData>(updateClient, null);
   const [type, setType] = useState<ClientType>(client.type);
@@ -96,7 +99,7 @@ function EditClientForm({ client, teams, onDone }: { client: EditableClient; tea
       </div>
       <form onSubmit={(ev) => submit(ev, action)}>
         <input type="hidden" name="id" value={client.id} />
-        <div className="row"><ContractFields id={`ec-${client.id}`} type={type} setType={setType} hours={client.monthlyHours} /><TeamAndContacts id={`ec-${client.id}`} teams={teams} teamId={client.teamId} contacts={client.contacts} /></div>
+        <div className="row"><ContractFields id={`ec-${client.id}`} type={type} setType={setType} hours={client.monthlyHours} /><TeamAndContacts id={`ec-${client.id}`} teams={teams} teamId={client.teamId} contacts={client.contacts} /><div style={{ flexBasis: "100%" }}><TagPicker id={`ec-${client.id}-wt`} name="workTypeIds" legend="Work types" tags={tags} selected={client.workTypeIds} required={false} /></div></div>
         <p className="note" style={{ margin: "8px 0 0" }}>{TYPE_HELP}</p>
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}
         <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={pending}>{pending ? "Saving…" : "Save changes"}</button></div>
@@ -106,14 +109,14 @@ function EditClientForm({ client, teams, onDone }: { client: EditableClient; tea
 }
 
 /** "Add client" button for the Clients page: the same form in a dialog. */
-export function AddClientButton({ teams }: { teams: TeamOpt[] }) {
+export function AddClientButton({ teams, tags = [] }: { teams: TeamOpt[]; tags?: TagOpt[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
   return <>
     <button type="button" className="btn primary" onClick={() => setOpen(true)}>Add client</button>
     <dialog ref={ref} onClose={() => setOpen(false)} aria-labelledby="ac-title">
-      {open && <div className="panel"><div className="row between"><h2 id="ac-title">Add a client</h2><button type="button" className="btn sm" onClick={() => ref.current?.close()}>Close</button></div><ClientForm teams={teams} onAdded={() => ref.current?.close()} /></div>}
+      {open && <div className="panel"><div className="row between"><h2 id="ac-title">Add a client</h2><button type="button" className="btn sm" onClick={() => ref.current?.close()}>Close</button></div><ClientForm teams={teams} tags={tags} onAdded={() => ref.current?.close()} /></div>}
     </dialog>
   </>;
 }

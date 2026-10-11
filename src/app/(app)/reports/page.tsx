@@ -55,7 +55,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { where, from, to, statusTooWide } = await reportWhere(me, p);
   const g2 = p.tab === "summary" ? p.group2 : undefined;
   const groupsUsed = [p.group, g2].filter(Boolean) as string[];
-  const needDate = p.tab === "weekly" || groupsUsed.some((g) => TIME_GROUPS.includes(g));
+  const needDate = groupsUsed.some((g) => TIME_GROUPS.includes(g));
   const by = ["userId", "projectId", "phaseId", "tagIds", ...(groupsUsed.includes("description") ? ["description"] : []), ...(needDate ? ["date"] : [])];
   const colored = !TIME_GROUPS.includes(p.group);
   const stackField = p.tab === "summary" && colored ? STACK_FIELD[p.group] : undefined;
@@ -138,16 +138,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const groupLabel = GROUPS.find((g) => g[0] === p.group)![1];
 
   // Hours over time. "All time" runs from the first entry to the last (which can be in the future).
-  const dates = p.tab === "summary" ? byDate.map((r) => toStr(r.date!)) : p.tab === "weekly" ? combos.map((c) => toStr(c.date!)) : [];
+  const dates = p.tab === "summary" ? byDate.map((r) => toStr(r.date!)) : [];
   const firstDate = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : today();
   const lastDate = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : today();
   const shownFrom = p.range === "all" ? firstDate : from;
   const shownTo = p.range === "all" ? (lastDate > today() ? lastDate : today()) : to;
   const span = (toDate(shownTo).getTime() - toDate(shownFrom).getTime()) / 864e5 + 1;
-  const unit = p.tab === "weekly" ? (span <= 14 ? "day" : span <= 140 ? "week" : "month") : span <= 35 ? "day" : span <= 200 ? "week" : "month";
+  const unit = span <= 35 ? "day" : span <= 200 ? "week" : "month";
   const kOf = (d: string) => (unit === "day" ? d : unit === "week" ? monday(d) : d.slice(0, 7));
   const keys: string[] = [];
-  const end = p.range === "all" || p.tab === "weekly" ? shownTo : to < addDays(today(), 6) ? to : addDays(today(), 6);
+  const end = p.range === "all" ? shownTo : to < addDays(today(), 6) ? to : addDays(today(), 6);
   for (let d = shownFrom; d <= end; d = addDays(d, 1)) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); }
   const lbl = (k: string) => (unit === "month" ? toDate(k + "-01").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }) : unit === "day" ? `${DAYS[dow(k)]}, ${shortDate(k)}` : shortDate(k));
   const series = colored ? slices : [{ key: "all", label: "Hours", value: total, color: "var(--s1)" }];
@@ -162,22 +162,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       bucket[key] = (bucket[key] ?? 0) + (r._sum.minutes ?? 0) / 60;
     }
   }
-
-  // The Weekly grid: one row per group, one column per day (or week, for long ranges).
-  const week = new Map<string, { label: string; href?: string; total: number; cells: Record<string, number> }>();
-  if (p.tab === "weekly") {
-    for (const c of combos) {
-      const min = c._sum.minutes ?? 0, b = kOf(toStr(c.date!));
-      for (const [k, label] of keysOf(p.group, c)) {
-        const r = week.get(k) ?? { label, href: linkOf(p.group, k), total: 0, cells: {} };
-        r.total += min; r.cells[b] = (r.cells[b] ?? 0) + min; week.set(k, r);
-      }
-    }
-  }
-  const weekRows = [...week].sort((a, b) => (TIME_GROUPS.includes(p.group) ? a[0].localeCompare(b[0]) : b[1].total - a[1].total));
-  // Column totals count each entry once, even when grouped by tag.
-  const colTotals: Record<string, number> = {};
-  if (p.tab === "weekly") for (const c of combos) { const b = kOf(toStr(c.date!)); colTotals[b] = (colTotals[b] ?? 0) + (c._sum.minutes ?? 0); }
 
   const nf = [p.person, p.team, p.client, p.project, p.phase, p.tag, p.status, p.location].filter((a) => a.length).length + (p.desc ? 1 : 0);
   const clearHref = `/reports?${reportQuery(p, { person: [], team: [], client: [], project: [], phase: [], tag: [], status: [], location: [], desc: undefined })}`;
@@ -200,7 +184,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         {hidden("tab", p.tab === "summary" ? undefined : p.tab)}
         {fromApprovals && <input type="hidden" name="ref" value="approvals" />}
         {p.tab === "detailed" && <>{hidden("group", p.group)}{hidden("group2", p.group2)}</>}
-        {p.tab === "weekly" && <>{hidden("group2", p.group2)}</>}
         <div className="rtools">
           <nav className="seg rtabs" aria-label="Report view">
             {TABS.map(([k, l]) => <Link key={k} href={`/reports?${reportQuery(p, { tab: k })}`} aria-pressed={p.tab === k}>{l}</Link>)}
@@ -268,27 +251,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               <ReportTable rows={tableRows} titleLabel={groupLabel} showPeople={p.group !== "person"} showEstimate={!!p.est} empty="No time in this range." />
               {colored && total > 0 && !(tagOverlap && p.group === "tag") && <aside className="rdonut" aria-label={`Share of hours by ${groupLabel.toLowerCase()}`}><Donut slices={slices} total={total} centre={f(total)} /></aside>}
             </div>
-          )}
-
-          {p.tab === "weekly" && (
-            <div className="tablebox"><table className="rtable rweek">
-              <thead><tr>
-                <th>{groupLabel.toUpperCase()}</th>
-                {keys.map((k) => <th key={k} className="num">{unit === "day" ? <>{DAYS[dow(k)]}<br /><span className="note">{shortDate(k)}</span></> : lbl(k)}</th>)}
-                <th className="num">TOTAL</th>
-              </tr></thead>
-              <tbody>
-                {weekRows.map(([k, r]) => (
-                  <tr key={k}>
-                    <td data-l={groupLabel}>{r.href ? <Link className="plink" href={r.href}>{r.label}</Link> : r.label}</td>
-                    {keys.map((b) => <td key={b} className="num">{r.cells[b] ? f(r.cells[b]) : <span className="note">–</span>}</td>)}
-                    <td className="num"><b>{f(r.total)}</b></td>
-                  </tr>
-                ))}
-                {!weekRows.length && <tr><td colSpan={keys.length + 2} className="empty">No time in this range.</td></tr>}
-              </tbody>
-              {weekRows.length > 0 && <tfoot><tr><td>Total</td>{keys.map((b) => <td key={b} className="num">{colTotals[b] ? f(colTotals[b]) : <span className="note">–</span>}</td>)}<td className="num">{f(total)}</td></tr></tfoot>}
-            </table></div>
           )}
 
           {p.tab === "detailed" && (

@@ -58,9 +58,11 @@ export async function removeTag(form: FormData) {
   const me = await requireTab("settings");
   const id = String(form.get("id"));
   // Entries keep their tags as a list of ids, so take this one out of every list (and out of running timers) as the tag goes.
-  const [, , t] = await db.$transaction([
+  // A client keeps its kinds of work (work types) as tag ids too.
+  const [, , , t] = await db.$transaction([
     db.$executeRaw`UPDATE "TimeEntry" SET "tagIds" = array_remove("tagIds", ${id}) WHERE "tagIds" @> ARRAY[${id}]::text[]`,
     db.$executeRaw`UPDATE "TimerRun" SET "tagIds" = array_remove("tagIds", ${id}) WHERE "tagIds" @> ARRAY[${id}]::text[]`,
+    db.$executeRaw`UPDATE "Client" SET "workTypeIds" = array_remove("workTypeIds", ${id}) WHERE "workTypeIds" @> ARRAY[${id}]::text[]`,
     db.tag.delete({ where: { id } }),
   ]);
   await logAction(me.id, `Removed tag ${t.name}`);

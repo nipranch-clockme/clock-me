@@ -1,4 +1,4 @@
-// The Reports page: tabs, date arrows, tick-box filters with Apply, second-level grouping, budget column, weekly grid, status filter
+// The Reports page: tabs, date arrows, tick-box filters with Apply, second-level grouping, budget column, status filter
 const {start,login,BASE}=require('./helpers');
 const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${detail?' — '+detail:''}`);if(!cond)process.exitCode=1;};
 const num=(s)=>parseFloat(String(s).replace(/,/g,''));
@@ -8,7 +8,7 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
 (async()=>{const b=await start();
  const a=await login(b,'admin@example.com');
  await go(a,'/reports?range=lastmonth');
- ok('three tabs',(await a.locator('.rtabs a').allInnerTexts()).join()==='Summary,Detailed,Weekly');
+ ok('two tabs, no Weekly',(await a.locator('.rtabs a').allInnerTexts()).join()==='Summary,Detailed');
  ok('Summary is the open tab',await a.locator('.rtabs a[aria-pressed="true"]').innerText()==='Summary');
  const filters=await a.locator('.rfilters .fm-b').allInnerTexts();
  ok('admin has all filters',['Person','Team','Client','Project','Phase','Tag','Status','Location'].every((f,i)=>filters[i]&&filters[i].startsWith(f)),filters.join('|'));
@@ -96,12 +96,9 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  await go(a,'/reports?range=lastmonth&group=description');ok('Group by Description works',(await a.locator('.rg-row').count())>=2);
  await go(a,'/reports?range=lastmonth&group=day&group2=project');ok('Group by Day then Project works',(await a.locator('.rg-row').count())>=10);
 
- // weekly grid
+ // the Weekly view is gone: an old link falls back to Summary
  await go(a,'/reports?range=thisweek&tab=weekly');
- const heads=await a.locator('.rweek thead th').count();ok('weekly grid: name, 7 days, total',heads===9,heads+' columns');
- const gridTotal=num(await a.locator('.rweek tfoot td').last().innerText());
- ok('weekly total equals the header total',Math.abs(gridTotal-await total(a))<0.01,gridTotal+' vs '+await total(a));
- await go(a,'/reports?range=lastmonth&tab=weekly&group=person');ok('weekly by person has a row each',(await a.locator('.rweek tbody tr').count())>=5);
+ ok('old Weekly link shows Summary, with no weekly grid',(await a.locator('.rweek').count())===0&&(await a.locator('.rtabs a[aria-pressed=true]').innerText())==='Summary');
 
  // detailed + old link style
  await go(a,'/reports?range=lastweek&detail=1');
@@ -133,7 +130,7 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  // phone
  const ctx=await b.newContext({viewport:{width:390,height:844}});const ph=await ctx.newPage();ph.errs=[];ph.on('pageerror',(e)=>ph.errs.push(e.message));
  await ph.goto(BASE+'/login');await ph.fill('#email','admin@example.com');await ph.fill('#password','password123');await ph.click('button:has-text("Sign in")');await ph.waitForURL((u)=>!u.pathname.startsWith('/login'));
- for(const u of ['/reports?range=lastmonth','/reports?range=lastmonth&group2=person&est=1','/reports?range=thisweek&tab=weekly','/reports?range=lastweek&tab=detailed']){
+ for(const u of ['/reports?range=lastmonth','/reports?range=lastmonth&group2=person&est=1','/reports?range=thisweek','/reports?range=lastweek&tab=detailed']){
   await go(ph,u);const w=await ph.evaluate(()=>[document.documentElement.scrollWidth,window.innerWidth]);
   ok('phone: '+u+' fits the screen',w[0]<=w[1],w.join(' > '));}
  await go(ph,'/reports?range=lastmonth');await ph.click('button.fm-b:has-text("Project")');

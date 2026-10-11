@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
-import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, scopeLabel } from "@/lib/scope";
+import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, expectsHoursWhere, scopeLabel } from "@/lib/scope";
 import { getSettings } from "@/lib/settings";
 import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -24,7 +24,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
     db.timesheet.findMany({ where: { status: "SUBMITTED", user: where }, include: { user: { include: { team: true, location: true } } }, orderBy: [{ weekStart: "asc" }] }),
-    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, weeklyTarget: { gt: 0 } }] }, include: { location: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
   // Team/Project Managers approve their own team first. Location managers and admins see the weeks that really need them up top
@@ -56,7 +56,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
             const want = ex(s.user, ws, we, { whole: true });
-            const fullWeek = s.user.weeklyTarget * 60;
+            const fullWeek = ex.weekly(s.user, ws) * 60;
             // Overtime: the time tagged OT, highlighted here and in Review Time (not in the reports).
             const ot = es.reduce((a, e) => a + (hasOtTag(e.tagIds, otIds) ? e.minutes : 0), 0);
             const byP = new Map<string, { m: number; color: string; name: string }>();

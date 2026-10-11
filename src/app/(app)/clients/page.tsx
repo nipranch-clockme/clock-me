@@ -5,32 +5,56 @@ import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
-import { PACE, clientPeriod, clientTypeName, contractOf, minutesByClient, paceOf, perMonth } from "@/lib/clients";
+import { PACE, clientPeriod, clientTypeName, contractFor, contractMinutes, contractText, loadContractMonths, minutesByClient, paceOf } from "@/lib/clients";
 import { PageHead, Pill } from "@/components/ui";
 import { AddClientButton } from "../projects/ClientForm";
 import { clientTeamOptions } from "@/lib/clientTeams";
 import { teamLabelOf } from "@/lib/clientTeams";
 import { ChangeText, ContractMeter, PeriodPicker, periodNote } from "./parts";
+import ContractsView from "./ContractsView";
+import YearPicker from "@/components/YearPicker";
+import { gridYear } from "@/lib/monthGrid";
 
 // Client dashboard for location managers and admins. Contracts are company-wide, so every number here counts everyone's
 // time on the client, whoever is looking.
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ range?: string; view?: string; year?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("clients");
   const settings = await getSettings(); // also sets the company time zone, which decides the period's dates
+  const admin = me.role === "ADMIN";
+  const [teamOpts, tagOpts] = admin ? await Promise.all([clientTeamOptions(), db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })]) : [[], []];
+  const contracts = sp.view === "contracts";
+  const views = (
+    <nav className="seg vt" aria-label="Clients view">
+      <Link href="/clients" aria-current={contracts ? undefined : "page"}>Overview</Link>
+      <Link href="/clients?view=contracts" aria-current={contracts ? "page" : undefined}>Monthly contracts</Link>
+    </nav>
+  );
+  if (contracts) {
+    return (
+      <>
+        <PageHead title="Clients" beside={views} actions={<><YearPicker year={gridYear(sp.year)} view="contracts" />{admin && <AddClientButton teams={teamOpts} tags={tagOpts} />}</>}
+          sub="Contracted hours for each client, month by month. Contracts that change from month to month, or end part-way through one, are worked out month by month." />
+        <div className="grid"><ContractsView admin={admin} yearParam={sp.year} /></div>
+      </>
+    );
+  }
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const per = clientPeriod(sp.range);
   const thisMonth = per.key === "thismonth";
-  const [clients, now, before, soFar] = await Promise.all([
+  const [clients, now, before, soFar, cm] = await Promise.all([
     db.client.findMany({ orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
     minutesByClient(per.from, per.to),
     minutesByClient(per.prevFrom, per.prevTo),
     thisMonth ? minutesByClient(per.from, completeEnd(per.to)) : new Map<string, number>(),
+    loadContractMonths(),
   ]);
-  // Fixed clients first, the most used contract at the top; then the others by hours.
+  // Fixed clients first, the most used contract at the top; then the others by hours. Each month of the period counts that month's own
+  // contracted hours (see the Monthly contracts view), so a contract that changed or ended part-way is worked out month by month.
   const rows = clients.map((c) => {
-    const monthly = contractOf(c), m = now.get(c.id) ?? 0, contract = monthly ? monthly * per.months.length * 60 : 0;
-    return { c, monthly, m, contract, use: contract ? m / contract : 0, before: before.get(c.id) ?? 0, pace: monthly && thisMonth ? paceOf(monthly, soFar.get(c.id) ?? 0) : null };
+    const contract = contractMinutes(c, per.months, cm), monthly = contract > 0 ? contractText(c, per.months, cm) : null, m = now.get(c.id) ?? 0;
+    const nowMonthly = thisMonth ? contractFor(c, per.months[0], cm) : null;
+    return { c, monthly, m, contract, use: contract ? m / contract : 0, before: before.get(c.id) ?? 0, pace: nowMonthly ? paceOf(nowMonthly, soFar.get(c.id) ?? 0) : null };
   }).sort((x, y) => (x.monthly ? 0 : 1) - (y.monthly ? 0 : 1) || (x.monthly ? y.use - x.use : y.m - x.m) || x.c.name.localeCompare(y.c.name));
   const fixed = rows.filter((r) => r.monthly);
   const total = rows.reduce((a, r) => a + r.m, 0);
@@ -38,7 +62,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHead title="Clients" actions={<><PeriodPicker per={per} id="cl-range" />{me.role === "ADMIN" && <AddClientButton teams={await clientTeamOptions()} />}</>} sub={periodNote(per)} />
+      <PageHead title="Clients" beside={views} actions={<><PeriodPicker per={per} id="cl-range" />{admin && <AddClientButton teams={teamOpts} tags={tagOpts} />}</>} sub={periodNote(per)} />
       <div className="grid">
         <section className="panel full">
           <div className="stats spread five">
@@ -61,7 +85,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 {rows.map((r) => (
                   <tr key={r.c.id}>
                     <td><span className="dot" style={{ background: `var(--${r.c.color})` }} /><Link href={`/clients/${r.c.id}?range=${per.key}`}>{r.c.name}</Link>{r.c.team && <div className="note">{teamLabelOf(r.c.team)}</div>}</td>
-                    <td data-l="Type" className="nw">{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{perMonth(r.monthly)}</div>}</td>
+                    <td data-l="Type" className="nw">{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{r.monthly}</div>}</td>
                     <td className="num" data-l="Hours logged">{f(r.m)}</td>
                     {r.monthly ? <>
                       <td className="num" data-l="Contracted">{f(r.contract)}</td>

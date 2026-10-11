@@ -8,7 +8,7 @@ import { addMonths, endOfMonth, localDate, longDate, toDate, today } from "@/lib
 import { SHARE_PATH } from "@/lib/clientShare";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
-import { PACE, change, clientPeriod, clientTypeName, contractOf, minutesByClient, paceOf, perMonth } from "@/lib/clients";
+import { PACE, change, clientPeriod, clientTypeName, contractFor, contractMinutes, contractText, loadContractMonths, minutesByClient, paceOf } from "@/lib/clients";
 import TrendChart from "@/components/TrendChart";
 import { Dot, PageHead, Pill } from "@/components/ui";
 import { clientTeamOptions, teamLabelOf } from "@/lib/clientTeams";
@@ -25,10 +25,15 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const client = await db.client.findUnique({ where: { id }, include: { team: { include: { location: true } }, contacts: { orderBy: { sort: "asc" } } } });
   if (!client) notFound();
+  const cm = await loadContractMonths(id); // the months whose contract differs from the usual monthly hours
+  const tags = await db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const tagOpts = me.role === "ADMIN" ? tags : [];
+  const workTypes = tags.filter((t) => client.workTypeIds.includes(t.id)).map((t) => t.name);
   // The link's secret is only ever read for admins, who manage it.
   const link = me.role === "ADMIN" ? await db.client.findUnique({ where: { id }, select: { shareToken: true, shareApprovedOnly: true, shareViewedAt: true } }) : null;
   const per = clientPeriod(sp.range);
-  const monthly = contractOf(client);
+  const contract = contractMinutes(client, per.months, cm);
+  const monthly = contract > 0 ? contractText(client, per.months, cm) : null; // "108 h a month", "varies by month", or null with no contract in this period
   const thisMonth = per.key === "thismonth";
   const inPeriod: Prisma.TimeEntryWhereInput = { project: { clientId: id }, date: { gte: toDate(per.from), lte: toDate(per.to) } };
   const firstMonth = addMonths(today().slice(0, 7), -12);
@@ -44,11 +49,12 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
       WHERE p."clientId" = ${id} AND e.date >= ${toDate(firstMonth + "-01")} AND e.date <= ${toDate(endOfMonth(months[11]))}
       GROUP BY 1`),
     minutesByClient(per.prevFrom, per.prevTo, id),
-    monthly && thisMonth ? minutesByClient(per.from, completeEnd(per.to), id) : new Map<string, number>(),
+    contract > 0 && thisMonth ? minutesByClient(per.from, completeEnd(per.to), id) : new Map<string, number>(),
   ]);
   const total = byProject.reduce((a, r) => a + (r._sum.minutes ?? 0), 0);
-  const contract = monthly ? monthly * per.months.length * 60 : 0, use = contract ? total / contract : 0;
-  const pace = monthly && thisMonth ? paceOf(monthly, soFar.get(id) ?? 0) : null;
+  const use = contract ? total / contract : 0;
+  const nowMonthly = thisMonth ? contractFor(client, per.months[0], cm) : null;
+  const pace = nowMonthly ? paceOf(nowMonthly, soFar.get(id) ?? 0) : null;
   const prev = before.get(id) ?? 0, ch = change(total, prev, per.prevLabel);
 
   const P = new Map(projects.map((p) => [p.id, p]));
@@ -67,14 +73,17 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const personRows = listed.map((r) => { const u = U.get(r.userId); return { key: r.userId, m: r._sum.minutes ?? 0, label: <>{u?.name ?? "Unknown"} {u && !u.active && <Pill tone="locked">Inactive</Pill>}<div className="note">{u ? `${u.location.name} · ${u.team?.name ?? "No team"}` : ""}</div></> }; }).sort((a, b) => b.m - a.m);
   if (others.length) personRows.push({ key: "others", m: others.reduce((a, r) => a + (r._sum.minutes ?? 0), 0), label: <span className="note">People in other offices ({others.length})</span> });
   const mm = new Map(byMonth.map((r) => [r.m, Number(r.minutes)]));
-  const series = [{ id: client.id, name: "Hours", color: client.color, v: months.map((m) => (mm.get(m) ?? 0) / 60) }];
+  const series = [
+    { id: client.id, name: "Hours", color: client.color, v: months.map((m) => (mm.get(m) ?? 0) / 60) },
+    ...(months.some((m) => contractFor(client, m, cm)) ? [{ id: "contract", name: "Contract", color: "muted", dashed: true, v: months.map((m) => contractFor(client, m, cm)) }] : []),
+  ];
 
   return (
     <>
       <p className="back"><Link href={`/clients?range=${per.key}`} className="linkbtn">‹ Back to Clients</Link></p>
       <PageHead title={<><Dot color={client.color} />{client.name}</>}
-        actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
-        sub={`${monthly ? `${clientTypeName("FIXED")}, ${perMonth(monthly)}` : clientTypeName("FLOATING")}. ${periodNote(per, !!monthly)}`} />
+        actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} tags={tagOpts} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, workTypeIds: client.workTypeIds, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
+        sub={`${monthly ? `${clientTypeName("FIXED")}, ${monthly}` : clientTypeName("FLOATING")}.${workTypes.length ? ` Work types: ${workTypes.join(" + ")}.` : ""} ${periodNote(per, !!monthly)}`} />
       <div className="grid g2">
         <section className="panel full">
           {monthly ? <>
@@ -113,10 +122,10 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
         )}
         <section className="panel full">
           <h3>Hours by month, last 12 full months</h3>
-          <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} level={monthly ? { value: monthly, label: "Contract", title: `Contract: ${perMonth(monthly)}` } : undefined} />
+          <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} />
           <div className="legend">
             <span><i style={{ background: `var(--${client.color})` }} />Hours logged</span>
-            {monthly && <span><i className="dash" />Contract, {perMonth(monthly)}</span>}
+            {series.length > 1 && <span><i className="dash" />Contracted hours for the month</span>}
           </div>
         </section>
         <section className="panel"><h3>Hours by project</h3><ShareTable head="Project" rows={projectRows} total={total} f={f} empty="No time in this period." /></section>

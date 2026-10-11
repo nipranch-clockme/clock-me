@@ -1,6 +1,10 @@
 import type { Prisma, Role } from "@prisma/client";
 import type { Me } from "./auth";
 
+/** People who have hours expected of them: usual weekly hours above 0, or at least one month above 0 in the monthly hours table. Admins are not a resource,
+ *  so the screens that work out utilisation add `role: { not: "ADMIN" }` as well. */
+export const expectsHoursWhere: Prisma.UserWhereInput = { OR: [{ weeklyTarget: { gt: 0 } }, { monthlyHours: { some: { weeklyHours: { gt: 0 } } } }] };
+
 /** Whose entries this person may see: own (member), own team (team/project manager), own office (location manager), everyone (admin). */
 export function visibleUsersWhere(me: Me): Prisma.UserWhereInput {
   switch (me.role) {

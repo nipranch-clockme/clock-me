@@ -66,7 +66,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const marked=rows.filter((r)=>r.ot);
   ok('review: exactly the two entries tagged OT are marked, each with an OT pill and the tag still listed',rows.length===7&&marked.length===2&&marked.every((r)=>r.pill&&r.tags==='OT'&&/OT$/.test(r.hours)),JSON.stringify(rows));
   ok('review: the entries that are not tagged OT are plain',rows.filter((r)=>!r.ot).every((r)=>!r.pill&&!/OT/.test(r.hours)));
-  await lead.click('nav.rtabs a:has-text("Weekly")');await lead.waitForURL(/tab=weekly/);await lead.waitForLoadState('networkidle');
+  await lead.click('nav.rtabs a:has-text("Summary")');await lead.waitForURL((u)=>!/tab=detailed/.test(u.search));await lead.waitForLoadState('networkidle');
   ok('review: still on the review after another view, and the banner points to Detailed',/ref=approvals/.test(lead.url())&&(await lead.locator('.alert.ot').count())===1&&/Detailed view marks each one/.test(await lead.locator('.alert.ot').innerText()));
   // Charlie: the entry has two tags, and one of them is OT
   await lead.goto(BASE+`/reports?range=custom&from=${W}&to=${WE}&person=${C}&group=project&tab=detailed&ref=approvals`);await lead.waitForLoadState('networkidle');
@@ -90,7 +90,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
 
   // The reports themselves never show it, with the tag in the data
   const reportUrl=(extra)=>`/reports?range=custom&from=${W}&to=${WE}&person=${A}&group=project${extra}`;
-  for(const [label,extra] of [['Summary',''],['Detailed','&tab=detailed'],['Weekly','&tab=weekly']]){
+  for(const [label,extra] of [['Summary',''],['Detailed','&tab=detailed']]){
     await lead.goto(BASE+reportUrl(extra));await lead.waitForLoadState('networkidle');
     ok(`reports: ${label} has no overtime highlight`,(await lead.locator('.alert.ot, tr.otrow, .p-ot').count())===0);
   }

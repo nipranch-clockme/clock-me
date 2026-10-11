@@ -3,7 +3,7 @@ import { db } from "./db";
 import { addMonths, endOfMonth, today, toDate, toStr } from "./dates";
 import { getSettings } from "./settings";
 import { trackingStarts } from "./startDates";
-import { buildExpected, type DayOff, type Expected, type HolidayRow, type LeaveRow } from "./expected";
+import { buildExpected, type DayOff, type Expected, type HolidayRow, type LeaveRow, type MonthlyHours } from "./expected";
 
 export type { DayOff, Expected } from "./expected";
 
@@ -16,6 +16,18 @@ export async function leaveFor(userIds: string[], from: string, to: string): Pro
   if (!userIds.length) return [];
   const rows = await db.timeOff.findMany({ where: { userId: { in: userIds }, startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } } });
   return rows.map((r) => ({ id: r.id, userId: r.userId, from: toStr(r.startDate), to: toStr(r.endDate), fraction: r.fraction, label: r.label, source: r.source }));
+}
+
+/** The months in which these people's weekly hours differ from their usual ones (the monthly hours table). */
+export async function monthlyHoursFor(userIds: string[]): Promise<MonthlyHours> {
+  const out: MonthlyHours = new Map();
+  if (!userIds.length) return out;
+  for (const r of await db.userMonth.findMany({ where: { userId: { in: userIds } } })) {
+    let m = out.get(r.userId);
+    if (!m) out.set(r.userId, (m = new Map()));
+    m.set(toStr(r.month).slice(0, 7), r.weeklyHours);
+  }
+  return out;
 }
 
 /** The days a loader covers when it is not told: two years back to a year ahead, which holds every period the app offers. */
@@ -32,8 +44,8 @@ export function defaultWindow() {
 export async function loadExpected(users: { id: string; locationId: string; createdAt: Date }[], win?: { from: string; to: string }): Promise<Expected> {
   await getSettings(); // sets the company time zone, which decides "today" and each person's first day
   const window = win ?? defaultWindow();
-  const [starts, holidays, leave] = await Promise.all([trackingStarts(users), allHolidays(), leaveFor(users.map((u) => u.id), window.from, window.to)]);
-  return buildExpected({ starts, holidays, leave, today: today(), window });
+  const [starts, holidays, leave, monthly] = await Promise.all([trackingStarts(users), allHolidays(), leaveFor(users.map((u) => u.id), window.from, window.to), monthlyHoursFor(users.map((u) => u.id))]);
+  return buildExpected({ starts, holidays, leave, today: today(), window, monthly });
 }
 
 /** What is taken off each of these days for one person (a holiday in their office, or time off), for badges on the Timesheet and Calendar. */
