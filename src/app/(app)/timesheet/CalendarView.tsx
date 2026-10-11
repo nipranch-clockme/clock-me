@@ -12,7 +12,7 @@ import DayOffList from "./DayOffList";
 
 /** Timesheet view 2: the week as a calendar, for `subject` (you, or someone you can look at). It is read only for someone else
  *  unless you are a location manager or admin who may change their time. */
-export default async function CalendarView({ me, subject, people, editable, opts, settings, offset }: { me: Me; subject: Me; people: { id: string; name: string }[]; editable: boolean; opts: EntryOptions; settings: AppSettings; offset: number }) {
+export default async function CalendarView({ me, subject, subjectName = subject.name, people, editable, opts, settings, offset }: { me: Me; subject: Me; subjectName?: string; people: { id: string; name: string }[]; editable: boolean; opts: EntryOptions; settings: AppSettings; offset: number }) {
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
   const [rows, sheet, offs] = await Promise.all([
@@ -29,12 +29,12 @@ export default async function CalendarView({ me, subject, people, editable, opts
   return (
     <>
       {people.length > 1 && <div className="row" style={{ marginBottom: 10 }}><PersonPicker people={people} current={subject.id} meId={me.id} offset={offset} label={me.role === "ADMIN" || me.role === "LOCATION" ? "Whose time" : "Showing"} /></div>}
-      {others && editable && <p className="alert info" role="status">You are adding and changing time for <strong>{subject.name}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>}
+      {others && editable && <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>}
       <p className="note" style={{ margin: "0 0 10px" }}>{!others || editable ? "Click a time to add an hour, or drag down the day to add exactly the time spent. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
       <CalendarWeek
         opts={opts} dates={dates} today={today()} editable={editable} locked={locked} marks={marks}
-        ownerId={others ? subject.id : undefined}
-        ownerName={subject.name}
+        ownerId={others && editable ? subject.id : undefined}
+        ownerName={subjectName}
         entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: e.phase?.name ?? "", tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
       />
       <DayOffList dates={dates} marks={marks} />

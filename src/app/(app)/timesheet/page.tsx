@@ -35,11 +35,15 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const pickable = view === "sheet" ? people.filter((p) => canEditTimeFor(me, p)) : people;
   const subject: Me = (sp.u && sp.u !== me.id ? pickable.find((p) => p.id === sp.u) : undefined) ?? me;
   const others = subject.id !== me.id;
+  // Two people can share a name, so the picker and the on-behalf banner add the office to those names.
+  const dupNames = new Set(people.map((p) => p.name).filter((n, i, all) => all.indexOf(n) !== i));
+  const nameOf = (p: { name: string; location: { name: string } }) => (dupNames.has(p.name) ? `${p.name} (${p.location.name})` : p.name);
+  const subjectName = nameOf(subject);
   const editable = !others || canEditTimeFor(me, subject); // someone else's week is read only unless you may change their time
   const [rows, sheet, opts, savedRows, offs, ex] = await Promise.all([
     db.timeEntry.findMany({ where: { userId: subject.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: subject.id, weekStart: toDate(ws) } } }),
-    entryOptions(subject),
+    entryOptions(editable ? subject : me, me), // a read-only view never lists the other person's projects
     db.timesheetRow.findMany({ where: { userId: subject.id, weekStart: toDate(ws) }, include: { project: { include: { client: true } } } }),
     dayMarks(subject, dates), // public holidays of their office and their time off, for the badges
     loadExpected([subject], { from: ws, to: dates[6] }),
@@ -99,11 +103,11 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     <section className="panel">
       {view === "sheet" && pickable.length > 1 && (
         <div className="row" style={{ marginBottom: 12 }}>
-          <PersonPicker view="sheet" label="Whose time" people={pickable.map((p) => ({ id: p.id, name: p.name }))} current={subject.id} meId={me.id} offset={offset} />
+          <PersonPicker view="sheet" label="Whose time" people={pickable.map((p) => ({ id: p.id, name: nameOf(p) }))} current={subject.id} meId={me.id} offset={offset} />
         </div>
       )}
       {others && editable && view === "sheet" && (
-        <p className="alert info" role="status">You are adding and changing time for <strong>{subject.name}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>
+        <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>
       )}
       <div className="row between" style={{ marginBottom: 14 }}>
         <div className="weeknav">
@@ -143,7 +147,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subject.name : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
+      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
@@ -152,7 +156,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       </p>
       </>}
       {view !== "cal" && <DayOffList dates={dates} marks={marks} />}
-      {view === "cal" && <CalendarView me={me} subject={subject} people={people.map((p) => ({ id: p.id, name: p.name }))} editable={editable} opts={opts} settings={settings} offset={offset} />}
+      {view === "cal" && <CalendarView me={me} subject={subject} subjectName={subjectName} people={people.map((p) => ({ id: p.id, name: nameOf(p) }))} editable={editable} opts={opts} settings={settings} offset={offset} />}
       {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} />}
     </section>
     </>

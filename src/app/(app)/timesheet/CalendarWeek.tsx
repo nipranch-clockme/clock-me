@@ -98,7 +98,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
     setDragBoth(null);
     const [start, end] = range(cur);
     // A plain click adds the default hour at that slot; a drag adds exactly the dragged time.
-    const who = ownerId ? { ownerName } : {};
+    const who = ownerId ? { ownerId, ownerName } : {};
     setEdit(cur.moved ? { date: cur.date, startMin: start, minutes: end - start, ...who } : { date: cur.date, startMin: Math.min(cur.anchor, (H1 - 1) * 60), ...who });
   };
 
@@ -122,7 +122,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
                 if (lastPointer.current !== "touch" || !canAdd(i) || (ev.target as HTMLElement).closest(".ev")) return;
                 const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
                 const mins = Math.max(H0 * 60, Math.min((H1 - 1) * 60, H0 * 60 + Math.floor(((ev.clientY - r.top) / PX) * 4) * 15));
-                setEdit({ date: d, startMin: mins, ...(ownerId ? { ownerName } : {}) });
+                setEdit({ date: d, startMin: mins, ...(ownerId ? { ownerId, ownerName } : {}) });
               }}>
               {drag?.date === d && drag.moved && (() => {
                 const [a, b] = range(drag);
@@ -141,7 +141,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
               })()}
               {(() => { const day = entries.filter((e) => e.date === d); const pos = layout(day); return day.map((e) => { const { col, cols } = pos.get(e.id)!; return (
                 <button key={e.id} className="ev" style={{ top: Math.max(0, (e.startMin / 60 - H0) * PX), height: Math.max(18, (e.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left", left: `calc(${(col / cols) * 100}% + 3px)`, right: "auto", width: `calc(${100 / cols}% - 6px)` }}
-                  onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerName: editable && !ownerId ? undefined : ownerName })}>
+                  onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerId: editable ? ownerId : undefined, ownerName: editable && !ownerId ? undefined : ownerName })}>
                   <b>{e.projectName}</b><span>{hm(e.startMin)} · {f(e.minutes)}</span>
                 </button>
               ); }); })()}
@@ -149,7 +149,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
           ))}
         </div>
       </div>
-      <EntryDialog opts={opts} value={edit} ownerId={ownerId} onClose={() => setEdit(null)} />
+      <EntryDialog opts={opts} value={edit} onClose={() => setEdit(null)} />
     </>
   );
 }

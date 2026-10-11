@@ -105,9 +105,10 @@ export async function addRow(form: FormData): Promise<RowResult> {
   const ws = monday(week);
   const closed = await weekClosed(person.id, ws, person.id !== me.id);
   if (closed) return { ok: false, error: closed };
-  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, select: { id: true } });
+  const project = await db.project.findFirst({ where: { id: projectId, ...trackableProjectsWhere(person) }, select: { id: true, name: true } });
   if (!project) return { ok: false, error: person.id === me.id ? "Choose a project you can log time on." : `Choose a project ${person.name} can log time on.` };
   await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId }], skipDuplicates: true });
+  if (person.id !== me.id) await logAction(me.id, `Added the ${project.name} row for ${weekLabel(ws)} on behalf of ${person.name}`, person.id);
   revalidatePath("/timesheet");
   return { ok: true };
 }
@@ -125,7 +126,11 @@ export async function removeRow(form: FormData): Promise<RowResult> {
   if (closed) return { ok: false, error: closed };
   const hasTime = await db.timeEntry.count({ where: { userId: person.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
   if (hasTime) return { ok: false, error: "This row has time on it. Delete its entries first." };
-  await db.timesheetRow.deleteMany({ where: { userId: person.id, weekStart: toDate(ws), projectId } });
+  const gone = await db.timesheetRow.deleteMany({ where: { userId: person.id, weekStart: toDate(ws), projectId } });
+  if (gone.count && person.id !== me.id) {
+    const project = await db.project.findUnique({ where: { id: projectId }, select: { name: true } });
+    await logAction(me.id, `Removed the ${project?.name ?? "project"} row for ${weekLabel(ws)} on behalf of ${person.name}`, person.id);
+  }
   revalidatePath("/timesheet");
   return { ok: true };
 }

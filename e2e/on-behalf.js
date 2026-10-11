@@ -15,7 +15,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
 
 (async()=>{
  const b=await start();
- const t='ob'+process.pid, K=t+'k', K2=t+'l', KI=t+'i', M=t+'m', ALL=[K,K2,KI,M];
+ const t='ob'+process.pid, K=t+'k', K2=t+'l', KI=t+'i', M=t+'m', KA=t+'a', KD=t+'d', ALL=[K,K2,KI,M,KA,KD];
  const tom=sql(`select "locationId"||'|'||"teamId"||'|'||"passwordHash" from "User" where email='tom@example.com'`).split('|');
  const KLH=tom[0], FLASH=tom[1], hash=tom[2];
  const daniel=sql(`select "locationId"||'|'||"teamId" from "User" where email='daniel@example.com'`).split('|');
@@ -49,6 +49,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ins(K2,'Klh Manager Test','LOCATION',KLH,null);
   ins(KI,'Klh Inactive Test','MEMBER',KLH,FLASH,false);
   ins(M,'Amd Test','MEMBER',daniel[0],daniel[1]);
+  ins(KA,'Klh Admin Test','ADMIN',KLH,null);
   const rproj=t+'rp';
   sql(`insert into "Project"(id,name,"clientId",access) values('${rproj}','E2E Restricted ${t}','${clientId}','RESTRICTED')`);
   sql(`insert into "Phase"(id,"projectId",name,sort) values('${rproj}ph','${rproj}','Only phase',0)`);
@@ -94,6 +95,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await go(rav,`/timesheet?u=${K}`);
   await cap('removeRow',()=>rav.click('button.rowx'));await rav.waitForLoadState('networkidle');await rav.waitForTimeout(300);
   ok('the empty project row can be removed for them',count(`select count(*) from "TimesheetRow" where "userId"='${K}' and "weekStart"='${ws}'`)===0);
+  ok('adding and removing the row are in the change log too, naming the person',count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Added the % row for % on behalf of Klh Test'`)===1&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Removed the % row for % on behalf of Klh Test'`)===1);
 
   // ---- crafted calls from the location manager
   const c1=await act(rav,'saveEntry',entryFields(M));
@@ -154,6 +156,9 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await rav.click('dialog[open] button:has-text("Close")');
   await go(rav,`/timesheet?view=timer&u=${K}`);
   ok('the Timer is always your own: no banner, no picker',(await rav.locator('.alert.info:has-text("You are adding")').count())===0&&(await rav.locator('#caluser').count())===0);
+  // another office's admin: read only, and the page must not carry that admin's project list (every project in the company)
+  await go(rav,`/timesheet?view=cal&u=${KA}`);
+  ok("calendar: an admin in the office is read only, and their project list does not reach the page",/Read only/.test(await rav.textContent('main'))&&!(await rav.content()).includes('E2E Restricted '+t),'');
   // a person in the office the manager can look at but not change (another location manager): read only
   await go(rav,`/timesheet?view=cal&u=${K2}`);
   ok('calendar: another location manager is read only for them',/Read only/.test(await rav.textContent('main'))&&(await rav.locator('.alert.info:has-text("You are adding")').count())===0);
@@ -190,16 +195,25 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('Team/Project Manager: no picker on the Timesheet and ?u= gives their own week',(await lead.locator('#caluser').count())===0&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
   const t1=await act(lead,'saveEntry',entryFields(PRIYA));
   ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only location managers and admins')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
+  sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${t}rd','${PRIYA}','${pa}','${xa}','{}','${addDays(ws,2)}',600,60,'ob-read','{}',now())`);
   await go(lead,`/timesheet?view=cal&u=${PRIYA}`);
   ok('Team/Project Manager: a team member\'s calendar is still read only',/Read only/.test(await lead.textContent('main'))&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
   const evs=await lead.locator('button.ev').count();
-  if(evs){await lead.locator('button.ev').first().click();await lead.waitForSelector('dialog[open]');ok('...and an entry there opens without a Save button',(await lead.locator('dialog[open] button:has-text("Save changes")').count())===0);}
+  if(evs){await lead.locator('button.ev').first().click();await lead.waitForSelector('dialog[open]');ok('...and an entry there opens without a Save button, and without "On behalf of"',(await lead.locator('dialog[open] button:has-text("Save changes")').count())===0&&!/On behalf of/.test(await lead.textContent('dialog[open]')));}
   else ok('...(no entries this week to open; the note above covers it)',true);
+  // two people with the same name are told apart by their office
+  const klhName=sql(`select name from "Location" where id='${KLH}'`);
+  ins(KD,'Klh Test','MEMBER',KLH,FLASH);
+  await go(rav,'/timesheet');
+  const dupOpts=await rav.$$eval('#caluser option',(os)=>os.map((o)=>o.textContent.trim()));
+  ok('same name twice: the picker adds the office to both',dupOpts.filter((o)=>o===`Klh Test (${klhName})`).length===2&&!dupOpts.includes('Klh Test'),dupOpts.join(', '));
+  await go(rav,`/timesheet?u=${KD}`);
+  ok('same name twice: the banner says which one',new RegExp(`time for Klh Test \\(${klhName}\\)`).test((await rav.locator('.alert.info').first().innerText()).replace(/\s+/g,' ')));
   for(const p of pages){const bad=p.errs.filter((e)=>!/Failed to load resource/.test(e));ok(`no page errors (${p.url().replace(BASE,'').slice(0,60)})`,bad.length===0,bad.slice(0,2).join(' | '));}
  }finally{
   sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
   const list=[...ALL,t+'adm'].map((x)=>`'${x}'`).join(',');
-  sql(`delete from "TimeEntry" where id='${t}adm' or "userId" in (${ALL.map((x)=>`'${x}'`).join(',')}) or description='crafted' and "userId" in ('${ADMIN}','${PRIYA}','${RAVI}')`);
+  sql(`delete from "TimeEntry" where id='${t}adm' or "userId" in (${ALL.map((x)=>`'${x}'`).join(',')}) or description='crafted' and "userId" in ('${ADMIN}','${PRIYA}','${RAVI}') or id='${t}rd'`);
   sql(`delete from "AuditLog" where "userId" in (${ALL.map((x)=>`'${x}'`).join(',')}) or "targetUserId" in (${ALL.map((x)=>`'${x}'`).join(',')})`);
   sql(`delete from "TimesheetRow" where "userId" in (${ALL.map((x)=>`'${x}'`).join(',')})`);
   sql(`delete from "Timesheet" where id='${t}s'`);

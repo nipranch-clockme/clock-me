@@ -81,13 +81,13 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   const showTip = (id: string, el: HTMLElement) => { setTipPos(null); setTip({ id, el }); };
   const openAdd = (r: SheetRow, d: string) => {
     setTip(null);
-    setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, ownerName: ownerId ? ownerName : undefined, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
+    setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, ownerId, ownerName: ownerId ? ownerName : undefined, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
   };
   const openEntry = (e: SheetEntry) => {
     setTip(null);
     // On a project that's closed for new time, the full form lets the person move the entry to another project.
-    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` });
-    setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` });
+    setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
   };
   const changeRow = (fn: typeof addRow, fd: FormData, setError: (m: string) => void, after?: () => void) => {
     setBusy(true);
@@ -184,7 +184,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
         </div>
       </dialog>
       {/* Closing the dialog puts focus back on the chip; don't let that pop the tooltip up. */}
-      <EntryDialog opts={opts} value={edit} ownerId={ownerId} onClose={() => { setEdit(null); setTip(null); }} />
+      <EntryDialog opts={opts} value={edit} onClose={() => { setEdit(null); setTip(null); }} />
     </>
   );
 }

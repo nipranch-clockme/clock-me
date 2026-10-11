@@ -193,7 +193,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         sub={`Showing: ${scopeLabel(me)} · ${longDate(shownFrom)} to ${longDate(shownTo)}`} />
       {ot && (
         <p className="alert ot" role="status">
-          <Pill tone="ot">OT {f(ot.minutes)} h</Pill> {plural(ot.entries, "entry", "entries")} tagged OT in this view{ot.people.length === 1 ? ` (${U.get(ot.people[0])?.name ?? "one person"})` : `, from ${plural(ot.people.length, "person", "people")}`}. {p.tab === "detailed" ? "Each one is marked below." : "The Detailed view marks each one."}
+          <Pill tone="ot">OT {f(ot.minutes)} h</Pill> {plural(ot.entries, "entry", "entries")} tagged OT in this view{ot.people.length === 1 ? ` (${U.get(ot.people[0])?.name ?? "one person"})` : `, from ${plural(ot.people.length, "person", "people")}`}. {p.tab !== "detailed" ? "The Detailed view marks each one." : entryCount > CAP ? `Only the latest ${CAP} entries are listed below, so narrow the dates or people to see every one.` : "Each one is marked below."}
         </p>
       )}
       <AutoForm key={reportQuery(p)} manual className="rform">

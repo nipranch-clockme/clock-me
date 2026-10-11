@@ -9,8 +9,8 @@ import TagPicker from "@/components/TagPicker";
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const dur = (m: number | undefined, f: "decimal" | "hhmm") => (m == null ? (f === "hhmm" ? "1:00" : "1.00") : f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
 
-/** `ownerId` is set when the time belongs to someone else (a location manager or admin adding or changing it on their behalf). */
-export default function EntryDialog({ opts, value, onClose, ownerId }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void; ownerId?: string }) {
+/** `value.ownerId` is set when the time belongs to someone else (a location manager or admin adding or changing it on their behalf). It is fixed when the form opens, so the person shown is the person saved. */
+export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -20,12 +20,13 @@ export default function EntryDialog({ opts, value, onClose, ownerId }: { opts: E
   }, [value]);
   return (
     <dialog ref={ref} className="wide" onClose={onClose} aria-labelledby="entry-title">
-      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "")} opts={opts} value={value} ownerId={ownerId} onDone={() => ref.current?.close()} />}
+      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "") + (value.ownerId ?? "")} opts={opts} value={value} onDone={() => ref.current?.close()} />}
     </dialog>
   );
 }
 
-function EntryForm({ opts, value, onDone, ownerId }: { opts: EntryOptions; value: EntryValue; onDone: () => void; ownerId?: string }) {
+function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryValue; onDone: () => void }) {
+  const ownerId = value.ownerId;
   const router = useRouter();
   const [state, action, pending] = useActionState<EntryResult, FormData>(saveEntry, null);
   const [projectId, setProjectId] = useState(value.projectId ?? opts.projects[0]?.id ?? "");
