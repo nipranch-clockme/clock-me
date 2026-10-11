@@ -64,7 +64,7 @@ const GENERIC="isn't in your list|can't change the hours";
   await go(adm,'/clients?view=contracts');
   ok('contracts: two views, this one is current',(await adm.locator('nav[aria-label="Clients view"] a').allInnerTexts()).join()==='Overview,Monthly contracts'&&await adm.locator('nav[aria-label="Clients view"] a[aria-current=page]').innerText()==='Monthly contracts');
   ok('contracts: the year picker offers last year, this year and next',(await adm.locator('#mg-year option').allInnerTexts()).join()===`${y-1},${y},${y+1}`&&await adm.inputValue('#mg-year')===String(y));
-  ok('contracts: twelve boxes per client',await adm.locator(`input[name^="m|${C1}|"]`).count()===12&&await adm.locator(`input[name^="m|${C2}|"]`).count()===12);
+  ok('contracts: twelve boxes per client',await adm.locator(`tr:has(td.cl a:text-is("${N1}")) input.cell`).count()===12&&await adm.locator(`tr:has(td.cl a:text-is("${N2}")) input.cell`).count()===12);
   const vals=async(id)=>adm.$$eval(`input[name^="m|${id}|"]`,(is)=>is.map((i)=>i.value));
   ok('contracts: the usual hours fill every month of a fixed client, and a no-commitment client is empty',(await vals(C1)).every((v)=>v==='10')&&(await vals(C2)).every((v)=>v===''));
   const rowOf=(name)=>adm.locator(`tr:has(td.cl a:text-is("${name}"))`);
