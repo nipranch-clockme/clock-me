@@ -1,5 +1,5 @@
 // The monthly tables (contracted hours per client on Clients > Monthly contracts, expected hours per person on People > Monthly hours), a client's work types,
-// and the Dashboard changes that came with them: the Capacity / Contracted / Logged chart per office, the folding "Your numbers", the Top 5 without target hours,
+// and the Dashboard changes that came with them: the Inventory / Actual chart per office, the folding "Your numbers", the Top 5 without target hours,
 // and admins left out of utilisation. Sets up its own clients, tags and people directly in the local database, and removes them again.
 //   BASE=http://localhost:3500 PSQL="psql -h /var/run/postgresql tags_t" node e2e/monthly.js
 const {execSync}=require('child_process');
@@ -209,20 +209,20 @@ const count=(q)=>+sql(q);
   // ================= Dashboard =================
   await go(rav,'/dashboard');
   const inv=rav.locator('section.panel:has(h3:has-text("Inventory vs actual"))');
-  ok('dashboard: the location manager has one Capacity / Contracted / Logged chart for the office',await inv.count()===1&&(await inv.locator('.legend').innerText()).replace(/\s+/g,' ').trim()==='Logged Capacity Contracted'&&/KLH/.test(await inv.locator('h3').innerText()));
+  ok('dashboard: the location manager has one Inventory vs actual chart for the office',await inv.count()===1&&(await inv.locator('.legend').innerText()).replace(/\s+/g,' ').trim()==='Actual Inventory'&&/KLH/.test(await inv.locator('h3').innerText()));
   const label=new Date(Date.UTC(+lastFull.slice(0,4),+lastFull.slice(5)-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
   const pt=async(p,series,office)=>{const t=await p.locator(`section.panel:has(h3:has-text("Inventory vs actual")${office?`:has-text("${office}")`:''}) svg circle title`).allTextContents();const m=t.find((x)=>x.startsWith(`${series}, ${label}:`));return m?+m.split(': ')[1].replace(/[^\d.-]/g,''):null;};
-  const wantContracted=Math.round(+sql(`select coalesce(sum(coalesce((select hours from "ClientMonth" cm where cm."clientId"=c.id and cm.month='${lastFull}-01'),case when c.type='FIXED' then coalesce(c."monthlyHours",0) else 0 end)),0) from "Client" c join "Team" tm on tm.id=c."teamId" where tm."locationId"='${KLH}'`));
   const loggedSql=`select coalesce(sum(e.minutes),0)/60.0 from "TimeEntry" e join "User" u on u.id=e."userId" where u."locationId"='${KLH}' and u.role<>'ADMIN' and u.active and u."passwordHash" is not null and (u."weeklyTarget">0 or exists(select 1 from "UserMonth" um where um."userId"=u.id and um."weeklyHours">0)) and to_char(e.date,'YYYY-MM')='${lastFull}'`;
-  ok('dashboard: Contracted for last month is the contract of the office\'s clients',(await pt(rav,'Contracted'))===wantContracted,`${await pt(rav,'Contracted')} vs ${wantContracted}`);
-  ok('dashboard: Logged for last month is what the office\'s people logged, an admin\'s time left out',(await pt(rav,'Logged'))===Math.round(+sql(loggedSql)),`${await pt(rav,'Logged')} vs ${Math.round(+sql(loggedSql))}`);
-  ok('dashboard: Capacity is drawn too',(await pt(rav,'Capacity'))>0);
+  ok('dashboard: Actual for last month is what the office\'s people logged, an admin\'s time left out',(await pt(rav,'Actual'))===Math.round(+sql(loggedSql)),`${await pt(rav,'Actual')} vs ${Math.round(+sql(loggedSql))}`);
+  // Inventory is each person's expected hours for the month: positive, and never more than a full month of their weekly hours (holidays and time off only take away)
+  const invRav=await pt(rav,'Inventory'), fullMonth=Math.round(+sql(`select coalesce(sum(u."weeklyTarget"),0)*${workdaysIn(lastFull)}/5.0 from "User" u where u."locationId"='${KLH}' and u.role<>'ADMIN' and u.active and u."passwordHash" is not null`));
+  ok('dashboard: Inventory for last month is the office\'s expected hours, at most a full month of weekly hours',invRav>0&&invRav<=fullMonth+1,`${invRav} vs at most ${fullMonth}`);
   const kpeople=async()=>rav.locator('section.panel:has(h3:has-text("KLH office")) .stat:has(span:text-is("people")) b').innerText();
   ok('dashboard: the office counts its people, not its admin',+(await kpeople())===count(`select count(*) from "User" where "locationId"='${KLH}' and role<>'ADMIN' and active and "passwordHash" is not null and ("weeklyTarget">0 or exists(select 1 from "UserMonth" um where um."userId"="User".id and um."weeklyHours">0))`),await kpeople());
   await go(adm,'/dashboard');
   const offices=count(`select count(distinct "locationId") from "User" where active and role<>'ADMIN' and "passwordHash" is not null and ("weeklyTarget">0 or exists(select 1 from "UserMonth" um where um."userId"="User".id and um."weeklyHours">0))`);
   ok('dashboard: the admin has one chart for each office',await adm.locator('section.panel:has(h3:has-text("Inventory vs actual"))').count()===offices&&offices>1,`${await adm.locator('section.panel:has(h3:has-text("Inventory vs actual"))').count()} vs ${offices}`);
-  ok('dashboard: the admin\'s own chart for KLH matches',(await pt(adm,'Contracted','KLH'))===wantContracted);
+  ok('dashboard: the admin\'s own chart for KLH matches the office manager\'s',(await pt(adm,'Inventory','KLH'))===invRav&&(await pt(adm,'Actual','KLH'))===(await pt(rav,'Actual')));
   ok('dashboard: an admin is not in the Top 5, the office cards or anywhere on the numbers',!(await adm.innerText('body')).includes('Mg Admin'));
   const dan=await signIn('daniel@example.com');
   await go(dan,'/dashboard');

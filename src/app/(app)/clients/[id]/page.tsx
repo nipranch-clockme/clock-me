@@ -8,7 +8,7 @@ import { addMonths, endOfMonth, localDate, longDate, toDate, today } from "@/lib
 import { SHARE_PATH } from "@/lib/clientShare";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
-import { PACE, change, clientPeriod, clientTypeName, contractFor, contractMinutes, contractText, loadContractMonths, minutesByClient, paceOf } from "@/lib/clients";
+import { PACE, change, clientPeriod, clientTypeName, contractFor, contractMinutes, contractText, loadContractMonths, minutesByClient, paceOf, perMonth } from "@/lib/clients";
 import TrendChart from "@/components/TrendChart";
 import { Dot, PageHead, Pill } from "@/components/ui";
 import { clientTeamOptions, teamLabelOf } from "@/lib/clientTeams";
@@ -73,9 +73,13 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const personRows = listed.map((r) => { const u = U.get(r.userId); return { key: r.userId, m: r._sum.minutes ?? 0, label: <>{u?.name ?? "Unknown"} {u && !u.active && <Pill tone="locked">Inactive</Pill>}<div className="note">{u ? `${u.location.name} · ${u.team?.name ?? "No team"}` : ""}</div></> }; }).sort((a, b) => b.m - a.m);
   if (others.length) personRows.push({ key: "others", m: others.reduce((a, r) => a + (r._sum.minutes ?? 0), 0), label: <span className="note">People in other offices ({others.length})</span> });
   const mm = new Map(byMonth.map((r) => [r.m, Number(r.minutes)]));
+  // A contract that is the same in every month of the chart is a line across it; one that changes by month is a dashed line that follows each month.
+  const contractByMonth = months.map((m) => contractFor(client, m, cm) ?? 0);
+  const flat = contractByMonth.every((h) => h === contractByMonth[0]);
+  const level = flat && contractByMonth[0] > 0 ? { value: contractByMonth[0], label: "Contract", title: `Contract: ${perMonth(contractByMonth[0])}` } : undefined;
   const series = [
     { id: client.id, name: "Hours", color: client.color, v: months.map((m) => (mm.get(m) ?? 0) / 60) },
-    ...(months.some((m) => contractFor(client, m, cm)) ? [{ id: "contract", name: "Contract", color: "muted", dashed: true, v: months.map((m) => contractFor(client, m, cm)) }] : []),
+    ...(!flat && contractByMonth.some((h) => h > 0) ? [{ id: "contract", name: "Contract", color: "muted", dashed: true, v: contractByMonth.map((h) => h || null) }] : []),
   ];
 
   return (
@@ -122,7 +126,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
         )}
         <section className="panel full">
           <h3>Hours by month, last 12 full months</h3>
-          <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} />
+          <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} level={level} />
           <div className="legend">
             <span><i style={{ background: `var(--${client.color})` }} />Hours logged</span>
             {series.length > 1 && <span><i className="dash" />Contracted hours for the month</span>}

@@ -8,7 +8,6 @@ import { expectsHoursWhere, scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { addMonths, endOfMonth, longDate, rangeDates, today, toDate } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
-import { contractFor, loadContractMonths } from "@/lib/clients";
 import AutoForm from "@/components/AutoForm";
 import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
@@ -74,23 +73,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     }),
   }));
 
-  // Location managers and admins also see, for each office, the hours it has available (capacity), the hours its clients have contracted, and the hours its people logged.
-  // Contracts belong to an office through the team a client is assigned to, so a client with no team is not in any office's chart.
+  // Location managers and admins also see, for each office, its inventory against what it actually logged, month by month. Inventory is the
+  // office's capacity: each person's expected hours for the month added up (see expected.ts), so it already allows for holidays and time off.
   const inventory: { id: string; name: string; series: { id: string; name: string; color: string; dashed?: boolean; v: (number | null)[] }[] }[] = [];
   if (me.role === "LOCATION" || me.role === "ADMIN") {
-    const [clients, cm] = await Promise.all([
-      db.client.findMany({ where: { team: me.role === "LOCATION" ? { locationId: me.locationId } : { isNot: null } }, select: { id: true, type: true, monthlyHours: true, team: { select: { locationId: true } } } }),
-      loadContractMonths(),
-    ]);
     for (const l of locs) {
-      const us = users.filter((u) => u.locationId === l.id), mine = clients.filter((c) => c.team?.locationId === l.id);
-      const capacity = months.map((m) => us.reduce((t, u) => t + target(u, m + "-01", endOfMonth(m)), 0) / 60);
-      const logged = months.map((m) => us.reduce((t, u) => t + (mm.get(`${u.id}|${m}`) ?? 0), 0) / 60);
-      const contracted = months.map((m) => mine.reduce((t, c) => t + (contractFor(c, m, cm) ?? 0), 0));
+      const us = users.filter((u) => u.locationId === l.id);
+      const inv = months.map((m) => us.reduce((t, u) => t + target(u, m + "-01", endOfMonth(m)), 0) / 60);
+      const actual = months.map((m) => us.reduce((t, u) => t + (mm.get(`${u.id}|${m}`) ?? 0), 0) / 60);
       inventory.push({ id: l.id, name: l.name, series: [
-        { id: "logged", name: "Logged", color: "s1", v: logged.map((v, i) => (v || capacity[i] ? v : null)) },
-        { id: "capacity", name: "Capacity", color: "s4", dashed: true, v: capacity.map((v) => v || null) },
-        ...(contracted.some(Boolean) ? [{ id: "contracted", name: "Contracted", color: "s2", dashed: true, v: contracted.map((v) => v || null) }] : []),
+        { id: "actual", name: "Actual", color: "s1", v: actual.map((v, i) => (v || inv[i] ? v : null)) },
+        { id: "inventory", name: "Inventory", color: "s4", dashed: true, v: inv.map((v) => v || null) },
       ] });
     }
   }
@@ -175,9 +168,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {inventory.map((o) => (
           <section className="panel full" key={o.id}>
             <h3>Inventory vs actual, last 12 full months, {o.name}</h3>
-            <TrendChart months={months} series={o.series} unit="hours" fmt={hoursText} label={`Capacity, contracted and logged hours by month, ${o.name}`} />
+            <TrendChart months={months} series={o.series} unit="hours" fmt={hoursText} label={`Inventory and actual hours by month, ${o.name}`} />
             <div className="legend">{o.series.map((x) => <span key={x.id}><i style={{ background: `var(--${x.color})` }} />{x.name}</span>)}</div>
-            <p className="note" style={{ margin: "8px 0 0" }}>Capacity is the hours expected of the office&apos;s people that month (their weekly hours for the month, less public holidays and time off; admins are not counted). Contracted is the contracted hours that month of the clients assigned to the office&apos;s teams. Logged is the hours the office&apos;s people logged.</p>
+            <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
           </section>
         ))}
         <section className="panel full">
