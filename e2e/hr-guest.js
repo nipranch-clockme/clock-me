@@ -90,6 +90,8 @@ const pathOf = (p) => new URL(p.url()).pathname;
     const guBody = await gu.locator("body").innerText();
     await gu.goto(`${BASE}/projects`); await gu.waitForLoadState("networkidle");
     ok(!(await gu.locator("body").innerText()).includes(clientName), "Guest: Projects page does not show the client name");
+    await gu.goto(`${BASE}/profile`); await gu.waitForLoadState("networkidle");
+    ok(!(await gu.locator("body").innerText()).includes(clientName), "Guest: own profile does not show the client name");
     await gu.goto(`${BASE}/reports`); await gu.waitForLoadState("networkidle");
     ok((await gu.locator('label:has-text("Client")').count()) === 0 && !(await gu.locator("body").innerText()).includes(clientName), "Guest: Reports has no client filter and no client name");
     ok(!guBody.includes(clientName), "Guest: timesheet does not show the client name");

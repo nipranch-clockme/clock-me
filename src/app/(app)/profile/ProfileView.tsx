@@ -4,6 +4,7 @@ import type { Me } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { canManagePerson } from "@/lib/scope";
 import { roleName } from "@/lib/roles";
+import { hidesClients } from "@/lib/scope";
 import Link from "next/link";
 import { addDays, dow, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
@@ -62,7 +63,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   const trend = monthlyUtilisation([person], months, ex, mm);
 
   const P = new Map(projects.map((p) => [p.id, p]));
-  const projectRows: ShareRow[] = perProject.map((r) => ({ key: r.projectId, label: P.get(r.projectId)?.name ?? "Unknown project", sub: P.get(r.projectId)?.client.name, m: r._sum.minutes ?? 0 })).sort((x, y) => y.m - x.m);
+  const projectRows: ShareRow[] = perProject.map((r) => ({ key: r.projectId, label: P.get(r.projectId)?.name ?? "Unknown project", sub: hidesClients(me) ? undefined : P.get(r.projectId)?.client.name, m: r._sum.minutes ?? 0 })).sort((x, y) => y.m - x.m);
   const PH = new Map(phases.map((p) => [p.id, p.name]));
   const byPhase = new Map<string, number>(); // phases with the same name on different projects count together, as in Reports
   for (const r of perPhase) { const n = (r.phaseId && PH.get(r.phaseId)) || "No phase"; byPhase.set(n, (byPhase.get(n) ?? 0) + (r._sum.minutes ?? 0)); }

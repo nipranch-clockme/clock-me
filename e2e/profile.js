@@ -311,8 +311,8 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok("a member's crafted save of their own details is refused",r.text.includes("You don't have permission to change that.")&&db(M,'employeeId')===`PFQ-${process.pid}`&&db(M,'weeklyTarget')==='40');
   await go(o,'/people');
   ok('location manager People list links to profiles in their office',(await o.locator(`a[href="/profile/${L}"]`).count())===1&&(await o.locator(`a[href="/profile/${M}"]`).count())===0);
-  const ocsv=await (await o.request.get(BASE+'/import-export/export/people')).text();
-  ok("location manager's People CSV has their office's IDs only",ocsv.includes(`PFL-${process.pid}`)&&!ocsv.includes(`PFQ-${process.pid}`));
+  const oexp=await o.request.get(BASE+'/import-export/export/people');
+  ok("location manager's People export is refused (import and export is admins only)",oexp.status()===403&&!(await oexp.text()).includes(`PFQ-${process.pid}`));
 
   // ---- Signed out, and a phone-sized screen
   const anon=await (await b.newContext()).newPage();
