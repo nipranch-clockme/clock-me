@@ -130,6 +130,8 @@ async function withOverlays(p, path) {
   sql(`update "Client" set "shareToken"='${token}' where id='${clientId}' and "shareToken" is null`);
   // A holiday in Priya's office, a day and a half day of time off for her, and one row from another system: badges, lists and pills on screen.
   const dt = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + n); return d.toISOString().slice(0, 10); };
+  // rows left by an aborted run would make the inserts below fail, so clear them first
+  sql(`delete from "TimeEntry" where "userId"='ctrot'; delete from "TimeOff" where id in ('ctro1','ctro2'); delete from "Holiday" where id in ('ctrh1','ctrh2'); delete from "User" where id='ctrot'; delete from "Tag" where id='ctrott'`);
   const priya = sql(`select id||'|'||"locationId" from "User" where email='priya@example.com'`).split('|');
   sql(`insert into "Holiday"(id,"locationId",date,name,fraction) values('ctrh1','${priya[1]}','${dt(2)}','Contrast Day',1),('ctrh2','${priya[1]}','${dt(4)}','Contrast Half',0.5)`);
   sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,"updatedAt") values('ctro1','${priya[0]}','${dt(3)}','${dt(3)}',1,'PTO',now())`);

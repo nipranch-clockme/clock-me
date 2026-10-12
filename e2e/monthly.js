@@ -45,7 +45,7 @@ const GENERIC="isn't in your list|can't change the hours";
  const saved=async(p,text)=>{await p.waitForFunction((x)=>[...document.querySelectorAll('.mg-save .note')].some((n)=>n.textContent.includes(x)),text,{timeout:20000}).catch(()=>{});};
  const pages=[];
  const signIn=async(email)=>{const p=await login(b,email);watch(p);pages.push(p);return p;};
- const inp=(id,i)=>`input[name="m|${id}|${ymAt(i)}"]`;
+ const inp=(id,i)=>`input[data-cell="m|${id}|${ymAt(i)}"]`;
  const overview=async(p,range,name)=>{await go(p,`/clients?range=${range}`);return p.locator(`tr:has(a:text-is("${name}")) td`).allInnerTexts();};
  try{
   // ---- setup
@@ -65,7 +65,7 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('contracts: two views, this one is current',(await adm.locator('nav[aria-label="Clients view"] a').allInnerTexts()).join()==='Overview,Monthly contracts'&&await adm.locator('nav[aria-label="Clients view"] a[aria-current=page]').innerText()==='Monthly contracts');
   ok('contracts: the year picker offers last year, this year and next',(await adm.locator('#mg-year option').allInnerTexts()).join()===`${y-1},${y},${y+1}`&&await adm.inputValue('#mg-year')===String(y));
   ok('contracts: twelve boxes per client',await adm.locator(`tr:has(td.cl a:text-is("${N1}")) input.cell`).count()===12&&await adm.locator(`tr:has(td.cl a:text-is("${N2}")) input.cell`).count()===12);
-  const vals=async(id)=>adm.$$eval(`input[name^="m|${id}|"]`,(is)=>is.map((i)=>i.value));
+  const vals=async(id)=>adm.$$eval(`input[data-cell^="m|${id}|"]`,(is)=>is.map((i)=>i.value));
   ok('contracts: the usual hours fill every month of a fixed client, and a no-commitment client is empty',(await vals(C1)).every((v)=>v==='10')&&(await vals(C2)).every((v)=>v===''));
   const rowOf=(name)=>adm.locator(`tr:has(td.cl a:text-is("${name}"))`);
   ok('contracts: year total, per day and per week',(await rowOf(N1).locator('td.tot').innerText())==='120'&&(await rowOf(N1).locator('td').nth(2+12+1).innerText())===(10/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2})&&(await rowOf(N1).locator('td').nth(2+12+2).innerText())===(10/workdaysIn(ym)*5).toLocaleString('en-US',{maximumFractionDigits:2}),(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(-60));
@@ -102,7 +102,7 @@ const GENERIC="isn't in your list|can't change the hours";
   await adm.fill(inp(C1,mi),'10');await adm.fill(inp(C1,third),'');
   await cap('saveContracts',()=>adm.click('.mg-save button'));await saved(adm,'Saved changes');
   ok('contracts: the usual figure removes that month\'s own one; blank is stored as 0',count(`select count(*) from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(mi)}-01'`)===0&&count(`select hours from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(third)}-01'`)===0&&count(`select count(*) from "ClientMonth" where "clientId"='${C1}'`)===2);
-  ok('contracts: a month with no contract shows 0 and the status stays Active',(await vals(C1))[third]==='0'&&/Active/.test(await rowOf(N1).innerText()));
+  ok('contracts: a month with no contract shows 0 and the status stays Active',(await vals(C1))[third]==='0'&&/Active/.test(await rowOf(N1).innerText()),`box ${JSON.stringify((await vals(C1)))} status ${(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(0,120)}`);
 
   // work types
   await go(adm,'/clients?view=contracts');
@@ -164,10 +164,10 @@ const GENERIC="isn't in your list|can't change the hours";
   await go(rav,'/people?view=hours');
   ok('hours: two views, this one is current',(await rav.locator('nav[aria-label="People view"] a').allInnerTexts()).join()==='People,Monthly hours'&&await rav.locator('nav[aria-label="People view"] a[aria-current=page]').innerText()==='Monthly hours');
   const rowP=(p,name)=>p.locator(`tr:has(td.cl a:text-is("${name}"))`);
-  ok('hours: the manager changes people in their office',await rav.locator(`input[name^="m|${M}|"]`).count()===12);
-  ok('hours: but not another location manager, nor themselves',await rowP(rav,'Mg Manager').count()===1&&await rav.locator(`input[name^="m|${LM2}|"]`).count()===0&&await rav.locator(`input[name^="m|${RAVI}|"]`).count()===0&&await rowP(rav,'Ravi Desai').count()===1);
+  ok('hours: the manager changes people in their office',await rav.locator(`input[data-cell^="m|${M}|"]`).count()===12);
+  ok('hours: but not another location manager, nor themselves',await rowP(rav,'Mg Manager').count()===1&&await rav.locator(`input[data-cell^="m|${LM2}|"]`).count()===0&&await rav.locator(`input[data-cell^="m|${RAVI}|"]`).count()===0&&await rowP(rav,'Ravi Desai').count()===1);
   ok('hours: nobody from another office, and admins are not listed',await rowP(rav,'Mg Other').count()===0&&await rowP(rav,'Mg Admin').count()===0);
-  ok('hours: the usual hours fill the boxes and the average is shown',(await rav.$$eval(`input[name^="m|${M}|"]`,(is)=>is.map((i)=>i.value))).every((v)=>v==='40')&&(await rowP(rav,'Mg Member').locator('td.tot').innerText())==='40');
+  ok('hours: the usual hours fill the boxes and the average is shown',(await rav.$$eval(`input[data-cell^="m|${M}|"]`,(is)=>is.map((i)=>i.value))).every((v)=>v==='40')&&(await rowP(rav,'Mg Member').locator('td.tot').innerText())==='40');
   await rav.fill(inp(M,mi),'20');
   ok('hours: the average follows as you type',(await rowP(rav,'Mg Member').locator('td.tot').innerText())===((11*40+20)/12).toLocaleString('en-US',{maximumFractionDigits:2}));
   await cap('saveHours',()=>rav.click('.mg-save button'));await saved(rav,'Saved hours');
@@ -176,7 +176,7 @@ const GENERIC="isn't in your list|can't change the hours";
   const mp=await signIn(M+'@example.com');
   await go(mp,'/dashboard');
   const mbody=await mp.innerText('body');
-  ok('the person\'s numbers use this month\'s hours (20 a week)',/20\.00 expected hours a week/.test(mbody),mbody.match(/[\d.]+ expected hours a week/)?.[0]);
+  ok('the person\'s numbers use this month\'s hours (20 a week)',/20\.00 inventory hours a week/.test(mbody),mbody.match(/[\d.]+ inventory hours a week/)?.[0]);
   await go(rav,'/people?view=hours');
   ok('hours: after a reload the box shows 20',(await rav.inputValue(inp(M,mi)))==='20');
   await rav.fill(inp(M,mi),'40');await rav.fill(inp(M,other),'');
@@ -200,7 +200,7 @@ const GENERIC="isn't in your list|can't change the hours";
   await go(adm,'/people?view=hours');
   const listed=count(`select count(*) from "User" where active and role<>'ADMIN'`);
   ok('hours: the admin sees every office and everyone who is not an admin',await adm.locator('table.mgrid tbody tr').count()===listed&&await rowP(adm,'Mg Other').count()===1&&await rowP(adm,'Mg Admin').count()===0,`${await adm.locator('table.mgrid tbody tr').count()} vs ${listed}`);
-  ok('hours: the admin can change a manager and another office',await adm.locator(`input[name^="m|${LM2}|"]`).count()===12&&await adm.locator(`input[name^="m|${OM}|"]`).count()===12);
+  ok('hours: the admin can change a manager and another office',await adm.locator(`input[data-cell^="m|${LM2}|"]`).count()===12&&await adm.locator(`input[data-cell^="m|${OM}|"]`).count()===12);
   r=await act(adm,'/people','saveHours',{year:String(y),[`m|${KA}|${ymAt(mi)}`]:'30'});
   ok('crafted: even an admin cannot give an admin expected hours (not a resource)',refused(r,'not a resource')&&snapH()===beforeH,r.text.slice(-140));
   await adm.fill(inp(OM,mi),'30');
@@ -213,7 +213,7 @@ const GENERIC="isn't in your list|can't change the hours";
   const inv=rav.locator('section.panel:has(h3:has-text("Inventory vs actual"))');
   ok('dashboard: the location manager has one Inventory vs actual chart for the office',await inv.count()===1&&(await inv.locator('.legend').innerText()).replace(/\s+/g,' ').trim()==='Actual Inventory'&&/KLH/.test(await inv.locator('h3').innerText()));
   const label=new Date(Date.UTC(+lastFull.slice(0,4),+lastFull.slice(5)-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
-  const pt=async(p,series,office)=>{const t=await p.locator(`section.panel:has(h3:has-text("Inventory vs actual")${office?`:has-text("${office}")`:''}) svg circle title`).allTextContents();const m=t.find((x)=>x.startsWith(`${series}, ${label}:`));return m?+m.split(': ')[1].replace(/[^\d.-]/g,''):null;};
+  const pt=async(p,series,office)=>{const t=await p.locator(`section.panel:has(h3:has-text("Inventory vs actual")${office?`:has-text("${office}")`:''}) svg rect title`).allTextContents();const m=t.find((x)=>x.startsWith(`${series}, ${label}:`));return m?+m.split(': ')[1].replace(/[^\d.-]/g,''):null;};
   const loggedSql=`select coalesce(sum(e.minutes),0)/60.0 from "TimeEntry" e join "User" u on u.id=e."userId" where u."locationId"='${KLH}' and u.role<>'ADMIN' and u.active and u."passwordHash" is not null and (u."weeklyTarget">0 or exists(select 1 from "UserMonth" um where um."userId"=u.id and um."weeklyHours">0)) and to_char(e.date,'YYYY-MM')='${lastFull}'`;
   ok('dashboard: Actual for last month is what the office\'s people logged, an admin\'s time left out',(await pt(rav,'Actual'))===Math.round(+sql(loggedSql)),`${await pt(rav,'Actual')} vs ${Math.round(+sql(loggedSql))}`);
   // Inventory is each person's expected hours for the month: positive, and never more than a full month of their weekly hours (holidays and time off only take away)
@@ -233,12 +233,23 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('dashboard: nor a team member',await mem.locator('h3:has-text("Inventory vs actual")').count()===0);
 
   // top 5 without target hours
-  const heads=async(p)=>(await p.locator('section.panel:has(h3:has-text("Top 5")) thead th').allInnerTexts()).map((x)=>x.trim());
+  // the first table in a Top 5 panel is the top five; a location manager's panel also has the bottom five after it
+  const heads=async(p)=>(await p.locator('section.panel:has(h3:has-text("Top 5")) .tablebox').first().locator('thead th').allInnerTexts()).map((x)=>x.trim());
   await go(rav,'/dashboard');
   ok('top 5: only Productivity and Hours for a location manager',(await heads(rav)).join()==='#,Person,Productivity,Hours',(await heads(rav)).join());
   await go(adm,'/dashboard');
   ok('top 5: only Productivity and Hours (and Office) for an admin, in every table',(await adm.locator('section.panel:has(h3:has-text("Top 5")) thead').evaluateAll((ts)=>ts.map((t)=>t.innerText.replace(/\s+/g,' ').trim()))).every((x)=>!/target/i.test(x)&&/Productivity/.test(x)&&/Hours/.test(x)));
   ok('top 5: the same rule on the sentence under the title says admins are left out',/admins \(who are not a resource\)/.test(await adm.locator('.phd .sub').innerText()));
+  // bottom 5: for a location manager and for each office, under the top five, never repeating a name from it; never for the whole company
+  const names=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td:nth-child(2) a').allInnerTexts();
+  const places=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td.num').allInnerTexts();
+  const lmTop=await names(rav,'Top 5 performers',0), lmBot=await names(rav,'Top 5 performers',1);
+  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmBot.length>0&&!lmBot.some((n)=>lmTop.includes(n))&&(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours'&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5),`top ${lmTop.join(', ')} | bottom ${lmBot.join(', ')}`);
+  ok('bottom 5: the whole company has none',(await adm.locator('section.panel:has(h3:has-text("Top 5 performers"))').locator('.tablebox').count())===1);
+  const offices=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
+  const offCheck=[];
+  for(let i=0;i<await offices.count();i++){const t=await offices.nth(i).locator('.tablebox').nth(0).locator('tbody tr td:nth-child(2) a').allInnerTexts();const b=await offices.nth(i).locator('.tablebox').nth(1).locator('tbody tr td:nth-child(2) a').allInnerTexts();const pl=await offices.nth(i).locator('.tablebox').nth(1).locator('tbody tr td.num').allInnerTexts();offCheck.push(await offices.nth(i).locator('.tablebox').count()===2&&!b.some((n)=>t.includes(n))&&(!pl.length||pl.every((x)=>+x>5)));}
+  ok('bottom 5: every office has one, and none repeats its top five',offCheck.length===5&&offCheck.every(Boolean),offCheck.join(','));
 
   // folding "Your numbers"
   const body=(p)=>p.locator('#mynumbers-body');

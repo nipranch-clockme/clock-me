@@ -11,6 +11,7 @@ import { completeEnd, targetMinutes } from "@/lib/productivity";
 import AutoForm from "@/components/AutoForm";
 import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
+import MonthBars from "@/components/MonthBars";
 import { PageHead, Ifld } from "@/components/ui";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
@@ -44,7 +45,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const colorOf = (id: string) => OFFCOL[Math.max(0, allLocs.findIndex((l) => l.id === id)) % OFFCOL.length];
   const all = sum(rows);
   // Someone with nothing expected in the period (off the whole time) has no productivity to rank.
-  const top = (list: Row[]) => [...list].filter((r) => rank === "total" || r.tg > 0).sort((x, y) => (rank === "total" ? y.m - x.m : y.prod - x.prod)).slice(0, 5);
+  const ranking = (list: Row[]) => [...list].filter((r) => rank === "total" || r.tg > 0).sort((x, y) => (rank === "total" ? y.m - x.m : y.prod - x.prod));
+  // The bottom five are the last of the ranking, never anyone already in the top five.
+  const bottom = (list: Row[]) => { const up = ranking(list); return up.slice(Math.max(5, up.length - 5)); };
   const multiOffice = locs.length > 1;
   // Location managers also see a card for each team in their office (the cards add up to the office total).
   const teamMap = new Map<string, Row[]>();
@@ -89,17 +92,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
   const hoursText = (v: number) => `${Math.round(v).toLocaleString("en-US")} h`;
 
-  const topTable = (list: Row[], showOffice: boolean) => (
-    <div className="tablebox"><table>
-      <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th></tr></thead>
-      <tbody>
-        {top(list).map((r, i) => (
-          <tr key={r.id}><td className="num">{i + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
-        ))}
-        {!list.length && <tr><td colSpan={showOffice ? 5 : 4} className="empty">Nobody to show.</td></tr>}
-      </tbody>
-    </table></div>
-  );
+  // The # column is the place in the full ranking, so the bottom five read as, say, 9th to 12th.
+  const topTable = (list: Row[], showOffice: boolean, lowest = false) => {
+    const up = ranking(list);
+    const shown = lowest ? bottom(list) : up.slice(0, 5);
+    return (
+      <div className="tablebox"><table>
+        <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th></tr></thead>
+        <tbody>
+          {shown.map((r) => (
+            <tr key={r.id}><td className="num">{up.indexOf(r) + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
+          ))}
+          {!shown.length && <tr><td colSpan={showOffice ? 5 : 4} className="empty">{lowest && up.length ? "Everyone is in the top 5." : "Nobody to show."}</td></tr>}
+        </tbody>
+      </table></div>
+    );
+  };
 
   return (
     <>
@@ -108,7 +116,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by target hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with a target of 0 and admins (who are not a resource) are left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with 0 inventory hours and admins (who are not a resource) are left out.`} />
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
         <section className="panel full">
@@ -116,7 +124,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <div className="stats spread">
             <div className="stat"><b>{pct(all.prod)}</b><span>productivity</span></div>
             <div className="stat"><b>{f(all.m)}</b><span>total hours</span></div>
-            <div className="stat"><b>{f(all.tg)}</b><span>target hours</span></div>
+            <div className="stat"><b>{f(all.tg)}</b><span>inventory hours</span></div>
             <div className="stat"><b>{f(all.avg)}</b><span>average hours per person</span></div>
             <div className="stat"><b>{all.n}</b><span>people</span></div>
           </div>
@@ -134,14 +142,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
                     <div className="stats spread sm" style={{ marginTop: 14 }}>
                       <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
-                      <div className="stat"><b>{f(o.tg)}</b><span>target hours</span></div>
+                      <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
                       <div className="stat"><b>{f(o.avg)}</b><span>per person</span></div>
                     </div>
                   </section>
                 );
               })}
             </div>
-            <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of target, blue is 50% to 75%, orange is under 50%.</p>
+            <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>
           </div>
         )}
         {me.role === "ADMIN" && locs.map((l) => {
@@ -153,13 +161,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div className="meter" style={{ height: 10 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
               <div className="stats spread sm" style={{ marginTop: 12 }}>
                 <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
-                <div className="stat"><b>{f(o.tg)}</b><span>target hours</span></div>
-                <div className="stat"><b>{f(o.avg)}</b><span>average per person</span></div>
+                <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
               </div>
             </section>
           );
         })}
-        {me.role === "ADMIN" && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of target, blue is 50% to 75%, orange is under 50%.</p>}
+        {me.role === "ADMIN" && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
           <h3>Productivity by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
           <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly productivity by team" : "Monthly productivity by office"} />
@@ -168,7 +175,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {inventory.map((o) => (
           <section className="panel full" key={o.id}>
             <h3>Inventory vs actual, last 12 full months, {o.name}</h3>
-            <TrendChart months={months} series={o.series} unit="hours" fmt={hoursText} label={`Inventory and actual hours by month, ${o.name}`} />
+            <MonthBars months={months} series={o.series} fmt={hoursText} label={`Inventory and actual hours by month, ${o.name}`} />
             <div className="legend">{o.series.map((x) => <span key={x.id}><i style={{ background: `var(--${x.color})` }} />{x.name}</span>)}</div>
             <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
           </section>
@@ -176,8 +183,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <section className="panel full">
           <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {me.role === "ADMIN" ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>
+          {me.role === "LOCATION" && <>
+            <div className="row between" style={{ marginTop: 18 }}><h3 style={{ margin: 0 }}>Bottom 5 performers, {scopeLabel(me)}</h3></div>
+            <div style={{ marginTop: 10 }}>{topTable(rows, false, true)}</div>
+          </>}
         </section>
-        {multiOffice && locs.map((l) => <section className="panel" key={l.id}><h3>Top 5 in {l.name}</h3>{topTable(rows.filter((r) => r.locationId === l.id), false)}</section>)}
+        {multiOffice && locs.map((l) => {
+          const office = rows.filter((r) => r.locationId === l.id);
+          return (
+            <section className="panel" key={l.id}>
+              <h3>Top 5 in {l.name}</h3>{topTable(office, false)}
+              <h3 style={{ marginTop: 18 }}>Bottom 5 in {l.name}</h3>{topTable(office, false, true)}
+            </section>
+          );
+        })}
       </div>
     </>
   );

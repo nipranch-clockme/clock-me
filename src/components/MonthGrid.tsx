@@ -103,7 +103,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                   return (
                     <td key={m} className="num mc" data-l={MONTH_ABBR[i]}>
                       {r.editable
-                        ? <input className={`cell${diff ? " chg" : ""}`} type="number" min="0" step="any" inputMode="decimal" name={changedCell(r, i) ? cellName(r.id, m) : undefined} value={v[i]}
+                        ? <input className={`cell${diff ? " chg" : ""}`} type="number" min="0" step="any" inputMode="decimal" name={changedCell(r, i) ? cellName(r.id, m) : undefined} data-cell={cellName(r.id, m)} value={v[i]}
                             onChange={(e) => cell(r, i, e.target.value)} aria-label={`${r.name}, ${MONTH_ABBR[i]} ${year}`} title={diff ? `Different from the usual ${fmt(r.usual)}` : undefined} />
                         : <span className={diff ? "chgtxt" : undefined}>{v[i] || "–"}</span>}
                     </td>

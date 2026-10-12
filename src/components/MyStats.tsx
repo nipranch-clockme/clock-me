@@ -57,7 +57,7 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
   }
   return (
     <section className="panel full" aria-label="Your numbers">
-      <div className="ch"><h3>Your numbers</h3><span className="cd">{target ? <>Hours logged divided by your {f(target * 60)} expected hours a week</> : <>Hours logged divided by the expected hours of each period</>}, counting complete working days, less public holidays and your time off</span>{collapsible && <CollapseButton bodyId="mynumbers-body" cookie="tsink-mynumbers" closed={closed} />}</div>
+      <div className="ch"><h3>Your numbers</h3><span className="cd">{target ? <>Hours logged divided by your {f(target * 60)} inventory hours a week</> : <>Hours logged divided by the inventory hours of each period</>}, counting complete working days, less public holidays and your time off</span>{collapsible && <CollapseButton bodyId="mynumbers-body" cookie="tsink-mynumbers" closed={closed} />}</div>
       <div id="mynumbers-body" hidden={collapsible && closed}>
       <div className="insights">
         <div className="insight">
@@ -83,9 +83,9 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
         </div>
       </div>
 
-      <div className="mybars" role="img" aria-label={`Hours logged each week for the last nine weeks against ${f(target * 60)} expected`}>
+      <div className="mybars" role="img" aria-label={`Hours logged each week for the last nine weeks against ${f(target * 60)} inventory`}>
         <div className="mybars-in"><div className="mybars-plot">
-          <i className="mybars-target" style={{ bottom: `${(target * 60 / top) * 100}%` }}><span>{f(target * 60)} expected</span></i>
+          <i className="mybars-target" style={{ bottom: `${(target * 60 / top) * 100}%` }}><span>{f(target * 60)} inventory</span></i>
           {bars.map((b, i) => (
             <div className="mybar" key={b.ws} title={`${shortDate(b.ws)}: ${f(b.m)} h of ${f(b.e)} h expected`}>
               <em>{b.m ? f(b.m) : ""}</em>
