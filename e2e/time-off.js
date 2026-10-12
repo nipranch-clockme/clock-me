@@ -94,7 +94,9 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   const submitHoliday=async()=>{await cap('addHoliday',()=>adm.click('button:has-text("Add holiday")'));await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);};
   const onlyOffices=async(ids)=>{await adm.click('fieldset button:has-text("None")');for(const x of ids)await adm.check(`input[name="locationId"][value="${x}"]`);};
   const hA=addDays(today,200), hB=addDays(today,201), hC=addDays(today,202), hD=addDays(today,203), hE=addDays(today,204);
-  await go(adm,'/time-off?view=holidays');
+  // the test's holidays may fall in next year, so the page is opened on their year, not this one
+  const HOLIDAYS_URL=`/time-off?view=holidays&year=${hA.slice(0,4)}`;
+  await go(adm,HOLIDAYS_URL);
   ok('admin: the form has a box for every office, all ticked to start with',(await adm.locator('input[name="locationId"]').count())===NLOC&&(await adm.$$eval('input[name="locationId"]',(bs)=>bs.every((x)=>x.checked))));
   await adm.fill('#ho-date',hA);await adm.fill('#ho-name','E2E Common Day');
   await submitHoliday();
@@ -125,16 +127,16 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   await submitHoliday();
   ok('a holiday the office already has that day is refused, with a plain message',/already has a holiday/.test((await adm.locator('.err-text').allTextContents()).join(' ')));
   // admin removes a holiday that is listed for two offices: it goes from both
-  await go(adm,'/time-off?view=holidays');
+  await go(adm,HOLIDAYS_URL);
   adm.once('dialog',(d)=>d.accept());
   await cap('removeHoliday',()=>adm.click('table.ctable tbody tr:has-text("E2E Two Offices") button:has-text("Remove")'));
   await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);
   ok('admin: removing a holiday takes it out of every office it was listed for',sql(`select count(*) from "Holiday" where name='E2E Two Offices'`)==='0');
   // members, location managers and team managers see the list and cannot change it
-  await go(mp,'/time-off?view=holidays');
+  await go(mp,HOLIDAYS_URL);
   ok("member: sees every office's holidays, with the offices for each, and can't add one",(await mp.locator('#ho-date').count())===0&&/Only admins can add or change public holidays/.test(await mp.textContent('main'))&&(await mp.locator('table.ctable tbody tr',{hasText:'E2E Exception Day'}).innerText()).includes(AMD_NAME));
   const rav=await signIn('ravi@example.com');
-  await go(rav,'/time-off?view=holidays');
+  await go(rav,HOLIDAYS_URL);
   ok('location manager: no holiday form, the same list',(await rav.locator('#ho-date').count())===0);
   const r1=await act(rav,'/time-off','addHoliday',{locationId:KLH,date:addDays(today,205),name:'E2E Crafted'});
   ok('location manager: adding a holiday is refused, even by a crafted call',refused(r1,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Crafted'`)==='0',r1.text.slice(0,160));
@@ -237,6 +239,8 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   ok('member: sees the request declined, with the reason',(await declined.count())===1&&/Declined/.test(await declined.innerText())&&(await declined.innerText()).includes('Please use the leave form next time'));
 
   // ---- the lock date: a request on a locked day can't be approved, and no time off can be added on or before it
+  // the database may already have a lock date, so clear it while the member asks for a day that the lock is about to cover
+  sql(`update "Settings" set "lockBefore"=null`);
   const lockReq=lwd[5];
   const asked=await act(mp,'/time-off','addTimeOff',{from:lockReq,to:lockReq});
   ok('member: asks for a day last month, before the lock',/"ok":true/.test(asked.text)&&timeOffOf(M,lockReq).startsWith('PENDING|'),asked.text.slice(0,120));
@@ -265,14 +269,14 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   await cap('addTimeOff',()=>rav.click('dialog[open] button.btn.primary:has-text("Save")'));
   await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
   ok('location manager: time off added for a member counts at once, recorded as theirs',timeOffOf(K,hb).startsWith(`APPROVED|${RAVI}|${RAVI}|`),timeOffOf(K,hb));
-  const lmK2=await act(rav,'/time-off','addTimeOff',{userId:K2,from:addDays(ws,12),to:addDays(ws,12)});
-  ok('location manager: cannot add time off for another location manager (crafted call)',refused(lmK2,'Only admins')&&sql(`select count(*) from "TimeOff" where "userId"='${K2}' and "startDate"='${addDays(ws,12)}'`)==='0',lmK2.text.slice(0,160));
+  const lmK2=await act(rav,'/time-off','addTimeOff',{userId:K2,from:addDays(ws,11),to:addDays(ws,11)});
+  ok('location manager: cannot add time off for another location manager (crafted call)',refused(lmK2,'Only admins')&&sql(`select count(*) from "TimeOff" where "userId"='${K2}' and "startDate"='${addDays(ws,11)}'`)==='0',lmK2.text.slice(0,160));
   await go(dan,'/time-off');
   ok('team manager: the button asks for their own time off, with no person picker',(await dan.locator('main button.btn.primary:has-text("Request time off")').count())===1);
-  const dr=await act(dan,'/time-off','addTimeOff',{userId:PRIYA,from:addDays(ws,12),to:addDays(ws,12)});
-  ok("team manager: cannot add time off for a team member (crafted call)",refused(dr,'Only location managers and admins')&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${addDays(ws,12)}'`)==='0',dr.text.slice(0,160));
-  const ar=await act(adm,'/time-off','addTimeOff',{userId:M,from:addDays(ws,12),to:addDays(ws,12),type:'PTO'});
-  ok('admin: adds time off for anyone at once',/"ok":true/.test(ar.text)&&timeOffOf(M,addDays(ws,12)).startsWith(`APPROVED|${ADM}|${ADM}|`),ar.text.slice(0,120));
+  const dr=await act(dan,'/time-off','addTimeOff',{userId:PRIYA,from:addDays(ws,11),to:addDays(ws,11)});
+  ok("team manager: cannot add time off for a team member (crafted call)",refused(dr,'Only location managers and admins')&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${addDays(ws,11)}'`)==='0',dr.text.slice(0,160));
+  const ar=await act(adm,'/time-off','addTimeOff',{userId:M,from:addDays(ws,11),to:addDays(ws,11),type:'PTO'});
+  ok('admin: adds time off for anyone at once',/"ok":true/.test(ar.text)&&timeOffOf(M,addDays(ws,11)).startsWith(`APPROVED|${ADM}|${ADM}|`),ar.text.slice(0,120));
   const rm=await act(mp,'/time-off','removeTimeOff',{id:idOf(K,hb)});
   ok("member: cannot remove someone else's time off (crafted call)",refused(rm)&&sql(`select count(*) from "TimeOff" where "userId"='${K}' and "startDate"='${hb}'`)==='1',rm.text.slice(0,120));
 
