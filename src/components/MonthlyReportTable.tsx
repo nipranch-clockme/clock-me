@@ -50,8 +50,9 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
       </table></div>
       <p className="note" style={{ margin: "8px 0 0" }}>
         Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; admins are not counted.
-        Utilisation is hours logged divided by inventory, and fulfilment is hours logged divided by the contracted hours of the clients looked after
-        by teams in this office. The current month counts up to yesterday, and its contract is scaled to the working days so far. The year column adds
+        Utilisation is hours logged divided by inventory, and fulfilment is hours logged divided by the contract hours of the clients looked after
+        by teams in this office (for a client with no fixed hours, the hours clocked for it). The current month counts up to yesterday, and fixed
+        contracts are scaled to its working days so far. The year column adds
         up the months (employees are the monthly average). Under hours by tag, an entry with several tags counts under each of them. OT only marks
         overtime, so its hours are also in the rows above it.
       </p>

@@ -12,8 +12,9 @@ import { loadOtTagIds } from "./overtime";
 //
 // - People are the office's active people who are expected to work (admins are not a resource), the same as the Inventory vs actual chart.
 // - Inventory is their expected hours (see expected.ts), so holidays and time off are already out. The current month counts up to yesterday.
-// - Contracted hours are the monthly contracts of the clients looked after by a team in this office. The current month's contract is
-//   scaled to the share of its working days that are over, so it compares with the hours logged so far.
+// - Contracted hours are those of the clients looked after by a team in this office: a fixed client's monthly contract (the current
+//   month's scaled to the share of its working days that are over, so it compares with the hours logged so far), and for a client with
+//   no commitment that month, the hours clocked for it. Only the fulfilment percentage is shown, not these hours.
 // - Hours by tag: an entry with several tags counts under each of them. OT only marks overtime, so it is not a kind of work: an entry
 //   is counted under its other tags (or "No tag"), and the OT row shows how much of the total was overtime.
 
@@ -85,10 +86,22 @@ export async function monthlyReport(locationId: string, year: number): Promise<M
     db.client.findMany({ where: { team: { locationId } }, select: { id: true, type: true, monthlyHours: true } }),
     loadContractMonths(),
   ]);
+  // Hours clocked for each of these clients, by anyone, month by month (for the clients with no commitment).
+  const clocked = clients.length
+    ? await db.$queryRaw<{ clientId: string; m: string; minutes: bigint }[]>(Prisma.sql`
+        SELECT p."clientId", to_char(e.date, 'YYYY-MM') AS m, SUM(e.minutes)::bigint AS minutes FROM "TimeEntry" e JOIN "Project" p ON p.id = e."projectId"
+        WHERE p."clientId" IN (${Prisma.join(clients.map((c) => c.id))}) AND e.date >= ${toDate(months[0] + "-01")} AND e.date <= ${toDate(endOfMonth(months[11]))}
+        GROUP BY 1, 2`)
+    : [];
+  const clockedOf = new Map(clocked.map((r) => [`${r.clientId}|${r.m}`, Number(r.minutes)]));
   const contracted = months.map((m, i) => {
     if (!open[i]) return 0;
-    const full = clients.reduce((a, c) => a + (contractFor(c, m, cm) ?? 0) * 60, 0);
-    return m === now ? full * monthDone(m) : full;
+    let total = 0;
+    for (const c of clients) {
+      const h = contractFor(c, m, cm);
+      total += h ? h * 60 * (m === now ? monthDone(m) : 1) : clockedOf.get(`${c.id}|${m}`) ?? 0;
+    }
+    return total;
   });
 
   return { year, months, open, inventory, actual, people, contracted, tags, ot };
@@ -123,7 +136,6 @@ export function reportLines(r: MonthlyReport): ReportLine[] {
     { label: "Actual total logged", cells: hrs(r.actual), year: hoursOf(y.actual), kind: "hours", group: "summary" },
     { label: "Total active employees", cells: r.people.map((x, i) => (r.open[i] ? x : null)), year: Math.round(y.people * 10) / 10, kind: "count", group: "summary" },
     { label: "Inventory utilisation", cells: r.months.map((_, i) => (r.open[i] ? pct2(ratio(r.actual[i], r.inventory[i])) : null)), year: pct2(y.utilisation), kind: "pct", group: "summary" },
-    { label: "Contracted hours", cells: hrs(r.contracted), year: hoursOf(y.contracted), kind: "hours", group: "summary" },
     { label: "Contract fulfilment", cells: r.months.map((_, i) => (r.open[i] ? pct2(ratio(r.actual[i], r.contracted[i])) : null)), year: pct2(y.fulfilment), kind: "pct", group: "summary" },
   ];
   for (const t of r.tags) lines.push({ label: t.name, cells: hrs(t.v), year: hoursOf(t.v.reduce((a, b) => a + b, 0)), kind: "hours", group: "tags" });

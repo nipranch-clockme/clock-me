@@ -22,7 +22,7 @@ const TEAMCOL = ["s1", "s2", "s8", "s3", "s6", "s7", "s5"]; // one colour per te
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string; tab?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("dashboard");
   const settings = await getSettings();
@@ -31,6 +31,34 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
+  // Location managers and admins have two tabs: Overview (below) and Detailed, the office's monthly report like the sheet they kept before
+  // (location managers: their office; admins: the office they pick). Each tab keeps the other's choices in its links.
+  const tabs = me.role === "LOCATION" || me.role === "ADMIN";
+  const keep = (o: Record<string, string | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString();
+  const tabNav = (on: "overview" | "detailed") => tabs && (
+    <nav className="seg rtabs dtabs" aria-label="Dashboard view">
+      <Link href={`/dashboard?${keep({ range: sp.range, rank: sp.rank, ryear: sp.ryear, roffice: sp.roffice })}`} aria-pressed={on === "overview"}>Overview</Link>
+      <Link href={`/dashboard?${keep({ tab: "detailed", range: sp.range, rank: sp.rank, ryear: sp.ryear, roffice: sp.roffice })}`} aria-pressed={on === "detailed"}>Detailed</Link>
+    </nav>
+  );
+  if (tabs && sp.tab === "detailed") {
+    const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
+    const office = offices.find((o) => o.id === sp.roffice) ?? offices[0];
+    const years = office ? await reportYears(office.id) : [];
+    const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
+    return (
+      <>
+        <PageHead title="Dashboard" sub="Each office's month by month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
+        {tabNav("detailed")}
+        <div className="grid g3">
+          {office
+            ? <MonthlyReportTable report={await monthlyReport(office.id, year)} office={office} offices={me.role === "ADMIN" ? offices : undefined} years={years}
+                keep={Object.fromEntries(Object.entries({ tab: "detailed", range: sp.range, rank: sp.rank }).filter((e): e is [string, string] => !!e[1]))} />
+            : <p className="note full">No offices yet.</p>}
+        </div>
+      </>
+    );
+  }
   const closedMyNumbers = (await cookies()).get("tsink-mynumbers")?.value === "0"; // "Your numbers" folded up, kept per browser
   const [a, bRaw] = rangeDates(range);
   const b = completeEnd(bRaw); // count complete days only, so hours and targets cover the same days
@@ -92,17 +120,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ] });
     }
   }
-  // The office's monthly report (location managers: their office; admins: the office they pick), like the sheet they kept before.
-  let report: React.ReactNode = null;
-  if (me.role === "LOCATION" || me.role === "ADMIN") {
-    const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
-    const office = offices.find((o) => o.id === sp.roffice) ?? offices.find((o) => locs.some((l) => l.id === o.id)) ?? offices[0];
-    if (office) {
-      const years = await reportYears(office.id);
-      const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
-      report = <MonthlyReportTable report={await monthlyReport(office.id, year)} office={office} offices={me.role === "ADMIN" ? offices : undefined} years={years} keep={{ range, rank }} />;
-    }
-  }
   const hoursText = (v: number) => `${Math.round(v).toLocaleString("en-US")} h`;
 
   // The # column is the place in the full ranking, so the bottom five read as, say, 9th to 12th.
@@ -131,6 +148,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
         sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by productivity, people with 0 inventory hours are left out; admins (who are not a resource) are always left out.`} />
+      {tabNav("overview")}
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
         <section className="panel full">
@@ -194,7 +212,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
           </section>
         ))}
-        {report}
         <section className="panel full">
           <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {me.role === "ADMIN" ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>

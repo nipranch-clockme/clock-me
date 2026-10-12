@@ -860,3 +860,4 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .mreport{min-width:900px;font-size:13px}
 .mreport td,.mreport th{padding-left:6px;padding-right:6px}
 .mreport td:first-child{white-space:normal;min-width:140px}
+.dtabs{margin:0 0 16px}
