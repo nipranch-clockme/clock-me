@@ -26,13 +26,15 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const [desc, setDesc] = useState(run?.description ?? "");
   const [tagN, setTagN] = useState(run?.tagIds.length ?? 0);
   const formRef = useRef<HTMLFormElement>(null);
+  // Tags are plain tick boxes, so clear them by hand when the bar is emptied.
+  const clearTags = () => { formRef.current?.querySelectorAll<HTMLInputElement>('input[name="tagIds"]').forEach((i) => { i.checked = false; }); setTagN(0); };
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryValue | null>(null);
   const [msg, setMsg] = useState("");
   useEffect(() => { setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (startState?.ok) router.refresh(); }, [startState, router]);
-  useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); setProjectId(""); setDesc(""); router.refresh(); } }, [stopState, router]);
+  useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); setProjectId(""); setDesc(""); clearTags(); router.refresh(); } }, [stopState, router]);
   const state = stopState && !stopState.ok ? stopState : startState && !startState.ok ? startState : null;
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const secs = run && now ? Math.max(0, Math.floor((now - new Date(run.startedAt).getTime()) / 1000)) : 0;
@@ -60,14 +62,14 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
             {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <details className="tmtags">
-            <summary className="tmtag-btn" title="Tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags{tagN > 0 && <b className="tmtag-n">{tagN}</b>}</summary>
+            <summary className="tmtag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags{tagN > 0 && <b className="tmtag-n">{tagN}</b>}</summary>
             <div onChange={(e) => setTagN(e.currentTarget.querySelectorAll("input:checked").length)}>
               <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
             </div>
           </details>
           <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
           {run
-            ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); setDesc(""); router.refresh(); })}>Discard</button></>
+            ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); setDesc(""); clearTags(); router.refresh(); })}>Discard</button></>
             : <button className="btn primary" disabled={!!blocked || starting || !projectId}>Start</button>}
           <button type="button" className="btn tmmanual" onClick={manual}>Manual entry</button>
         </div>

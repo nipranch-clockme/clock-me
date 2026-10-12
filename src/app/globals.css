@@ -108,7 +108,7 @@ nav.snav hr+.navend{margin-top:auto}
 .tmrow:hover{border-color:var(--accent)}
 .tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
-@media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}}
+@media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}.tmtags[open] .tagpick{left:0;right:auto;width:auto;max-width:calc(100vw - 64px)}}
 @media (max-width:560px){.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
