@@ -1,6 +1,7 @@
 /** Line icons for the sidebar (inner SVG markup). */
 export const ICONS: Record<string, string> = {
   "timer": "<circle cx=\"12\" cy=\"13.5\" r=\"7.5\"/><path d=\"M12 9.5v4.5l3 1.8M9.5 3h5\"/>",
+  "tag": "<path d=\"M3.5 12.3V4.5a1 1 0 0 1 1-1h7.8l8.2 8.2a1 1 0 0 1 0 1.4l-6.9 6.9a1 1 0 0 1-1.4 0L3.5 12.3z\"/><circle cx=\"8.2\" cy=\"8.2\" r=\"1.3\"/>",
   "dash": "<rect x=\"3.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/>",
   "sheet": "<rect x=\"3.5\" y=\"4\" width=\"17\" height=\"16\" rx=\"2\"/><path d=\"M3.5 9h17M9 9v11M3.5 14.5h17\"/>",
   "off": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18\"/>",

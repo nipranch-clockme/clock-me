@@ -81,6 +81,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     sql(`insert into "TimerRun"("userId","projectId","phaseId","tagIds","description","startedAt") values('${uid}','${proj}','${phase}',ARRAY['${T.CAD}','${T.ENG}'],'timer',now()-interval '10 minutes')`);
     await go(p, '/timesheet?view=timer');
     ok(await p.locator('.tmcard .tagpick-i input:checked').count() === 2, 'a running timer shows its two tags ticked');
+    await p.click('.tmtag-btn'); // the timer's tags open from their button
     await p.uncheck('.tagpick-i:has-text("ENG") input');
     await p.click('button:has-text("Stop")'); await p.waitForSelector('p[role=status]');
     const timerTags = sql(`select distinct "tagIds"::text from "TimeEntry" where "userId"='${uid}'`);

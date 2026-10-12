@@ -7,6 +7,7 @@ import type { SheetEntry } from "./TimesheetGrid";
 import { discardTimer, startTimer, stopTimer, type TimerResult } from "./timer-actions";
 import SearchSelect from "@/components/SearchSelect";
 import TagPicker from "@/components/TagPicker";
+import { ICONS } from "@/components/icons";
 
 export type RunningTimer = { projectId: string; phaseId: string | null; tagIds: string[]; description: string; startedAt: string };
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
@@ -22,13 +23,14 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const [startState, startAction, starting] = useActionState<TimerResult, FormData>(startTimer, null);
   const [stopState, stopAction, stopping] = useActionState<TimerResult, FormData>(stopTimer, null);
   const [projectId, setProjectId] = useState(run?.projectId ?? "");
+  const [desc, setDesc] = useState(run?.description ?? "");
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryValue | null>(null);
   const [msg, setMsg] = useState("");
   useEffect(() => { setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (startState?.ok) router.refresh(); }, [startState, router]);
-  useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); setProjectId(""); router.refresh(); } }, [stopState, router]);
+  useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); setProjectId(""); setDesc(""); router.refresh(); } }, [stopState, router]);
   const state = stopState && !stopState.ok ? stopState : startState && !startState.ok ? startState : null;
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const secs = run && now ? Math.max(0, Math.floor((now - new Date(run.startedAt).getTime()) / 1000)) : 0;
@@ -40,33 +42,24 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
     <>
       <form action={action}>
         <div className={`tmcard${run ? " on" : ""}`}>
-          <div className="row">
-            <div>
-              <label htmlFor="tm-project">Project<span className="req"> *</span></label>
-              <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="Choose a project" searchLabel="Search projects"
-                options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
-            </div>
-            <div>
-              <label htmlFor="tm-phase">Phase<span className="req"> *</span></label>
-              <select id="tm-phase" name="phaseId" key={projectId} defaultValue={run && run.projectId === projectId ? run.phaseId ?? "" : ""} className={bad("Phase")}>
-                <option value="">Choose a phase</option>
-                {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="tm-desc">Description{opts.requireDescription && <span className="req"> *</span>}</label>
-              <input id="tm-desc" name="description" defaultValue={run?.description ?? ""} maxLength={500} className={bad("Description")} />
-            </div>
-            <div>
-              <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
-            </div>
+          <input id="tm-desc" name="description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What have you worked on?" aria-label="Description" aria-required={opts.requireDescription || undefined} maxLength={500} className={`tmdesc${bad("Description") ? " err" : ""}`} />
+          <div className="tmproj">
+            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects"
+              options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
           </div>
-          <div className="tmctl">
-            <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
-            {run
-              ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); router.refresh(); })}>Discard</button></>
-              : <button className="btn primary" disabled={!!blocked || starting || !projectId}>Start</button>}
-          </div>
+          <select id="tm-phase" name="phaseId" key={projectId} aria-label="Phase" defaultValue={run && run.projectId === projectId ? run.phaseId ?? "" : ""} className={`tmphase${bad("Phase") ? " err" : ""}`}>
+            <option value="">Phase</option>
+            {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <details className="tmtags">
+            <summary className="tmtag-btn" title="Tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags</summary>
+            <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
+          </details>
+          <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
+          {run
+            ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); setDesc(""); router.refresh(); })}>Discard</button></>
+            : <button className="btn primary" disabled={!!blocked || starting || !projectId}>Start</button>}
+          <button type="button" className="btn tmmanual" onClick={() => setEdit({ projectId: projectId || undefined, projectName: project?.name, description: desc, date: today, lockedReason: blocked })}>Manual entry</button>
         </div>
       </form>
       {state?.error && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{state.error}</p>}

@@ -85,19 +85,30 @@ nav.snav hr+.navend{margin-top:auto}
 .seg button:hover,.seg a:hover{color:var(--ink);background:var(--hover)}
 .seg button[aria-pressed="true"],.seg a[aria-pressed="true"],.seg a[aria-current="page"]{background:var(--seg-on);color:var(--ink);font-weight:600}
 /* Timer view: the timer card (fields, big clock, Start / Stop) and the week's entries by day */
-.tmcard{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tmcard{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow)}
 .tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.tmcard .row{flex:1 1 460px;margin:0}
-.tmcard .row>div{flex:1 1 150px!important;min-width:0}.tmcard .row>div:nth-last-child(-n+2){flex-basis:100%!important}
-.tmctl{display:flex;align-items:center;gap:10px;flex:0 0 auto;margin-left:auto;align-self:flex-start;margin-top:19px}
-.tmclock{font:600 28px/1 var(--body);font-variant-numeric:tabular-nums;min-width:6ch;text-align:right;margin-right:6px}
+.tmcard .tmdesc{flex:1 1 240px;min-width:0}
+.tmcard .tmproj{flex:0 1 190px;min-width:150px}
+.tmcard .tmphase{flex:0 1 150px;min-width:120px}
+.tmtags{position:relative}
+.tmtags>summary{list-style:none;cursor:pointer}
+.tmtags>summary::-webkit-details-marker{display:none}
+.tmtag-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;font-size:13.5px;color:var(--muted);user-select:none}
+.tmtag-btn svg{width:16px;height:16px}
+.tmtag-btn:hover{background:var(--hover);color:var(--ink)}
+.tmtags[open]>.tmtag-btn{color:var(--accent-ink);background:var(--accent-soft)}
+.tmtags[open] .tagpick{position:absolute;z-index:30;top:calc(100% + 6px);right:0;width:300px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:12px}
+.tmtags[open] .tagpick-list{max-height:260px}
+.tmclock{font:600 20px/1 var(--body);font-variant-numeric:tabular-nums;min-width:6ch;text-align:right;padding:0 4px}
+.tmmanual{white-space:nowrap;margin-left:auto}
 .tmnote{margin:8px 2px 0}
 .tmday{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin:20px 2px 8px}
 .tmrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:0 0 6px;font:inherit;color:inherit;cursor:pointer}
 .tmrow:hover{border-color:var(--accent)}
 .tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
-@media (max-width:560px){.tmctl{margin-left:0;margin-top:0;width:100%;justify-content:space-between}.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
+@media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}}
+@media (max-width:560px){.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */

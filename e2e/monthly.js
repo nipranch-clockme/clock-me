@@ -246,10 +246,10 @@ const GENERIC="isn't in your list|can't change the hours";
   const lmTop=await names(rav,'Top 5 performers',0), lmBot=await names(rav,'Top 5 performers',1);
   ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmBot.length>0&&!lmBot.some((n)=>lmTop.includes(n))&&(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours'&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5),`top ${lmTop.join(', ')} | bottom ${lmBot.join(', ')}`);
   ok('bottom 5: the whole company has none',(await adm.locator('section.panel:has(h3:has-text("Top 5 performers"))').locator('.tablebox').count())===1);
-  const offices=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
+  const officeSecs=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
   const offCheck=[];
-  for(let i=0;i<await offices.count();i++){const t=await offices.nth(i).locator('.tablebox').nth(0).locator('tbody tr td:nth-child(2) a').allInnerTexts();const b=await offices.nth(i).locator('.tablebox').nth(1).locator('tbody tr td:nth-child(2) a').allInnerTexts();const pl=await offices.nth(i).locator('.tablebox').nth(1).locator('tbody tr td.num').allInnerTexts();offCheck.push(await offices.nth(i).locator('.tablebox').count()===2&&!b.some((n)=>t.includes(n))&&(!pl.length||pl.every((x)=>+x>5)));}
-  ok('bottom 5: every office has one, and none repeats its top five',offCheck.length===5&&offCheck.every(Boolean),offCheck.join(','));
+  for(let i=0;i<await officeSecs.count();i++){const t=await officeSecs.nth(i).locator('.tablebox').nth(0).locator('tbody tr td:nth-child(2) a').allInnerTexts();const b=await officeSecs.nth(i).locator('.tablebox').nth(1).locator('tbody tr td:nth-child(2) a').allInnerTexts();const pl=await officeSecs.nth(i).locator('.tablebox').nth(1).locator('tbody tr td.num').allInnerTexts();offCheck.push(await officeSecs.nth(i).locator('.tablebox').count()===2&&!b.some((n)=>t.includes(n))&&(!pl.length||pl.every((x)=>+x>5)));}
+  ok('bottom 5: every office has one, and none repeats its top five',offCheck.length===offices&&offCheck.every(Boolean),offCheck.join(','));
 
   // folding "Your numbers"
   const body=(p)=>p.locator('#mynumbers-body');
