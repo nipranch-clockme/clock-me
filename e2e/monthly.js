@@ -47,7 +47,7 @@ const GENERIC="isn't in your list|can't change the hours";
  const signIn=async(email)=>{const p=await login(b,email);watch(p);p.dialogs=[];p.dialogMode='accept';p.on('dialog',async(d)=>{p.dialogs.push(d.message());try{if(p.dialogMode==='dismiss')await d.dismiss();else await d.accept();}catch(e){}});pages.push(p);return p;};
  const inp=(id,i)=>`input[data-cell="m|${id}|${ymAt(i)}"]`;
  const unlockPast=async(p)=>{const btn=p.locator('.mg-save button:has-text("Change past months")');if(!(await btn.count()))return;await btn.click();await p.waitForSelector('.mg-save :text("Past months are unlocked")');};
- const overview=async(p,range,name)=>{await go(p,`/clients?range=${range}`);return p.locator(`tr:has(a:text-is("${name}")) td`).allInnerTexts();};
+ const overview=async(p,range,name)=>{await go(p,`/dashboard?tab=clients&crange=${range}`);return p.locator(`tr:has(a:text-is("${name}")) td`).allInnerTexts();};
  try{
   // ---- setup
   sql(`insert into "Tag"(id,name) values('${TA}','${WA}'),('${TB}','${WB}')`);
@@ -63,7 +63,7 @@ const GENERIC="isn't in your list|can't change the hours";
   // ================= Monthly contracts =================
   const adm=await signIn('admin@example.com');
   await go(adm,'/clients?view=contracts');
-  ok('contracts: two views, this one is current',(await adm.locator('nav[aria-label="Clients view"] a').allInnerTexts()).join()==='Overview,Monthly contracts'&&await adm.locator('nav[aria-label="Clients view"] a[aria-current=page]').innerText()==='Monthly contracts');
+  ok('contracts: the Clients page is the monthly table, with no view tabs (the client overview is on the Dashboard)',(await adm.locator('nav[aria-label="Clients view"]').count())===0&&(await adm.locator('td.cl a').count())>0);
   ok('contracts: the year picker offers last year, this year and next',(await adm.locator('#mg-year option').allInnerTexts()).join()===`${y-1},${y},${y+1}`&&await adm.inputValue('#mg-year')===String(y));
   ok('contracts: twelve boxes per client',await adm.locator(`tr:has(td.cl a:text-is("${N1}")) input.cell`).count()===12&&await adm.locator(`tr:has(td.cl a:text-is("${N2}")) input.cell`).count()===12);
   const vals=async(id)=>adm.$$eval(`input[data-cell^="m|${id}|"]`,(is)=>is.map((i)=>i.value));

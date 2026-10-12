@@ -64,7 +64,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   // --- admin: list page, this month
   const a=await login(b,'admin@example.com');
   ok('admin: has Clients tab',(await a.locator('nav a').allInnerTexts()).includes('Clients'));
-  await go(a,'/clients');
+  await go(a,'/dashboard?tab=clients');
   ok('admin: This month is the default period',(await a.inputValue('#cl-range'))==='thismonth');
   {
    const c=await cells(a,FX), exp=minutes('fx',m0,todayStr);
@@ -85,7 +85,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    ok('overview: no summary strip above the table (the table already has the numbers)',(await a.locator('.stats.spread.five').count())===0);
   }
   // other periods
-  await a.selectOption('#cl-range','lastmonth');await a.waitForURL(/range=lastmonth/);await a.waitForLoadState('networkidle');
+  await a.selectOption('#cl-range','lastmonth');await a.waitForURL(/crange=lastmonth/);await a.waitForLoadState('networkidle');
   {
    const c=await cells(a,FX), exp=minutes('fx',...P.lastmonth.slice(0,2));
    ok('last month: over contract shown as over',c[2]===f(exp)&&c[4].startsWith(pct(exp/600))&&/over contract/i.test(c[4])&&c[5]===`${f(exp-600)} over`,c.join(' | '));
@@ -94,14 +94,14 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    const fl=await cells(a,FL);ok('last month: change on the month before',fl[3].includes('Up 100% on the month before')&&fl[3].includes(`(${f(60)} h)`),fl[3]);
   }
   for(const k of ['thisquarter','lastquarter','thisyear','last12']){
-   await go(a,'/clients?range='+k);
+   await go(a,'/dashboard?tab=clients&crange='+k);
    const [from,to,n]=P[k], c=await cells(a,FX), exp=minutes('fx',from,to), con=600*n;
    ok(`${k}: hours, contract (${n} month${n>1?'s':''}) and utilisation`,c[2]===f(exp)&&c[3]===f(con)&&c[4].startsWith(pct(exp/con)),c.slice(2,6).join(' | '));
   }
-  await go(a,'/clients?range=nonsense');ok('an unknown period falls back to This month',(await a.inputValue('#cl-range'))==='thismonth');
+  await go(a,'/dashboard?tab=clients&crange=nonsense');ok('an unknown period falls back to This month',(await a.inputValue('#cl-range'))==='thismonth');
 
   // --- admin: client detail
-  await go(a,'/clients?range=thismonth');await a.click(`a:text-is("${FX}")`);await a.waitForURL(new RegExp(`/clients/${t}fx\\?range=thismonth`));await a.waitForLoadState('networkidle');
+  await go(a,'/dashboard?tab=clients&crange=thismonth');await a.click(`a:text-is("${FX}")`);await a.waitForURL(new RegExp(`/clients/${t}fx\\?range=thismonth`));await a.waitForLoadState('networkidle');
   {
    const s=await stats(a), exp=minutes('fx',m0,todayStr);
    ok('detail: hours, contract, utilisation and hours left',s[0]===`${f(exp)} hours logged`&&s[1]===`${f(600)} contracted hours`&&s[2]===`${pct(exp/600)} utilisation`&&s[3]===`${f(600-exp)} hours left`,s.join(' | '));
@@ -127,7 +127,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
 
   // --- location manager: same company-wide numbers, only own office people by name
   const o=await login(b,'oliver@example.com');
-  await go(o,'/clients');
+  await go(o,'/dashboard?tab=clients');
   {
    const c=await cells(o,FX);ok('location manager: hours count the whole company',c[2]===f(minutes('fx',m0,todayStr)),c[2]);
    await go(o,`/clients/${t}fx`);
@@ -220,12 +220,12 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   }
   // --- roles table and phones
   await go(a,'/settings');
-  const row=(await a.locator('table.matrix tr:has-text("See the client dashboard")').textContent());
-  ok('roles table lists the client dashboard',row.includes('Yes, people in own office only'));
+  const row=(await a.locator('table.matrix tr:has-text("See the client overview")').textContent());
+  ok('roles table lists the client overview',row.includes('Yes, people in own office only'));
   ok('roles table lists setting contracts',(await a.locator('table.matrix tr:has-text("usual contracted hours")').count())===1);
   const ph=await (await b.newContext({viewport:{width:390,height:800}})).newPage();
   await ph.goto(BASE+'/login');await ph.fill('#email','oliver@example.com');await ph.fill('#password','password123');await ph.click('button:has-text("Sign in")');await ph.waitForURL(u=>!u.pathname.startsWith('/login'));
-  for(const path of ['/clients',`/clients/${t}fx`]){await go(ph,path);ok(`phone: ${path.replace(t,'…')} fits the screen`,(await ph.evaluate(()=>document.documentElement.scrollWidth))<=390);}
+  for(const path of ['/clients','/dashboard?tab=clients',`/clients/${t}fx`]){await go(ph,path);ok(`phone: ${path.replace(t,'…')} fits the screen`,(await ph.evaluate(()=>document.documentElement.scrollWidth))<=390);}
   await go(a,'/dashboard');ok('dashboard still shows productivity',/\d+%productivity/.test((await a.textContent('.stats')).replace(/\s+/g,'')));
   errs.push(...a.errs,...o.errs,...d.errs);
   ok('no browser errors',errs.length===0,JSON.stringify(errs));

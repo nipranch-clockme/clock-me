@@ -16,7 +16,7 @@ let fail=0;const ok=(n,c,x='')=>{console.log((c?'PASS ':'FAIL ')+n+(x?' — '+x:
   await a.locator('dialog form button.btn:not([type=button])').last().click();await a.waitForTimeout(2500);
   ok('client saved with team',sql(`select count(*) from "Client" c join "Team" t on t.id=c."teamId" where c.name='${name}' and t.name='Hulk'`)==='1');
   ok('two contacts saved',sql(`select count(*) from "ClientContact" where "clientId"=(select id from "Client" where name='${name}')`)==='2');
-  await a.goto(BASE+'/clients');await a.waitForLoadState('networkidle');
+  await a.goto(BASE+'/dashboard?tab=clients');await a.waitForLoadState('networkidle');
   ok('list shows team under the name',(await a.locator(`tr:has-text("${name}")`).innerText()).includes('Hulk team, AMD'));
   await a.fill('.tfilter input','zzzz-none');ok('search hides non-matching rows',(await a.locator('tbody tr:visible').count())===0);
   await a.fill('.tfilter input',name.toLowerCase());ok('search finds the client',(await a.locator('tbody tr:visible').count())===1);

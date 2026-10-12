@@ -11,11 +11,13 @@ export function periodNote(per: ClientPeriod, contract = true) {
   return `${longDate(per.from)} to ${longDate(per.to)}. Hours count time logged by everyone in the company on the client's projects, archived ones included.${contract ? ` Contracted hours are ${months}. Utilisation is hours logged divided by contracted hours.` : ""}`;
 }
 
-/** Period picker for the Clients tab. */
-export function PeriodPicker({ per, id }: { per: ClientPeriod; id: string; contract?: boolean }) {
+/** Period picker for the client overview. `name` and `keep` let it sit on another page's address (the Dashboard's Client overview tab uses `crange`
+ *  and keeps its `tab`, since the picker's form sends only its own fields). */
+export function PeriodPicker({ per, id, name = "range", keep = {} }: { per: ClientPeriod; id: string; name?: string; keep?: Record<string, string> }) {
   return (
     <AutoForm className="phd-a" key={per.key}>
-      <Ifld id={id} label="Period" name="range" defaultValue={per.key}>{CLIENT_PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
+      {Object.entries(keep).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <Ifld id={id} label="Period" name={name} defaultValue={per.key}>{CLIENT_PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
     </AutoForm>
   );
 }

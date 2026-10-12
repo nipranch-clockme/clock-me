@@ -1,14 +1,20 @@
 // Monthly report on the Dashboard: location managers see their office, admins pick an office, others don't see it; the CSV matches.
 const { start, login, BASE } = require("./helpers");
+const { execSync } = require("child_process");
+const PSQL = process.env.PSQL || "psql -h /tmp -U postgres clockme";
 (async () => {
+  // the OT row shows only when an OT tag exists; the test database may not have one, so make sure it does
+  execSync(`${PSQL} -At -v ON_ERROR_STOP=1`, { input: `insert into "Tag"(id,name) select 'mrot','OT' where not exists (select 1 from "Tag" where lower(name)='ot');` });
   const b = await start(); let fails = 0;
   const ok = (c, m) => { console.log((c ? "ok   " : "FAIL ") + m); if (!c) fails++; };
   const loc = await login(b, "oliver@example.com");
   await loc.goto(BASE + "/dashboard?range=lastmonth"); await loc.waitForLoadState("networkidle");
   ok(await loc.locator("#monthly-report").count() === 0, "Overview tab has no monthly report");
-  ok((await loc.locator(".dtabs a").allInnerTexts()).join() === "Overview,Detailed", "Overview and Detailed tabs");
-  ok(await loc.locator('.dtabs a[aria-pressed="true"]').innerText() === "Overview", "Overview is the default tab");
-  await loc.click('.dtabs a:text-is("Detailed")'); await loc.waitForURL(/tab=detailed/); await loc.waitForLoadState("networkidle");
+  ok((await loc.locator(".dtabs a").allInnerTexts()).join() === "Team Overview,Client overview,Detailed Utilization", "Team Overview, Client overview and Detailed Utilization tabs");
+  ok(await loc.locator('.dtabs a[aria-pressed="true"]').innerText() === "Team Overview", "Team Overview is the default tab");
+  await loc.click('.dtabs a:text-is("Client overview")'); await loc.waitForURL(/tab=clients/); await loc.waitForLoadState("networkidle");
+  ok(await loc.locator("#cl-range").count() === 1 && await loc.locator("#monthly-report").count() === 0, "Client overview tab has its period picker and no report");
+  await loc.click('.dtabs a:text-is("Detailed Utilization")'); await loc.waitForURL(/tab=detailed/); await loc.waitForLoadState("networkidle");
   const box = loc.locator("#monthly-report");
   ok(await box.count() === 1, "location manager sees the monthly report on Detailed");
   ok(await loc.locator(".stats").count() === 0, "Detailed tab shows only the report");
@@ -37,9 +43,9 @@ const { start, login, BASE } = require("./helpers");
   ok(offs.length > 1, "admin office picker: " + offs.join(","));
   await adm.selectOption("#mr-office", { label: offs[1] }); await adm.waitForURL(/roffice=/); await adm.waitForLoadState("networkidle");
   ok((await adm.locator("#monthly-report h3").innerText()).includes(offs[1]), "admin switched office");
-  await adm.click('.dtabs a:text-is("Overview")'); await adm.waitForURL((u) => !/tab=/.test(u.search)); await adm.waitForLoadState("networkidle");
+  await adm.click('.dtabs a:text-is("Team Overview")'); await adm.waitForURL((u) => !/tab=/.test(u.search)); await adm.waitForLoadState("networkidle");
   await adm.selectOption("#ds-range", "lastmonth"); await adm.waitForURL(/range=lastmonth/); await adm.waitForLoadState("networkidle");
-  await adm.click('.dtabs a:text-is("Detailed")'); await adm.waitForURL(/tab=detailed/); await adm.waitForLoadState("networkidle");
+  await adm.click('.dtabs a:text-is("Detailed Utilization")'); await adm.waitForURL(/tab=detailed/); await adm.waitForLoadState("networkidle");
   ok((await adm.locator("#monthly-report h3").innerText()).includes(offs[1]), "office kept after visiting Overview");
   ok(adm.errs.length === 0, "no admin page errors " + adm.errs.join(" | "));
   const lead = await login(b, "daniel@example.com");

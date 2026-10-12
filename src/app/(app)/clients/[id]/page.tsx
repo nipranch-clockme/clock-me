@@ -84,7 +84,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <p className="back"><Link href={`/clients?range=${per.key}`} className="linkbtn">‹ Back to Clients</Link></p>
+      <p className="back"><Link href={`/dashboard?tab=clients&crange=${per.key}`} className="linkbtn">‹ Back to Client overview</Link></p>
       <PageHead title={<><Dot color={client.color} />{client.name}</>}
         actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} tags={tagOpts} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, workTypeIds: client.workTypeIds, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
         sub={`${monthly ? `${clientTypeName("FIXED")}, ${monthly}` : clientTypeName("FLOATING")}.${workTypes.length ? ` Work types: ${workTypes.join(" + ")}.` : ""} ${periodNote(per, !!monthly)}`} />

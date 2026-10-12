@@ -19,7 +19,7 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Edit projects and who can see them", { MEMBER: "n", LEADER: "Ones they manage", LOCATION: "Ones they manage", ADMIN: "All" }],
   ["Create clients, tags and phase templates", { MEMBER: "n", LEADER: "n", LOCATION: "n", ADMIN: "y" }],
   ["Set a client's type, usual contracted hours, each month's own contracted hours (Clients > Monthly contracts) and work types", { MEMBER: "n", LEADER: "n", LOCATION: "See only", ADMIN: "y" }],
-  ["See the client dashboard (hours and contract use for every client)", { MEMBER: "n", LEADER: "n", LOCATION: "Yes, people in own office only", ADMIN: "y" }],
+  ["See the client overview on the Dashboard (hours and contract use for every client)", { MEMBER: "n", LEADER: "n", LOCATION: "Yes, people in own office only", ADMIN: "y" }],
   ["Export CSV (time from Reports, projects, people)", { MEMBER: "Own time", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Import projects and timesheets from CSV", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
   ["Import people from CSV", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "y" }],

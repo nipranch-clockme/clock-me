@@ -15,6 +15,9 @@ import MonthBars from "@/components/MonthBars";
 import { PageHead, Ifld } from "@/components/ui";
 import MonthlyReportTable from "@/components/MonthlyReportTable";
 import { monthlyReport, reportYears } from "@/lib/monthlyReport";
+import { clientPeriod } from "@/lib/clients";
+import { PeriodPicker, periodNote } from "../clients/parts";
+import ClientOverview from "./ClientOverview";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
 const OFFCOL = ["s1", "s2", "s8", "s3", "s6"];
@@ -22,7 +25,7 @@ const TEAMCOL = ["s1", "s2", "s8", "s3", "s6", "s7", "s5"]; // one colour per te
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string; tab?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string; crange?: string; tab?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("dashboard");
   const settings = await getSettings();
@@ -31,16 +34,29 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
-  // Location managers and admins have two tabs: Overview (below) and Detailed, the office's monthly report like the sheet they kept before
-  // (location managers: their office; admins: the office they pick). Each tab keeps the other's choices in its links.
+  // Location managers and admins have three tabs: Team Overview (below), Client overview (each client's hours and utilisation, which used to be
+  // the Clients page's overview) and Detailed Utilization, the office's monthly report like the sheet they kept before. Location managers see
+  // their office; admins the office they pick. Each tab keeps the other's choices in its links.
   const tabs = me.role === "LOCATION" || me.role === "ADMIN";
   const keep = (o: Record<string, string | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString();
-  const tabNav = (on: "overview" | "detailed") => tabs && (
+  const shared = { range: sp.range, rank: sp.rank, crange: sp.crange, ryear: sp.ryear, roffice: sp.roffice };
+  const tabNav = (on: "overview" | "clients" | "detailed") => tabs && (
     <nav className="seg rtabs dtabs" aria-label="Dashboard view">
-      <Link href={`/dashboard?${keep({ range: sp.range, rank: sp.rank, ryear: sp.ryear, roffice: sp.roffice })}`} aria-pressed={on === "overview"}>Overview</Link>
-      <Link href={`/dashboard?${keep({ tab: "detailed", range: sp.range, rank: sp.rank, ryear: sp.ryear, roffice: sp.roffice })}`} aria-pressed={on === "detailed"}>Detailed</Link>
+      <Link href={`/dashboard?${keep(shared)}`} aria-pressed={on === "overview"}>Team Overview</Link>
+      <Link href={`/dashboard?${keep({ tab: "clients", ...shared })}`} aria-pressed={on === "clients"}>Client overview</Link>
+      <Link href={`/dashboard?${keep({ tab: "detailed", ...shared })}`} aria-pressed={on === "detailed"}>Detailed Utilization</Link>
     </nav>
   );
+  if (tabs && sp.tab === "clients") {
+    const per = clientPeriod(sp.crange);
+    return (
+      <>
+        <PageHead title="Dashboard" actions={<PeriodPicker per={per} id="cl-range" name="crange" keep={{ tab: "clients" }} />} sub={periodNote(per)} />
+        {tabNav("clients")}
+        <div className="grid"><ClientOverview per={per} f={f} /></div>
+      </>
+    );
+  }
   if (tabs && sp.tab === "detailed") {
     const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
     const office = offices.find((o) => o.id === sp.roffice) ?? offices[0];
