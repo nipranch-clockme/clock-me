@@ -27,7 +27,8 @@ async function readPerson(form: FormData, personId?: string) {
   if (role === "LEADER" && !teamId) return { error: "Team/Project Managers need a team." };
   const f = await readProfileFields(form, personId);
   if ("error" in f) return { error: f.error };
-  return { data: { role, locationId, teamId, ...f.data, title: String(form.get("title") ?? "").trim() } };
+  // A Guest is a contractor with no expected hours, whatever the form says.
+  return { data: { role, locationId, teamId, ...f.data, weeklyTarget: role === "GUEST" ? 0 : f.data.weeklyTarget, title: String(form.get("title") ?? "").trim() } };
 }
 
 export async function invitePerson(_: PeopleResult, form: FormData): Promise<PeopleResult> {

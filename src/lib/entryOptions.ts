@@ -1,7 +1,7 @@
 import { db } from "./db";
 import type { Me } from "./auth";
 import { getSettings } from "./settings";
-import { trackableProjectsWhere, visibleProjectsWhere } from "./scope";
+import { hidesClients, trackableProjectsWhere, visibleProjectsWhere } from "./scope";
 import type { EntryOptions } from "@/components/entryTypes";
 
 /** What an entry form offers for `me`. When someone else fills it in for them (`viewer`), only projects the viewer can see too are listed, so a manager never learns of projects they have no access to. */
@@ -13,7 +13,7 @@ export async function entryOptions(me: Me, viewer: Me = me): Promise<EntryOption
     db.customField.findMany({ orderBy: { sort: "asc" } }),
   ]);
   return {
-    projects: projects.map((p) => ({ id: p.id, name: p.name, client: p.client.name, phases: p.phases.map((x) => ({ id: x.id, name: x.name })) })),
+    projects: projects.map((p) => ({ id: p.id, name: p.name, client: hidesClients(viewer) ? "" : p.client.name, phases: p.phases.map((x) => ({ id: x.id, name: x.name })) })),
     tags: tags.map((t) => ({ id: t.id, name: t.name })),
     fields: fields.map((f) => ({ id: f.id, name: f.name, type: f.type, options: f.options, required: f.required })),
     requireTag: settings.requireTag,

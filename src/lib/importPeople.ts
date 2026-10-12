@@ -138,7 +138,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
       cells: [name, email, roleName(roleP.role), loc?.name ?? officeName, teamName ?? "", weekly === null ? target : String(weekly ?? 40)],
     };
     const data: PersonDraft | undefined = error ? undefined : {
-      name, email, title: clean(pick(r, "title", "job title")).slice(0, 100), role: roleP.role, locationId: loc!.id, teamKey, weeklyTarget: weekly ?? undefined,
+      name, email, title: clean(pick(r, "title", "job title")).slice(0, 100), role: roleP.role, locationId: loc!.id, teamKey, weeklyTarget: roleP.role === "GUEST" ? 0 : weekly ?? undefined,
       employeeId: emp || null, joiningDate: joined && isDateStr(joined) ? toDate(joined) : null, projectIds,
     };
     return { row, data };

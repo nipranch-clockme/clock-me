@@ -1,7 +1,7 @@
 import TableFilter from "@/components/TableFilter";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { addedProjectsWhere, canCreateProject, canEditProject, visibleProjectsWhere } from "@/lib/scope";
+import { addedProjectsWhere, canCreateProject, canEditProject, clientColorFor, hidesClients, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
 import { PageHead, Pill } from "@/components/ui";
 import ProjectsClient from "./ProjectsClient";
@@ -75,7 +75,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   const u = used[p.id] ?? 0, pc = p.budgetHours ? u / p.budgetHours : 0;
                   return (
                     <tr key={p.id}>
-                      <td><span className="dot" style={{ background: `var(--${p.client.color})` }} />{p.name} {p.archived && <Pill tone="locked">Archived</Pill>}<div className="note">{p.client.name}</div></td>
+                      <td><span className="dot" style={{ background: `var(--${clientColorFor(me, p.client.color)})` }} />{p.name} {p.archived && <Pill tone="locked">Archived</Pill>}{!hidesClients(me) && <div className="note">{p.client.name}</div>}</td>
                       <td data-l="Who can see it">{p.access === "PUBLIC" ? <Pill tone="locked">Everyone</Pill> : <><Pill tone="locked">Restricted</Pill><div className="note">{accessText(p)}</div></>}</td>
                       <td className="note" data-l="Managers">{p.managers.map((m) => m.user.name).join(", ") || "–"}</td>
                       <td className="note" data-l="Phases">{p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", ")}</td>

@@ -1,8 +1,10 @@
 import type { Prisma, Role } from "@prisma/client";
 import type { Me } from "./auth";
 
-/** The client whose projects are admin time: the only projects a Human Resource person may log time on. */
-export const INTERNAL_CLIENT = "Internal";
+/** Guests don't see which client a project belongs to: they see the project name only. */
+export const hidesClients = (me: Me) => me.role === "GUEST";
+/** The client's colour, or a neutral one for a Guest, so colours don't give the client away either. */
+export const clientColorFor = (me: Me, color: string) => (hidesClients(me) ? "s4" : color);
 
 /** People who have hours expected of them: usual weekly hours above 0, or at least one month above 0 in the monthly hours table. Admins and
  *  Human Resource are not a resource, so the screens that work out utilisation add `role: { notIn: NOT_A_RESOURCE }` as well. */
@@ -134,7 +136,7 @@ export function addedProjectsWhere(me: Me): Prisma.ProjectWhereInput {
 
 /** Projects this person can log time on: the visible ones that aren't archived. */
 export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
-  return { AND: [visibleProjectsWhere(me), { archived: false }, ...(me.role === "HUMAN_RESOURCE" ? [{ client: { name: INTERNAL_CLIENT } }] : [])] };
+  return { AND: [visibleProjectsWhere(me), { archived: false }] };
 }
 
 /** Projects time can be logged on for this person. When someone does it on their behalf, the signed-in manager must see the project too:

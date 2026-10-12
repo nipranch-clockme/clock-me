@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
 import { GROUPS, TIME_GROUPS, TABS, STATUSES, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
+import { hidesClients } from "@/lib/scope";
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
 import { clock, fmtHours, pct } from "@/lib/format";
 import { tagText } from "@/lib/tags";
@@ -23,6 +24,7 @@ type Combo = Rec & { userId: string; projectId: string; _sum: { minutes: number 
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireUser();
+  const groups = GROUPS.filter(([k]) => !(k === "client" && hidesClients(me))); // a Guest can't group by client
   const settings = await getSettings();
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const raw = await searchParams;
@@ -93,7 +95,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       case "description": return [c.description ?? "", c.description || "No description"];
       case "day": { const d = toStr(c.date!); return [d, longDate(d)]; }
       case "month": { const k = toStr(c.date!).slice(0, 7); return [k, toDate(k + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })]; }
-      default: return [c.projectId ?? "?", pr ? (dupProjectName(pr.name) ? `${pr.name} (${pr.client.name})` : pr.name) : "Unknown"];
+      default: return [c.projectId ?? "?", pr ? (dupProjectName(pr.name) && !hidesClients(me) ? `${pr.name} (${pr.client.name})` : pr.name) : "Unknown"];
     }
   };
   // An entry with several tags counts under each of them; every other grouping puts an entry in exactly one group.
@@ -208,7 +210,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <span className="rflabel">FILTER</span>
           {people.length > 1 && <FilterMenu name="person" label="Person" options={opts(people.map((u) => [u.id, u.name]))} selected={p.person} />}
           {teams.length > 1 && <FilterMenu name="team" label="Team" options={opts(teams)} selected={p.team} />}
-          <FilterMenu name="client" label="Client" options={opts(clients)} selected={p.client} />
+          {!hidesClients(me) && <FilterMenu name="client" label="Client" options={opts(clients)} selected={p.client} />}
           <FilterMenu name="project" label="Project" options={opts(projOpts)} selected={p.project} />
           <FilterMenu name="phase" label="Phase" options={opts(phaseNames.map((x) => [x.name, x.name]))} selected={p.phase} />
           <FilterMenu name="tag" label="Tag" options={opts(tags.map((t) => [t.id, t.name]))} selected={p.tag} />
@@ -234,9 +236,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
           {p.tab !== "detailed" && (
             <div className="rgroup">
-              <Ifld id="rp-group" label="Group by" name="group" data-auto defaultValue={p.group}>{GROUPS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
+              <Ifld id="rp-group" label="Group by" name="group" data-auto defaultValue={p.group}>{groups.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
               {p.tab === "summary" && <Ifld id="rp-group2" label="then by" name="group2" data-auto defaultValue={p.group2 ?? ""}>
-                <option value="">Nothing</option>{GROUPS.filter(([k]) => k !== p.group).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                <option value="">Nothing</option>{groups.filter(([k]) => k !== p.group).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </Ifld>}
               {p.tab === "summary" && p.group === "project" && (
                 <label className="tog"><input type="checkbox" role="switch" name="est" value="1" data-auto defaultChecked={!!p.est} /><span aria-hidden="true" /> Show budget</label>
@@ -256,14 +258,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {p.tab === "detailed" && (
             <div className="tablebox">
               <table className="rtable">
-                <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th><th>CLIENT</th><th>PROJECT</th><th>PHASE</th><th>TAGS</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
+                <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th>{!hidesClients(me) && <th>CLIENT</th>}<th>PROJECT</th><th>PHASE</th><th>TAGS</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => (
                     <tr key={e.id} className={hasOtTag(e.tagIds, otIds) ? "otrow" : undefined}>
                       <td data-l="Date">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
                       <td data-l="Time" className="nw">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}</td>
                       <td data-l="Person"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
-                      <td data-l="Client">{e.project.client.name}</td>
+                      {!hidesClients(me) && <td data-l="Client">{e.project.client.name}</td>}
                       <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td><td data-l="Description">{e.description}</td>
                       <td className="num" data-l="Hours">{f(e.minutes)}{hasOtTag(e.tagIds, otIds) && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
                     </tr>

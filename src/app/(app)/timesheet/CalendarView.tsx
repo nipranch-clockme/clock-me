@@ -4,6 +4,7 @@ import type { Me } from "@/lib/auth";
 import { addDays, monday, today, toDate, toStr, DAYS } from "@/lib/dates";
 import { dayMarks } from "@/lib/timeoff";
 import { dayMark } from "@/lib/dayMark";
+import { clientColorFor, hidesClients } from "@/lib/scope";
 import { HIDDEN_PROJECT, hiddenProjectIds } from "@/lib/entries";
 import type { EntryOptions } from "@/components/entryTypes";
 import type { AppSettings } from "@/lib/settings";
@@ -37,10 +38,10 @@ export default async function CalendarView({ me, subject, subjectName = subject.
         opts={opts} dates={dates} today={today()} editable={editable} locked={locked} marks={marks}
         ownerId={others && editable ? subject.id : undefined}
         ownerName={subjectName}
-        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: hidden.has(e.projectId) ? HIDDEN_PROJECT : e.project.name, color: e.project.client.color, phaseId: e.phaseId, phaseName: hidden.has(e.projectId) ? "" : (e.phase?.name ?? ""), tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
+        entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: hidden.has(e.projectId) ? HIDDEN_PROJECT : e.project.name, color: clientColorFor(me, e.project.client.color), phaseId: e.phaseId, phaseName: hidden.has(e.projectId) ? "" : (e.phase?.name ?? ""), tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}
       />
       <DayOffList dates={dates} marks={marks} />
-      <div className="legend">{clients.map((c) => <span key={c.id}><i style={{ background: `var(--${c.color})` }} />{c.name}</span>)}</div>
+      {!hidesClients(me) && <div className="legend">{clients.map((c) => <span key={c.id}><i style={{ background: `var(--${c.color})` }} />{c.name}</span>)}</div>}
     </>
   );
 }

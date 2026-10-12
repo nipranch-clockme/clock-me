@@ -10,14 +10,14 @@ export const ROLES: [Role, string][] = [
 ];
 export const roleName = (r: Role) => ROLES.find((x) => x[0] === r)?.[1] ?? r;
 
-/** Roles that are not a resource: no expected hours, not counted in inventory, utilisation or headcount. Their time is admin time. */
+/** Roles that are not a resource: no expected hours, not counted in inventory, utilisation or headcount. */
 export const NOT_A_RESOURCE: Role[] = ["ADMIN", "HUMAN_RESOURCE", "GUEST"];
 /** Roles that see the whole company's utilisation on the Dashboard (not clients, and not anyone's entries). */
 export const SEES_COMPANY_UTILISATION: Role[] = ["ADMIN", "HUMAN_RESOURCE"];
 
 type Cell = "y" | "n" | string;
 export const PERMISSIONS: [string, Record<Role, Cell>][] = [
-  ["Add own time in timesheet and calendar", { MEMBER: "y", GUEST: "y", LEADER: "y", LOCATION: "y", HUMAN_RESOURCE: "Internal projects only (admin time)", ADMIN: "y" }],
+  ["Add own time in timesheet and calendar", { MEMBER: "y", GUEST: "y", LEADER: "y", LOCATION: "y", HUMAN_RESOURCE: "Own time, any project (admin time is the Admin tag)", ADMIN: "y" }],
   ["Add or change single entries on someone else's behalf from the Timesheet or Calendar (written to the change log)", { MEMBER: "n", GUEST: "n", LEADER: "n", LOCATION: "Own office, not admins or location managers", HUMAN_RESOURCE: "n", ADMIN: "y" }],
   ["See own reports", { MEMBER: "y", GUEST: "y", LEADER: "y", LOCATION: "y", HUMAN_RESOURCE: "y", ADMIN: "y" }],
   ["See other people's entries, reports, profiles and dashboard", { MEMBER: "n", GUEST: "n", LEADER: "Own team", LOCATION: "Own office", HUMAN_RESOURCE: "Team utilisation on the Dashboard only", ADMIN: "y" }],

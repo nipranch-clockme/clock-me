@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { hidesClients } from "./scope";
 import type { Me } from "./auth";
 import { db } from "./db";
 import { visibleUsersWhere } from "./scope";
@@ -37,15 +38,16 @@ export function spToRecord(sp: URLSearchParams): SP {
 export function parseReportParams(sp: SP, me: Me): ReportParams {
   const s = (k: string) => { const v = Array.isArray(sp[k]) ? (sp[k] as string[])[0] : sp[k]; return typeof v === "string" && v ? v : undefined; };
   const list = (k: string) => { const v = sp[k]; const a = Array.isArray(v) ? v : v ? [v] : []; return [...new Set(a.filter(Boolean))].slice(0, 300); };
-  const group = GROUPS.some((g) => g[0] === s("group")) ? s("group")! : "project";
+  const groups = GROUPS.filter(([k]) => !(k === "client" && hidesClients(me))); // a Guest can't group by client
+  const group = groups.some((g) => g[0] === s("group")) ? s("group")! : "project";
   const tab = TABS.find((t) => t[0] === s("tab"))?.[0] ?? (s("detail") === "1" ? "detailed" : "summary"); // `detail=1` is how older links asked for the Detailed view
   const p: ReportParams = {
     tab, range: s("range") ?? "thismonth", group,
-    group2: GROUPS.some((g) => g[0] === s("group2")) && s("group2") !== group ? s("group2") : undefined,
+    group2: groups.some((g) => g[0] === s("group2")) && s("group2") !== group ? s("group2") : undefined,
     est: s("est") === "1" && group === "project" ? "1" : undefined,
     desc: s("desc")?.slice(0, 200),
     ref: s("ref") === "approvals" ? "approvals" : undefined,
-    person: list("person"), team: list("team"), client: list("client"), project: list("project"), phase: list("phase"), tag: list("tag"),
+    person: list("person"), team: list("team"), client: hidesClients(me) ? [] : list("client"), project: list("project"), phase: list("phase"), tag: list("tag"),
     status: list("status").filter((x) => STATUSES.some((t) => t[0] === x)), location: me.role === "ADMIN" ? list("location") : [], // only admins filter by office
   };
   if (p.range === "custom" && isDateStr(s("from")) && isDateStr(s("to"))) {

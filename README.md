@@ -25,8 +25,8 @@ What each role can see:
 - **Team member:** only their own time.
 - **Team/Project Manager:** their own team in their own office. They approve their team's timesheets and their own.
 - **Location manager:** every team in their office.
-- **Human Resource:** logs their own admin time on the Internal client's projects only. Not a resource: left out of inventory, headcount and utilisation. Sees the whole company's team utilisation (Team Overview and Detailed Utilization, every office) but no clients, no contract figures and nobody's entries. Can ask for time off and see holidays.
-- **Guest:** a third-party contractor, not part of any office. Team member access on the projects they are added to (client projects included), but no Dashboard, no Time off and no creating projects. Not counted in inventory or utilisation.
+- **Human Resource:** logs their own time on any project, using the Admin tag for admin time. Not a resource: left out of inventory, headcount and utilisation. Sees the whole company's team utilisation (Team Overview and Detailed Utilization, every office) but no clients, no contract figures and nobody's entries. Can ask for time off and see holidays.
+- **Guest:** a third-party contractor, assigned to an office. Team member access on the projects they are added to, but they see only the project name, not its client. No Dashboard, no Time off, no creating projects, and no expected hours. Not counted in inventory or utilisation.
 - **Admin:** the whole company.
 
 Client contracts are company-wide, so in the Client overview tab, location managers and admins both see every client's hours
