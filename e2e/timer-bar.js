@@ -59,6 +59,10 @@ const go = async (p, u) => { await p.goto(BASE + u); await p.waitForLoadState('n
     ok(saved === '1|30|1|0', 'saving adds the half hour as one entry for today, with the bar\'s tag and phase', saved);
     await p.waitForSelector(`.tmrow:has-text("${typed}")`, { timeout: 20000 }).catch(() => {});
     ok(await p.locator(`.tmrow:has-text("${typed}")`).count() === 1, 'the new entry is listed under today');
+    // the bar clears once the manual entry is saved, ready for the next one, and its project list has no search box
+    await p.waitForFunction(() => document.querySelector('#tm-desc')?.value === '', null, { timeout: 5000 }).catch(() => {});
+    ok(await p.inputValue('#tm-desc') === '' && await p.inputValue('#tm-project') === '' && await p.inputValue('#tm-phase') === '' && await p.locator('.tmtag-n').count() === 0, 'after a manual entry the bar is empty again');
+    ok(await p.locator('.tmproj input.ssel-q').count() === 0, 'the project dropdown in the bar has no search box');
 
     // a narrow screen keeps the bar inside the page
     await p.setViewportSize({ width: 390, height: 844 });
