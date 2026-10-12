@@ -1,3 +1,4 @@
+import { NOT_A_RESOURCE } from "@/lib/roles";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { approverUsersWhere, escalatedSheetsWhere, expectsHoursWhere } from "@/lib/scope";
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   const t = today();
   const sent = { submit: 0, daily: 0, approvers: 0 };
   // Demo people (see Settings) are made up, so they never get reminders
-  const people = await db.user.findMany({ where: { AND: [expectsHoursWhere], active: true, passwordHash: { not: null }, role: { not: "ADMIN" }, NOT: { email: { endsWith: "@" + DEMO_DOMAIN, mode: "insensitive" } } } });
+  const people = await db.user.findMany({ where: { AND: [expectsHoursWhere], active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE }, NOT: { email: { endsWith: "@" + DEMO_DOMAIN, mode: "insensitive" } } } });
   // Nobody is reminded about a day or week they have off: a public holiday in their office or time off they booked.
   const ex = await loadExpected(people, { from: addDays(t, -14), to: addDays(t, 7) });
   const starts = ex.starts;

@@ -1,6 +1,6 @@
 // Small, dependency-free helpers for reading CSV imports (people, projects, timesheet). Kept free of database code so they can be tested on their own.
 
-export type RoleName = "MEMBER" | "LEADER" | "LOCATION" | "ADMIN";
+export type RoleName = "MEMBER" | "LEADER" | "LOCATION" | "HUMAN_RESOURCE" | "GUEST" | "ADMIN";
 
 /** The first non-empty value among a row's columns, trying each name in order. */
 export const pick = (r: Record<string, string>, ...names: string[]) => {
@@ -50,12 +50,14 @@ export function parseTimeFlexible(s: string): number | null {
 }
 
 const ROLE_WORDS: [RegExp, RoleName][] = [
+  [/^(human resources?|hr)$/, "HUMAN_RESOURCE"],
+  [/^(guest|contractor|third party( contractor)?)$/, "GUEST"],
   [/^(admin(istrator)?|owner)$/, "ADMIN"],
   [/^(location|office)( manager)?$/, "LOCATION"],
   [/^(team|project|team\/project|project\/team)( manager| leader)?$|^(manager|leader|team leader)$/, "LEADER"],
   [/^(team member|member|regular user|regular|user|employee)$/, "MEMBER"],
 ];
-const ROLE_RANK: Record<RoleName, number> = { MEMBER: 0, LEADER: 1, LOCATION: 2, ADMIN: 3 };
+const ROLE_RANK: Record<RoleName, number> = { MEMBER: 0, LEADER: 1, LOCATION: 2, HUMAN_RESOURCE: 2, GUEST: 0, ADMIN: 3 };
 
 /**
  * Turns Clockify-style role text ("Admin, Project Manager", "Team Manager", blank) into the highest role named.

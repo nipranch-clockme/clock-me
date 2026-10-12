@@ -1,3 +1,4 @@
+import { NOT_A_RESOURCE } from "@/lib/roles";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { canManagePerson } from "@/lib/scope";
@@ -13,7 +14,7 @@ export default async function HoursView({ me, yearParam }: { me: Me; yearParam?:
   const year = gridYear(yearParam), months = yearMonths(year);
   const cur = today().slice(0, 7), now = year === +cur.slice(0, 4) ? +cur.slice(5) - 1 : null;
   const people = await db.user.findMany({
-    where: { active: true, role: { not: "ADMIN" }, ...(me.role === "ADMIN" ? {} : { locationId: me.locationId }) },
+    where: { active: true, role: { notIn: NOT_A_RESOURCE }, ...(me.role === "ADMIN" ? {} : { locationId: me.locationId }) },
     include: { team: true, location: true, monthlyHours: { select: { month: true, weeklyHours: true } } },
     orderBy: [{ location: { name: "asc" } }, { name: "asc" }],
   });

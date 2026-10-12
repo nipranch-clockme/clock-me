@@ -54,7 +54,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         people={people.map((u) => ({ id: u.id, name: u.name, email: u.email, title: u.title, role: u.role, locationId: u.locationId, locationName: u.location.name, teamId: u.teamId, teamName: u.team?.name ?? "", weeklyTarget: u.weeklyTarget, employeeId: u.employeeId ?? "", joiningDate: u.joiningDate ? toStr(u.joiningDate) : "", active: u.active, pending: !u.passwordHash }))}
         locations={myLocations.map((l) => ({ id: l.id, name: l.name }))}
         teams={teams.map((t) => ({ id: t.id, name: t.name, locationId: t.locationId }))}
-        roles={(admin ? ROLES : ROLES.filter(([r]) => r !== "ADMIN" && r !== "LOCATION")).map(([v, l]) => ({ value: v, label: l }))}
+        roles={(admin ? ROLES : ROLES.filter(([r]) => r !== "ADMIN" && r !== "LOCATION" && r !== "HUMAN_RESOURCE" && r !== "GUEST")).map(([v, l]) => ({ value: v, label: l }))}
         defaultLocation={me.locationId}
         today={today()}
       />

@@ -11,7 +11,7 @@ import { issueLinkToken, INVITE_HOURS, RESET_HOURS } from "@/lib/tokens";
 import { DUP_EMPLOYEE_ID, isDupEmployeeId, profileChanges, readProfileFields } from "@/lib/profile";
 
 export type PeopleResult = { ok: boolean; error?: string; link?: string; message?: string } | null;
-const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "LOCATION", "ADMIN"];
+const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "LOCATION", "HUMAN_RESOURCE", "GUEST", "ADMIN"];
 
 /** Location managers manage their own office and can't hand out admin or location manager roles. */
 const checkScope = (me: Me, locationId: string, role: Role) => manageError(me, locationId, role);

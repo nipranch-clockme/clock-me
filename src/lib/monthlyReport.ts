@@ -1,3 +1,4 @@
+import { NOT_A_RESOURCE } from "./roles";
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { endOfMonth, toDate, today } from "./dates";
@@ -47,7 +48,7 @@ export async function monthlyReport(locationId: string | null, year: number): Pr
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
   const now = today().slice(0, 7);
   const open = months.map((m) => m <= now);
-  const users = await db.user.findMany({ where: { AND: [{ ...(locationId ? { locationId } : {}), active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] } });
+  const users = await db.user.findMany({ where: { AND: [{ ...(locationId ? { locationId } : {}), active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE } }, expectsHoursWhere] } });
   const ids = users.map((u) => u.id);
   const ex = await loadExpected(users, { from: `${year}-01-01`, to: `${year}-12-31` });
 
@@ -132,8 +133,9 @@ export const pct2 = (v: number | null) => (v === null ? "–" : `${(v * 100).toF
 
 export type ReportLine = { label: string; cells: (number | string | null)[]; year: number | string | null; kind: "hours" | "count" | "pct"; group: "summary" | "tags" };
 
-/** The report as lines of a table, the same on screen and in the CSV. Months that have not started are null. */
-export function reportLines(r: MonthlyReport): ReportLine[] {
+/** The report as lines of a table, the same on screen and in the CSV. Months that have not started are null. Without `contracts` (Human
+ *  Resource), the contract fulfilment line is left out. */
+export function reportLines(r: MonthlyReport, contracts = true): ReportLine[] {
   const y = yearOf(r);
   const hrs = (v: number[]) => v.map((x, i) => (r.open[i] ? hoursOf(x) : null));
   const lines: ReportLine[] = [
@@ -141,7 +143,7 @@ export function reportLines(r: MonthlyReport): ReportLine[] {
     { label: "Actual total logged", cells: hrs(r.actual), year: hoursOf(y.actual), kind: "hours", group: "summary" },
     { label: "Total active employees", cells: r.people.map((x, i) => (r.open[i] ? x : null)), year: Math.round(y.people * 10) / 10, kind: "count", group: "summary" },
     { label: "Inventory utilisation", cells: r.months.map((_, i) => (r.open[i] ? pct2(ratio(r.actual[i], r.inventory[i])) : null)), year: pct2(y.utilisation), kind: "pct", group: "summary" },
-    { label: "Contract fulfilment", cells: r.months.map((_, i) => (r.open[i] ? pct2(ratio(r.actual[i], r.contracted[i])) : null)), year: pct2(y.fulfilment), kind: "pct", group: "summary" },
+    ...(contracts ? [{ label: "Contract fulfilment", cells: r.months.map((_, i) => (r.open[i] ? pct2(ratio(r.actual[i], r.contracted[i])) : null)), year: pct2(y.fulfilment), kind: "pct" as const, group: "summary" as const }] : []),
   ];
   for (const t of r.tags) lines.push({ label: t.name, cells: hrs(t.v), year: hoursOf(t.v.reduce((a, b) => a + b, 0)), kind: "hours", group: "tags" });
   if (r.ot) lines.push({ label: "OT (overtime)", cells: hrs(r.ot), year: hoursOf(r.ot.reduce((a, b) => a + b, 0)), kind: "hours", group: "tags" });

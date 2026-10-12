@@ -8,7 +8,7 @@ import { invitePerson, resetLink, updatePerson, type PeopleResult } from "./acti
 type Person = { id: string; name: string; email: string; title: string; role: Role; locationId: string; locationName: string; teamId: string | null; teamName: string; weeklyTarget: number; employeeId: string; joiningDate: string; active: boolean; pending: boolean };
 type Opt = { id: string; name: string };
 type Props = { meId: string; admin: boolean; people: Person[]; locations: Opt[]; teams: (Opt & { locationId: string })[]; roles: { value: Role; label: string }[]; defaultLocation: string; today: string };
-const roleLabel = (roles: Props["roles"], r: Role) => roles.find((x) => x.value === r)?.label ?? { ADMIN: "Admin", LOCATION: "Location manager" }[r as string] ?? r;
+const roleLabel = (roles: Props["roles"], r: Role) => roles.find((x) => x.value === r)?.label ?? { ADMIN: "Admin", LOCATION: "Location manager", HUMAN_RESOURCE: "Human Resource", GUEST: "Guest" }[r as string] ?? r;
 
 export default function PeopleClient(props: Props) {
   const { people, roles } = props;
@@ -39,7 +39,7 @@ export default function PeopleClient(props: Props) {
               <td data-l="Role">{roleLabel(roles, p.role)}</td>
               <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
-              <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
+              <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION" && p.role !== "HUMAN_RESOURCE" && p.role !== "GUEST")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
             </tr>
           ))}
           {!shown.length && <tr><td colSpan={6} className="empty">Nobody matches.</td></tr>}

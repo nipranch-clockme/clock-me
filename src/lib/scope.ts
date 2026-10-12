@@ -1,11 +1,15 @@
 import type { Prisma, Role } from "@prisma/client";
 import type { Me } from "./auth";
 
-/** People who have hours expected of them: usual weekly hours above 0, or at least one month above 0 in the monthly hours table. Admins are not a resource,
- *  so the screens that work out utilisation add `role: { not: "ADMIN" }` as well. */
+/** The client whose projects are admin time: the only projects a Human Resource person may log time on. */
+export const INTERNAL_CLIENT = "Internal";
+
+/** People who have hours expected of them: usual weekly hours above 0, or at least one month above 0 in the monthly hours table. Admins and
+ *  Human Resource are not a resource, so the screens that work out utilisation add `role: { notIn: NOT_A_RESOURCE }` as well. */
 export const expectsHoursWhere: Prisma.UserWhereInput = { OR: [{ weeklyTarget: { gt: 0 } }, { monthlyHours: { some: { weeklyHours: { gt: 0 } } } }] };
 
-/** Whose entries this person may see: own (member), own team (team/project manager), own office (location manager), everyone (admin). */
+/** Whose entries this person may see: own (member), own team (team/project manager), own office (location manager), everyone (admin).
+ *  Human Resource sees only their own entries; the Dashboard's utilisation uses utilisationUsersWhere instead. */
 export function visibleUsersWhere(me: Me): Prisma.UserWhereInput {
   switch (me.role) {
     case "ADMIN": return {};
@@ -13,6 +17,12 @@ export function visibleUsersWhere(me: Me): Prisma.UserWhereInput {
     case "LEADER": return me.teamId ? { teamId: me.teamId } : { id: me.id };
     default: return { id: me.id };
   }
+}
+
+/** Whose utilisation this person sees on the Dashboard: the same as visibleUsersWhere, except Human Resource sees everyone's (hours and
+ *  target only, no entries or clients). */
+export function utilisationUsersWhere(me: Me): Prisma.UserWhereInput {
+  return me.role === "HUMAN_RESOURCE" ? {} : visibleUsersWhere(me);
 }
 
 /** Whose timesheets this person approves. A Team/Project Manager approves their own team, themselves included. Location managers and admins
@@ -32,7 +42,7 @@ export function manageError(me: Me, locationId: string, role: Role): string | nu
   if (me.role === "ADMIN") return null;
   if (me.role !== "LOCATION") return "You don't have permission to do that.";
   if (locationId !== me.locationId) return "You can only manage people in your own office.";
-  if (role === "ADMIN" || role === "LOCATION") return "Only admins can make someone an admin or location manager.";
+  if (role === "ADMIN" || role === "LOCATION" || role === "HUMAN_RESOURCE" || role === "GUEST") return "Only admins can make someone an admin, location manager, Human Resource or Guest.";
   return null;
 }
 /** Who may change someone's employee ID, joining date, expected hours and (besides the person) profile picture:
@@ -86,7 +96,7 @@ export function holidayError(me: Me): string | null {
 export const canManageHolidays = (me: Me) => !holidayError(me);
 
 export const scopeLabel = (me: Me) =>
-  me.role === "ADMIN" ? "Whole company"
+  me.role === "ADMIN" || me.role === "HUMAN_RESOURCE" ? "Whole company"
   : me.role === "LOCATION" ? `${me.location.name} office`
   : me.role === "MEMBER" ? "Your own time"
   : me.team ? `${me.team.name} team, ${me.location.name}` : "Your own time";
@@ -100,8 +110,8 @@ export function visibleProjectsWhere(me: Me): Prisma.ProjectWhereInput {
       { access: "PUBLIC" },
       { users: { some: { userId: me.id } } },
       { managers: { some: { userId: me.id } } },
-      { locations: { some: { locationId: me.locationId } } },
-      ...(me.teamId ? [{ teams: { some: { teamId: me.teamId } } }] : []),
+      ...(me.role === "GUEST" ? [] : [{ locations: { some: { locationId: me.locationId } } }]),
+      ...(me.teamId && me.role !== "GUEST" ? [{ teams: { some: { teamId: me.teamId } } }] : []),
     ],
   };
 }
@@ -116,15 +126,15 @@ export function addedProjectsWhere(me: Me): Prisma.ProjectWhereInput {
     OR: [
       { users: { some: { userId: me.id } } },
       { managers: { some: { userId: me.id } } },
-      { locations: { some: { locationId: me.locationId } } },
-      ...(me.teamId ? [{ teams: { some: { teamId: me.teamId } } }] : []),
+      ...(me.role === "GUEST" ? [] : [{ locations: { some: { locationId: me.locationId } } }]),
+      ...(me.teamId && me.role !== "GUEST" ? [{ teams: { some: { teamId: me.teamId } } }] : []),
     ],
   };
 }
 
 /** Projects this person can log time on: the visible ones that aren't archived. */
 export function trackableProjectsWhere(me: Me): Prisma.ProjectWhereInput {
-  return { AND: [visibleProjectsWhere(me), { archived: false }] };
+  return { AND: [visibleProjectsWhere(me), { archived: false }, ...(me.role === "HUMAN_RESOURCE" ? [{ client: { name: INTERNAL_CLIENT } }] : [])] };
 }
 
 /** Projects time can be logged on for this person. When someone does it on their behalf, the signed-in manager must see the project too:
@@ -133,7 +143,7 @@ export function loggableProjectsWhere(me: Me, person: Me): Prisma.ProjectWhereIn
   return { AND: [trackableProjectsWhere(person), ...(me.id === person.id ? [] : [visibleProjectsWhere(me)])] };
 }
 
-export const canCreateProject = (me: Me) => me.role !== "MEMBER";
+export const canCreateProject = (me: Me) => me.role !== "MEMBER" && me.role !== "HUMAN_RESOURCE" && me.role !== "GUEST";
 export const canEditProject = (me: Me, managerIds: string[]) => me.role === "ADMIN" || (me.role !== "MEMBER" && managerIds.includes(me.id));
 
 /** Days a submitted week may wait for its Team/Project Manager before location managers and admins are asked to step in. */

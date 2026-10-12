@@ -7,16 +7,18 @@ import { today } from "@/lib/dates";
 const num = (v: number | string | null) => (v === null ? "–" : typeof v === "number" ? v.toLocaleString("en-US", { maximumFractionDigits: 2 }) : v);
 
 /** The office's monthly report on the Dashboard (see monthlyReport.ts), with a year picker, an office picker for admins and a CSV download. */
-export default function MonthlyReportTable({ report, office, offices, years, keep }: {
+export default function MonthlyReportTable({ report, office, offices, years, keep, contracts = true }: {
   report: MonthlyReport;
   office: { id: string; name: string };
-  /** Offices to choose from (admins only). */
+  /** Offices to choose from (admins and Human Resource). */
   offices?: { id: string; name: string }[];
   years: number[];
   /** The page's other settings, kept when the year or office changes. */
   keep: Record<string, string>;
+  /** Whether the contract fulfilment line and its explanation are shown (not for Human Resource). */
+  contracts?: boolean;
 }) {
-  const lines = reportLines(report);
+  const lines = reportLines(report, contracts);
   const now = today().slice(0, 7);
   const q = new URLSearchParams({ year: String(report.year), office: office.id });
   const head = (title: string) => (
@@ -50,9 +52,9 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
       </table></div>
       <p className="note mreport-note">
         Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; admins are not counted.
-        Utilisation is hours logged divided by inventory, and fulfilment is hours logged divided by the contract hours of the clients looked after
-        by teams in {office.id === ALL_OFFICES ? "any office" : "this office"} (for a client with no fixed hours, the hours clocked for it). The current month counts up to yesterday, and fixed
-        contracts are scaled to its working days so far. The year column adds
+        Utilisation is hours logged divided by inventory{contracts && <>, and fulfilment is hours logged divided by the contract hours of the clients looked after
+        by teams in {office.id === ALL_OFFICES ? "any office" : "this office"} (for a client with no fixed hours, the hours clocked for it)</>}. The current month counts up to yesterday{contracts && <>, and fixed
+        contracts are scaled to its working days so far</>}. The year column adds
         up the months (employees are the monthly average). Under hours by tag, an entry with several tags counts under each of them. OT only marks
         overtime, so its hours are also in the rows above it.
       </p>

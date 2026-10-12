@@ -7,11 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Human Resource logs admin time (on the Internal client's projects only), is not a resource, and sees team utilisation.
 enum Role {
   MEMBER
   LEADER
   LOCATION
   ADMIN
+  HUMAN_RESOURCE
+  GUEST
 }
 
 enum Access {

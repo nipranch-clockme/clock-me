@@ -1,3 +1,4 @@
+import { NOT_A_RESOURCE } from "@/lib/roles";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
@@ -33,7 +34,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
     db.timesheet.findMany({ where: { status: "SUBMITTED", user: where }, include: { user: { include: { team: true, location: true } } }, orderBy: [{ weekStart: "asc" }] }),
-    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] }, include: { location: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE } }, expectsHoursWhere] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
   // Team/Project Managers approve their own team first. Location managers and admins see the weeks that really need them up top
@@ -64,7 +65,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             const ws = toStr(s.weekStart), we = addDays(ws, 6);
             const es = entries.filter((e) => e.userId === s.userId && toStr(e.date) >= ws && toStr(e.date) <= we);
             const total = es.reduce((a, e) => a + e.minutes, 0);
-            const admin = s.user.role === "ADMIN"; // admins are not a resource: no target, so no under-target flag
+            const admin = NOT_A_RESOURCE.includes(s.user.role); // admins are not a resource: no target, so no under-target flag
             const want = admin ? 0 : ex(s.user, ws, we, { whole: true });
             const fullWeek = admin ? 0 : ex.plain(s.user, ws, we); // the week's expected hours before public holidays and time off, each month at its own hours
             // Overtime: the time tagged OT, highlighted here and in Review Time (not in the reports).

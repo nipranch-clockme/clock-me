@@ -131,37 +131,16 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     await d.paste('time', sheet()); c = await d.check();
     ok(c.rows.filter((r) => /Already imported/.test(check(r))).length === 5, 'time: the same rows again are "Already imported"');
 
-    // ---------- Team/Project Manager ----------
-    const lead = await login(b, 'aisha@example.com');
-    const ld = makeDesk(lead, BASE);
-    await ld.open('time');
-    ok(await lead.locator('.ikind').count() === 2, 'leader: only Clients and projects and Timesheet are offered');
-    ok((await lead.request.get(`${BASE}/import-export/template/people`)).status() === 403, 'leader: the People template is refused');
-    ok((await lead.request.get(`${BASE}/import-export/template/time`)).status() === 200, 'leader: the Timesheet template is allowed');
-    await ld.paste('time', ['Date,Email,Project,Phase,Tag,Description,Hours', '2026-10-05,daniel@example.com,Website rebuild,Submission 1,CAD,Rules x,1'].join('\n'));
-    c = await ld.check();
-    ok(/not someone you manage/.test(check(c.rows[0])), 'leader: time for someone outside their team is refused');
-    await ld.paste('projects', ['Project,Client,Tags', 'Rules Lead,Brand New Client,', 'Rules Lead 2,Bluebird Health,NoSuchTag'].join('\n'));
-    c = await ld.check();
-    ok(/only admins add clients/i.test(check(c.rows[0])), 'leader: cannot add a new client');
-    ok(/Ready/.test(check(c.rows[1])) && /only admins add tags/.test(check(c.rows[1])), 'leader: a new tag is a heads-up, the project still imports');
-    await lead.context().close();
-
-    // ---------- Location manager ----------
-    const loc = await login(b, 'oliver@example.com');
-    const od = makeDesk(loc, BASE);
-    await od.open('people');
-    ok(await loc.locator('.ikind').count() === 3, 'location manager: all three imports are offered');
-    ok(await loc.locator('#imp-office').count() === 0, 'location manager: no office to choose, only their own');
-    await od.paste('people', [
-      'Name,Email,Role,Office,Group', 'Lo Member,lo.member@rules-test.com,,,Lo Team',
-      'Lo Admin,lo.admin@rules-test.com,Admin,,', 'Lo Other,lo.other@rules-test.com,,KLH,',
-    ].join('\n'));
-    c = await od.check();
-    ok(check(c.rows[0]) === 'Ready' && c.rows[0][4] === 'PNQ', 'location manager: people join their own office');
-    ok(/Only admins can make someone an admin/.test(check(c.rows[1])), 'location manager: cannot make an admin');
-    ok(/own office/.test(check(c.rows[2])), 'location manager: cannot add to another office');
-    await loc.context().close();
+    // ---------- Team/Project Manager and location manager: no import or export, admins only ----------
+    for (const [who, email] of [['leader', 'aisha@example.com'], ['location manager', 'oliver@example.com']]) {
+      const q = await login(b, email);
+      ok(!(await q.locator('nav a').allInnerTexts()).includes('Import & export'), who + ': no Import & export tab');
+      ok((await q.request.get(`${BASE}/import-export/template/people`)).status() === 403, who + ': the People template is refused');
+      ok((await q.request.get(`${BASE}/import-export/template/time`)).status() === 403, who + ': the Timesheet template is refused');
+      await q.goto(`${BASE}/import-export`); await q.waitForLoadState('networkidle');
+      ok(new URL(q.url()).pathname !== '/import-export', who + ': /import-export is not theirs');
+      await q.context().close();
+    }
 
     ok(p.errs.length === 0, 'no page errors: ' + p.errs.join(' / '));
     await p.context().close();

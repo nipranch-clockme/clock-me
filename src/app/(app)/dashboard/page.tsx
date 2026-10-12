@@ -1,10 +1,11 @@
+import { NOT_A_RESOURCE, SEES_COMPANY_UTILISATION } from "@/lib/roles";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { expectsHoursWhere, scopeLabel, visibleUsersWhere } from "@/lib/scope";
+import { expectsHoursWhere, scopeLabel, utilisationUsersWhere } from "@/lib/scope";
 import { addMonths, endOfMonth, longDate, rangeDates, today, toDate } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
@@ -36,18 +37,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const rank = sp.rank === "total" ? "total" : "prod";
   // Location managers and admins have three tabs: Team Overview (below), Client overview (each client's hours and utilisation, which used to be
   // the Clients page's overview) and Detailed Utilization, the office's monthly report like the sheet they kept before. Location managers see
-  // their office; admins the office they pick. Each tab keeps the other's choices in its links.
-  const tabs = me.role === "LOCATION" || me.role === "ADMIN";
+  // their office; admins the office they pick. Human Resource sees the company's utilisation (Team Overview and Detailed Utilization, every
+  // office) without anything about clients. Each tab keeps the other's choices in its links.
+  const company = SEES_COMPANY_UTILISATION.includes(me.role);
+  const tabs = me.role === "LOCATION" || company;
+  const clientTabs = me.role === "LOCATION" || me.role === "ADMIN";
   const keep = (o: Record<string, string | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString();
   const shared = { range: sp.range, rank: sp.rank, crange: sp.crange, ryear: sp.ryear, roffice: sp.roffice };
   const tabNav = (on: "overview" | "clients" | "detailed") => tabs && (
     <nav className="seg rtabs dtabs" aria-label="Dashboard view">
       <Link href={`/dashboard?${keep(shared)}`} aria-pressed={on === "overview"}>Team Overview</Link>
-      <Link href={`/dashboard?${keep({ tab: "clients", ...shared })}`} aria-pressed={on === "clients"}>Client overview</Link>
+      {clientTabs && <Link href={`/dashboard?${keep({ tab: "clients", ...shared })}`} aria-pressed={on === "clients"}>Client overview</Link>}
       <Link href={`/dashboard?${keep({ tab: "detailed", ...shared })}`} aria-pressed={on === "detailed"}>Detailed Utilization</Link>
     </nav>
   );
-  if (tabs && sp.tab === "clients") {
+  if (clientTabs && sp.tab === "clients") {
     const per = clientPeriod(sp.crange);
     return (
       <>
@@ -58,9 +62,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     );
   }
   if (tabs && sp.tab === "detailed") {
-    const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
-    // Admins can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
-    const choices = me.role === "ADMIN" ? [{ id: ALL_OFFICES, name: "All offices" }, ...offices] : offices;
+    const offices = company ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
+    // Admins and Human Resource can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
+    const choices = company ? [{ id: ALL_OFFICES, name: "All offices" }, ...offices] : offices;
     const office = choices.find((o) => o.id === sp.roffice) ?? offices[0];
     const locationId = office && office.id !== ALL_OFFICES ? office.id : null;
     const years = office ? await reportYears(locationId) : [];
@@ -71,7 +75,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {tabNav("detailed")}
         <div className="grid g3">
           {office
-            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={me.role === "ADMIN" ? choices : undefined} years={years}
+            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={company ? choices : undefined} contracts={me.role !== "HUMAN_RESOURCE"} years={years}
                 keep={Object.fromEntries(Object.entries({ tab: "detailed", range: sp.range, rank: sp.rank }).filter((e): e is [string, string] => !!e[1]))} />
             : <p className="note full">No offices yet.</p>}
         </div>
@@ -82,7 +86,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const [a, bRaw] = rangeDates(range);
   const b = completeEnd(bRaw); // count complete days only, so hours and targets cover the same days
 
-  const users = await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
+  const users = await db.user.findMany({ where: { AND: [utilisationUsersWhere(me), { active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE } }, expectsHoursWhere] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
   const ids = users.map((u) => u.id);
   const sums = b >= a ? await db.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: ids }, date: { gte: toDate(a), lte: toDate(b) } }, _sum: { minutes: true } }) : [];
   const byUser = new Map(sums.map((s) => [s.userId, s._sum.minutes ?? 0]));
@@ -128,7 +132,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // Location managers and admins also see, for each office, its inventory against what it actually logged, month by month. Inventory is the
   // office's capacity: each person's expected hours for the month added up (see expected.ts), so it already allows for holidays and time off.
   const inventory: { id: string; name: string; series: { id: string; name: string; color: string; dashed?: boolean; v: (number | null)[] }[] }[] = [];
-  if (me.role === "LOCATION" || me.role === "ADMIN") {
+  if (me.role === "LOCATION" || company) {
     for (const l of locs) {
       const us = users.filter((u) => u.locationId === l.id);
       const inv = months.map((m) => us.reduce((t, u) => t + target(u, m + "-01", endOfMonth(m)), 0) / 60);
@@ -203,7 +207,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>
           </div>
         )}
-        {me.role === "ADMIN" && locs.map((l) => {
+        {company && locs.map((l) => {
           const o = sum(rows.filter((r) => r.locationId === l.id));
           return (
             <section className="panel" key={l.id}>
@@ -217,7 +221,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </section>
           );
         })}
-        {me.role === "ADMIN" && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
+        {company && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
           <h3>Productivity by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
           <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly productivity by team" : "Monthly productivity by office"} />
@@ -232,7 +236,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </section>
         ))}
         <section className="panel full">
-          <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {me.role === "ADMIN" ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
+          <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {company ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>
           {me.role === "LOCATION" && <>
             <div className="row between" style={{ marginTop: 18 }}><h3 style={{ margin: 0 }}>Bottom 5 performers, {scopeLabel(me)}</h3></div>
