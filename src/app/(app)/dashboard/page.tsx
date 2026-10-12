@@ -116,7 +116,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). People with 0 inventory hours and admins (who are not a resource) are left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by productivity, people with 0 inventory hours are left out; admins (who are not a resource) are always left out.`} />
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
         <section className="panel full">

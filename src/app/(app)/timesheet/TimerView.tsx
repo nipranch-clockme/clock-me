@@ -35,7 +35,8 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   useEffect(() => { setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (startState?.ok) router.refresh(); }, [startState, router]);
   useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); setProjectId(""); setDesc(""); clearTags(); router.refresh(); } }, [stopState, router]);
-  const state = stopState && !stopState.ok ? stopState : startState && !startState.ok ? startState : null;
+  // Only the result of the action on screen counts: a failed Stop is not shown once the timer has gone, and a Start error is not hidden by one.
+  const state = run ? stopState : startState;
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const secs = run && now ? Math.max(0, Math.floor((now - new Date(run.startedAt).getTime()) / 1000)) : 0;
   const action = run ? stopAction : startAction;
@@ -62,7 +63,7 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
             {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <details className="tmtags">
-            <summary className="tmtag-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags{tagN > 0 && <b className="tmtag-n">{tagN}</b>}</summary>
+            <summary className={`tmtag-btn${state?.fields?.includes("Tags") ? " err" : ""}`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags{tagN > 0 && <b className="tmtag-n">{tagN}</b>}</summary>
             <div onChange={(e) => setTagN(e.currentTarget.querySelectorAll("input:checked").length)}>
               <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
             </div>
@@ -71,7 +72,7 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
           {run
             ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); setDesc(""); clearTags(); router.refresh(); })}>Discard</button></>
             : <button className="btn primary" disabled={!!blocked || starting || !projectId}>Start</button>}
-          <button type="button" className="btn tmmanual" onClick={manual}>Manual entry</button>
+          <button type="button" className="btn tmmanual" onClick={manual} disabled={!projectId} title={projectId ? undefined : "Choose a project first"}>Manual entry</button>
         </div>
       </form>
       {state?.error && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{state.error}</p>}
