@@ -95,6 +95,7 @@ nav.snav hr+.navend{margin-top:auto}
 .tmtags>summary::-webkit-details-marker{display:none}
 .tmtag-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;font-size:13.5px;color:var(--muted);user-select:none}
 .tmtag-btn svg{width:16px;height:16px}
+.tmtag-n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:600}
 .tmtag-btn:hover{background:var(--hover);color:var(--ink)}
 .tmtags[open]>.tmtag-btn{color:var(--accent-ink);background:var(--accent-soft)}
 .tmtags[open] .tagpick{position:absolute;z-index:30;top:calc(100% + 6px);right:0;width:300px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:12px}

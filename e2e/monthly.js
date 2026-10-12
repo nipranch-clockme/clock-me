@@ -102,6 +102,7 @@ const GENERIC="isn't in your list|can't change the hours";
   await adm.fill(inp(C1,mi),'10');await adm.fill(inp(C1,third),'');
   await cap('saveContracts',()=>adm.click('.mg-save button'));await saved(adm,'Saved changes');
   ok('contracts: the usual figure removes that month\'s own one; blank is stored as 0',count(`select count(*) from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(mi)}-01'`)===0&&count(`select hours from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(third)}-01'`)===0&&count(`select count(*) from "ClientMonth" where "clientId"='${C1}'`)===2);
+  await go(adm,'/clients?view=contracts'); // read what the server saved, not what was typed
   ok('contracts: a month with no contract shows 0 and the status stays Active',(await vals(C1))[third]==='0'&&/Active/.test(await rowOf(N1).innerText()),`box ${JSON.stringify((await vals(C1)))} status ${(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(0,120)}`);
 
   // work types
@@ -241,14 +242,24 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('top 5: only Productivity and Hours (and Office) for an admin, in every table',(await adm.locator('section.panel:has(h3:has-text("Top 5")) thead').evaluateAll((ts)=>ts.map((t)=>t.innerText.replace(/\s+/g,' ').trim()))).every((x)=>!/target/i.test(x)&&/Productivity/.test(x)&&/Hours/.test(x)));
   ok('top 5: the same rule on the sentence under the title says admins are left out',/admins \(who are not a resource\)/.test(await adm.locator('.phd .sub').innerText()));
   // bottom 5: for a location manager and for each office, under the top five, never repeating a name from it; never for the whole company
+  // the # column holds the place; a row's Productivity and Hours cells are not places, so take the first cell only
   const names=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td:nth-child(2) a').allInnerTexts();
-  const places=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td.num').allInnerTexts();
+  const places=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td:first-child').allInnerTexts();
+  const saysEveryone=async(p,title,k)=>(await p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).innerText()).includes('Everyone is in the top 5.');
   const lmTop=await names(rav,'Top 5 performers',0), lmBot=await names(rav,'Top 5 performers',1);
-  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmBot.length>0&&!lmBot.some((n)=>lmTop.includes(n))&&(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours'&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5),`top ${lmTop.join(', ')} | bottom ${lmBot.join(', ')}`);
+  // a location with five people or fewer has nobody left for the bottom five, and says so
+  const everyone=await saysEveryone(rav,'Top 5 performers',1);
+  const lmOk=everyone ? lmTop.length<=5 : lmTop.length===5&&lmBot.length>0&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5);
+  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmOk&&(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours',`top ${lmTop.length} | bottom ${lmBot.length}`);
   ok('bottom 5: the whole company has none',(await adm.locator('section.panel:has(h3:has-text("Top 5 performers"))').locator('.tablebox').count())===1);
   const officeSecs=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
   const offCheck=[];
-  for(let i=0;i<await officeSecs.count();i++){const t=await officeSecs.nth(i).locator('.tablebox').nth(0).locator('tbody tr td:nth-child(2) a').allInnerTexts();const b=await officeSecs.nth(i).locator('.tablebox').nth(1).locator('tbody tr td:nth-child(2) a').allInnerTexts();const pl=await officeSecs.nth(i).locator('.tablebox').nth(1).locator('tbody tr td.num').allInnerTexts();offCheck.push(await officeSecs.nth(i).locator('.tablebox').count()===2&&!b.some((n)=>t.includes(n))&&(!pl.length||pl.every((x)=>+x>5)));}
+  for(let i=0;i<await officeSecs.count();i++){
+    const sec=officeSecs.nth(i), tops=await sec.locator('.tablebox').nth(0).locator('tbody tr td:first-child').allInnerTexts();
+    const bottom=sec.locator('.tablebox').nth(1), pl=await bottom.locator('tbody tr td:first-child').allInnerTexts();
+    const empty=(await bottom.innerText()).includes('Everyone is in the top 5.');
+    offCheck.push(await sec.locator('.tablebox').count()===2&&(empty||(tops.length===5&&pl.length>0&&pl.every((x)=>+x>5))));
+  }
   ok('bottom 5: every office has one, and none repeats its top five',offCheck.length===offices&&offCheck.every(Boolean),offCheck.join(','));
 
   // folding "Your numbers"

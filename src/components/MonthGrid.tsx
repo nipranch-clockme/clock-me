@@ -62,7 +62,8 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
   if (base.json !== fromServer) {
     const nextVals: Cells = Object.fromEntries(Object.entries(initial).map(([id, cs]) => [id, cs.map((c, i) => {
       const typed = vals[id]?.[i] ?? c, was = base.cells[id]?.[i] ?? c;
-      return typed !== was ? typed : c;
+      // Keep the person's own entry only while it differs from what the server has; a figure just saved (blank and 0 are the same) shows as the server sends it.
+      return num(typed) !== num(was) && num(typed) !== num(c) ? typed : c;
     })]));
     const nextWts: Kinds = Object.fromEntries(Object.keys(kinds).map((id) => [id, same(wts[id] ?? kinds[id], base.kinds[id] ?? []) ? kinds[id] : (wts[id] ?? kinds[id])]));
     setBase({ json: fromServer, cells: initial, kinds });

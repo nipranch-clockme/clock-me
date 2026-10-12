@@ -1,5 +1,5 @@
 "use client";
-import { startTransition, useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EntryDialog from "@/components/EntryDialog";
 import type { EntryOptions, EntryValue } from "@/components/entryTypes";
@@ -24,6 +24,8 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const [stopState, stopAction, stopping] = useActionState<TimerResult, FormData>(stopTimer, null);
   const [projectId, setProjectId] = useState(run?.projectId ?? "");
   const [desc, setDesc] = useState(run?.description ?? "");
+  const [tagN, setTagN] = useState(run?.tagIds.length ?? 0);
+  const formRef = useRef<HTMLFormElement>(null);
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryValue | null>(null);
@@ -38,28 +40,36 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const days = [...dates].reverse().filter((d) => entries.some((e) => e.date === d));
   const lockFor = (d: string) => locked[dates.indexOf(d)] ?? null;
   const open = (e: SheetEntry) => setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+  // A manual entry starts from what is on the bar: the project, phase, tags and description.
+  const manual = () => {
+    const fd = new FormData(formRef.current ?? undefined);
+    setEdit({ projectId: projectId || undefined, projectName: project?.name, phaseId: String(fd.get("phaseId") ?? "") || null, tagIds: fd.getAll("tagIds").map(String), description: desc, date: today, lockedReason: blocked });
+  };
   return (
     <>
-      <form action={action}>
+      <form action={action} ref={formRef}>
         <div className={`tmcard${run ? " on" : ""}`}>
           <input id="tm-desc" name="description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What have you worked on?" aria-label="Description" aria-required={opts.requireDescription || undefined} maxLength={500} className={`tmdesc${bad("Description") ? " err" : ""}`} />
           <div className="tmproj">
+            <label htmlFor="tm-project" className="sr-only">Project</label>
             <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects"
               options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
           </div>
           <select id="tm-phase" name="phaseId" key={projectId} aria-label="Phase" defaultValue={run && run.projectId === projectId ? run.phaseId ?? "" : ""} className={`tmphase${bad("Phase") ? " err" : ""}`}>
-            <option value="">Phase</option>
+            <option value="">Phase *</option>
             {project?.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <details className="tmtags">
-            <summary className="tmtag-btn" title="Tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags</summary>
-            <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
+            <summary className="tmtag-btn" title="Tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.tag }} />Tags{tagN > 0 && <b className="tmtag-n">{tagN}</b>}</summary>
+            <div onChange={(e) => setTagN(e.currentTarget.querySelectorAll("input:checked").length)}>
+              <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
+            </div>
           </details>
           <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
           {run
             ? <><button className="btn primary" disabled={stopping}>Stop</button><button type="button" className="btn" onClick={() => startTransition(async () => { await discardTimer(); setProjectId(""); setDesc(""); router.refresh(); })}>Discard</button></>
             : <button className="btn primary" disabled={!!blocked || starting || !projectId}>Start</button>}
-          <button type="button" className="btn tmmanual" onClick={() => setEdit({ projectId: projectId || undefined, projectName: project?.name, description: desc, date: today, lockedReason: blocked })}>Manual entry</button>
+          <button type="button" className="btn tmmanual" onClick={manual}>Manual entry</button>
         </div>
       </form>
       {state?.error && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{state.error}</p>}
