@@ -10,7 +10,7 @@ const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${St
 const dur = (m: number | undefined, f: "decimal" | "hhmm") => (m == null ? (f === "hhmm" ? "1:00" : "1.00") : f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
 
 /** `value.ownerId` is set when the time belongs to someone else (a location manager or admin adding or changing it on their behalf). It is fixed when the form opens, so the person shown is the person saved. */
-export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void }) {
+export default function EntryDialog({ opts, value, onClose, onSaved }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void; onSaved?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -20,12 +20,12 @@ export default function EntryDialog({ opts, value, onClose }: { opts: EntryOptio
   }, [value]);
   return (
     <dialog ref={ref} className="wide" onClose={onClose} aria-labelledby="entry-title">
-      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "") + (value.ownerId ?? "")} opts={opts} value={value} onDone={() => ref.current?.close()} />}
+      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "") + (value.ownerId ?? "")} opts={opts} value={value} onDone={() => ref.current?.close()} onSaved={onSaved} />}
     </dialog>
   );
 }
 
-function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryValue; onDone: () => void }) {
+function EntryForm({ opts, value, onDone, onSaved }: { opts: EntryOptions; value: EntryValue; onDone: () => void; onSaved?: () => void }) {
   const ownerId = value.ownerId;
   const router = useRouter();
   const [state, action, pending] = useActionState<EntryResult, FormData>(saveEntry, null);
@@ -35,7 +35,7 @@ function EntryForm({ opts, value, onDone }: { opts: EntryOptions; value: EntryVa
   const ro = !!value.readOnly || !!value.lockedReason;
   // An existing entry may sit on a phase the project manager has since removed: show it so it can be kept.
   const keepOldPhase = !!value.id && !!value.phaseId && !!value.phaseName && !project?.phases.some((p) => p.id === value.phaseId);
-  useEffect(() => { if (state?.ok) { onDone(); router.refresh(); } }, [state, onDone, router]);
+  useEffect(() => { if (state?.ok) { onDone(); onSaved?.(); router.refresh(); } }, [state, onDone, onSaved, router]);
   const clients = [...new Set(opts.projects.map((p) => p.client))];
 
   const fixed = !!value.fixed;

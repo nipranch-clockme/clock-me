@@ -28,6 +28,8 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const formRef = useRef<HTMLFormElement>(null);
   // Tags are plain tick boxes, so clear them by hand when the bar is emptied.
   const clearTags = () => { formRef.current?.querySelectorAll<HTMLInputElement>('input[name="tagIds"]').forEach((i) => { i.checked = false; }); setTagN(0); };
+  // Once time is added (by the timer or a manual entry), the bar is empty and ready for the next one.
+  const clearBar = () => { setProjectId(""); setDesc(""); clearTags(); };
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryValue | null>(null);
@@ -55,7 +57,7 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
           <input id="tm-desc" name="description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What have you worked on?" aria-label="Description" aria-required={opts.requireDescription || undefined} maxLength={500} className={`tmdesc${bad("Description") ? " err" : ""}`} />
           <div className="tmproj">
             <label htmlFor="tm-project" className="sr-only">Project</label>
-            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects"
+            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={setProjectId} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects" minToSearch={Infinity}
               options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
           </div>
           <select id="tm-phase" name="phaseId" key={projectId} aria-label="Phase" defaultValue={run && run.projectId === projectId ? run.phaseId ?? "" : ""} className={`tmphase${bad("Phase") ? " err" : ""}`}>
@@ -98,7 +100,8 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
           </div>
         );
       })}
-      <EntryDialog opts={opts} value={edit} onClose={() => setEdit(null)} />
+      {/* Only a new manual entry starts from the bar, so only that clears it. Editing an entry from the list leaves the bar alone. */}
+      <EntryDialog opts={opts} value={edit} onClose={() => setEdit(null)} onSaved={edit && !edit.id ? clearBar : undefined} />
     </>
   );
 }
