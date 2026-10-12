@@ -36,6 +36,8 @@ const PSQL = process.env.PSQL || "psql -h /tmp -U postgres clockme";
   const text = await csv.text();
   ok(csv.status() === 200 && text.includes("Inventory available") && text.includes("Hours by tag"), "CSV downloads");
   ok(text.split("\r\n").find((l) => l.startsWith("Inventory available")).endsWith("," + inv), "CSV year inventory matches the page");
+  const locAll = await (await loc.request.get(BASE + "/dashboard/report?year=" + yrs[1] + "&office=all")).text();
+  ok(!locAll.startsWith("All offices"), "a location manager cannot pull all offices: " + locAll.split("\r\n")[0]);
   ok(loc.errs.length === 0, "no page errors " + loc.errs.join(" | "));
   const adm = await login(b, "admin@example.com");
   await adm.goto(BASE + "/dashboard?tab=detailed"); await adm.waitForLoadState("networkidle");
@@ -48,6 +50,35 @@ const PSQL = process.env.PSQL || "psql -h /tmp -U postgres clockme";
   await adm.click('.dtabs a:text-is("Detailed Utilization")'); await adm.waitForURL(/tab=detailed/); await adm.waitForLoadState("networkidle");
   ok((await adm.locator("#monthly-report h3").innerText()).includes(offs[1]), "office kept after visiting Overview");
   ok(adm.errs.length === 0, "no admin page errors " + adm.errs.join(" | "));
+  // All offices: the company's report is every office added together, row by row and month by month
+  const opts = await adm.locator("#mr-office option").evaluateAll((os) => os.map((o) => [o.value, o.textContent]));
+  ok(opts[0][0] === "all" && opts[0][1] === "All offices", "admin office picker starts with All offices: " + opts.map((o) => o[1]).join(","));
+  await adm.selectOption("#mr-office", "all"); await adm.waitForURL(/roffice=all/); await adm.waitForLoadState("networkidle");
+  ok((await adm.locator("#monthly-report h3").innerText()).includes("All offices") && (await adm.inputValue("#mr-office")) === "all", "All offices is shown and selected");
+  const yy = await adm.inputValue("#mr-year");
+  const parse = (text) => {
+    const rows = {};
+    for (const line of text.split("\r\n")) {
+      const c = line.split(","), v = c.slice(1).map((x) => (x === "" ? 0 : Number(x)));
+      if (c[0] && v.length === 13 && v.every(Number.isFinite)) rows[c[0]] = v;   // skips headers and the percentage rows
+    }
+    return rows;
+  };
+  const csvOf = async (office) => parse(await (await adm.request.get(BASE + "/dashboard/report?year=" + yy + "&office=" + office)).text());
+  const all = await csvOf("all");
+  const parts = [];
+  for (const [id] of opts.slice(1)) parts.push(await csvOf(id));
+  const rowNames = new Set([...Object.keys(all), ...parts.flatMap((p) => Object.keys(p))]);
+  const diffs = [];
+  for (const label of rowNames) {
+    const want = all[label] ?? Array(13).fill(0);
+    const have = parts.reduce((acc, p) => acc.map((x, i) => x + (p[label] ?? Array(13).fill(0))[i]), Array(13).fill(0));
+    const tol = (label === "Total active employees" ? 0.051 : 0.006) * parts.length;   // hours are rounded to hundredths; headcount years to tenths
+    want.forEach((x, i) => { if (Math.abs(x - have[i]) > tol) diffs.push(`${label} ${i}: ${x} vs ${have[i]}`); });
+  }
+  ok(all["Inventory available"] && all["Inventory available"][12] > 0, "all offices has inventory for " + yy);
+  ok(rowNames.has("OT (overtime)") && parts.length === opts.length - 1, "all offices lists every row of each office (" + rowNames.size + " rows, " + parts.length + " offices)");
+  ok(diffs.length === 0, "all offices adds up to the offices" + (diffs.length ? ": " + diffs.slice(0, 5).join("; ") : ""));
   const lead = await login(b, "daniel@example.com");
   await lead.goto(BASE + "/dashboard?tab=detailed"); await lead.waitForLoadState("networkidle");
   ok(await lead.locator("#monthly-report").count() === 0 && await lead.locator(".dtabs").count() === 0, "team manager has no tabs and no report");

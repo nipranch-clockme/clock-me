@@ -17,6 +17,11 @@ import { loadOtTagIds } from "./overtime";
 //   no commitment that month, the hours clocked for it. Only the fulfilment percentage is shown, not these hours.
 // - Hours by tag: an entry with several tags counts under each of them. OT only marks overtime, so it is not a kind of work: an entry
 //   is counted under its other tags (or "No tag"), and the OT row shows how much of the total was overtime.
+// - All offices (admins only, `locationId` null) is the same report for every office added together. A client counts only when a team
+//   looks after it, so the offices add up to the total.
+
+/** The office id that means every office together. */
+export const ALL_OFFICES = "all";
 
 export type MonthlyReport = {
   year: number;
@@ -31,18 +36,18 @@ export type MonthlyReport = {
   ot: number[] | null; // null when there is no OT tag
 };
 
-export async function reportYears(locationId: string) {
-  const first = await db.timeEntry.findFirst({ where: { user: { locationId } }, orderBy: { date: "asc" }, select: { date: true } });
+export async function reportYears(locationId: string | null) {
+  const first = await db.timeEntry.findFirst({ where: locationId ? { user: { locationId } } : {}, orderBy: { date: "asc" }, select: { date: true } });
   const now = +today().slice(0, 4);
   const from = Math.max(now - 5, first ? first.date.getUTCFullYear() : now);
   return Array.from({ length: now - from + 1 }, (_, i) => now - i);
 }
 
-export async function monthlyReport(locationId: string, year: number): Promise<MonthlyReport> {
+export async function monthlyReport(locationId: string | null, year: number): Promise<MonthlyReport> {
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
   const now = today().slice(0, 7);
   const open = months.map((m) => m <= now);
-  const users = await db.user.findMany({ where: { AND: [{ locationId, active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] } });
+  const users = await db.user.findMany({ where: { AND: [{ ...(locationId ? { locationId } : {}), active: true, passwordHash: { not: null }, role: { not: "ADMIN" } }, expectsHoursWhere] } });
   const ids = users.map((u) => u.id);
   const ex = await loadExpected(users, { from: `${year}-01-01`, to: `${year}-12-31` });
 
@@ -83,7 +88,7 @@ export async function monthlyReport(locationId: string, year: number): Promise<M
     .sort((a, b) => Number(a.name === "No tag") - Number(b.name === "No tag") || total(b.v) - total(a.v) || a.name.localeCompare(b.name));
 
   const [clients, cm] = await Promise.all([
-    db.client.findMany({ where: { team: { locationId } }, select: { id: true, type: true, monthlyHours: true } }),
+    db.client.findMany({ where: locationId ? { team: { locationId } } : { teamId: { not: null } }, select: { id: true, type: true, monthlyHours: true } }),
     loadContractMonths(),
   ]);
   // Hours clocked for each of these clients, by anyone, month by month (for the clients with no commitment).

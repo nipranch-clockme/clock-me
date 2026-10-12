@@ -1,7 +1,7 @@
 import AutoForm from "@/components/AutoForm";
 import { Ifld } from "@/components/ui";
 import { MONTH_ABBR } from "@/lib/monthGrid";
-import { reportLines, type MonthlyReport } from "@/lib/monthlyReport";
+import { ALL_OFFICES, reportLines, type MonthlyReport } from "@/lib/monthlyReport";
 import { today } from "@/lib/dates";
 
 const num = (v: number | string | null) => (v === null ? "–" : typeof v === "number" ? v.toLocaleString("en-US", { maximumFractionDigits: 2 }) : v);
@@ -51,7 +51,7 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
       <p className="note mreport-note">
         Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; admins are not counted.
         Utilisation is hours logged divided by inventory, and fulfilment is hours logged divided by the contract hours of the clients looked after
-        by teams in this office (for a client with no fixed hours, the hours clocked for it). The current month counts up to yesterday, and fixed
+        by teams in {office.id === ALL_OFFICES ? "any office" : "this office"} (for a client with no fixed hours, the hours clocked for it). The current month counts up to yesterday, and fixed
         contracts are scaled to its working days so far. The year column adds
         up the months (employees are the monthly average). Under hours by tag, an entry with several tags counts under each of them. OT only marks
         overtime, so its hours are also in the rows above it.

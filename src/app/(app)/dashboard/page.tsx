@@ -14,7 +14,7 @@ import TrendChart from "@/components/TrendChart";
 import MonthBars from "@/components/MonthBars";
 import { PageHead, Ifld } from "@/components/ui";
 import MonthlyReportTable from "@/components/MonthlyReportTable";
-import { monthlyReport, reportYears } from "@/lib/monthlyReport";
+import { ALL_OFFICES, monthlyReport, reportYears } from "@/lib/monthlyReport";
 import { clientPeriod } from "@/lib/clients";
 import { PeriodPicker, periodNote } from "../clients/parts";
 import ClientOverview from "./ClientOverview";
@@ -59,16 +59,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
   if (tabs && sp.tab === "detailed") {
     const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
-    const office = offices.find((o) => o.id === sp.roffice) ?? offices[0];
-    const years = office ? await reportYears(office.id) : [];
+    // Admins can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
+    const choices = me.role === "ADMIN" ? [{ id: ALL_OFFICES, name: "All offices" }, ...offices] : offices;
+    const office = choices.find((o) => o.id === sp.roffice) ?? offices[0];
+    const locationId = office && office.id !== ALL_OFFICES ? office.id : null;
+    const years = office ? await reportYears(locationId) : [];
     const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
     return (
       <>
-        <PageHead title="Dashboard" sub="Each office's month by month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
+        <PageHead title="Dashboard" sub="Each office's, or all offices' together, month by month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
         {tabNav("detailed")}
         <div className="grid g3">
           {office
-            ? <MonthlyReportTable report={await monthlyReport(office.id, year)} office={office} offices={me.role === "ADMIN" ? offices : undefined} years={years}
+            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={me.role === "ADMIN" ? choices : undefined} years={years}
                 keep={Object.fromEntries(Object.entries({ tab: "detailed", range: sp.range, rank: sp.rank }).filter((e): e is [string, string] => !!e[1]))} />
             : <p className="note full">No offices yet.</p>}
         </div>
