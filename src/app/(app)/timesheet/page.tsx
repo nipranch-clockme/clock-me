@@ -89,7 +89,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an admin." : statusLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const toggle = (
     <div className="seg vt" role="group" aria-label="Timesheet view">
-      {([["sheet", "Timesheet"], ["cal", "Calendar"], ["timer", "Timer"]] as const).map(([k, l]) => (
+      {([["timer", "Timer"], ["sheet", "Timesheet"], ["cal", "Calendar"]] as const).map(([k, l]) => (
         <Link key={k} href={href(k, k === "cal" ? offset : Math.min(0, offset))} aria-pressed={view === k} replace><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[k === "sheet" ? "sheet" : k === "cal" ? "cal" : "timer"] }} />{l}</Link>
       ))}
     </div>
