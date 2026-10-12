@@ -148,6 +148,10 @@ async function Holidays({ me, office: officeParam, year: yearParam, today: t, lo
         </AutoForm>
       </div>
       {empty.length > 0 && <p className="alert warn">{empty.length === 1 ? `${empty[0].name} has` : `${empty.map((o) => o.name).join(", ")} have`} no public holidays in {year} yet, so nothing is taken off for {empty.length === 1 ? "that office" : "those offices"}.</p>}
+      {/* The form sits above the list, so adding one doesn't mean scrolling past every holiday. */}
+      {edit
+        ? <HolidayForm offices={offices} today={t < `${year}-01-01` || t > `${year}-12-31` ? `${year}-01-01` : t} />
+        : <p className="note" style={{ margin: "0 0 12px" }}>Only admins can add or change public holidays.</p>}
       <div className="tablebox"><table className="ctable">
         <thead><tr><th>Date</th><th>Holiday</th><th>Offices</th>{edit && <th />}</tr></thead>
         <tbody>
@@ -165,9 +169,6 @@ async function Holidays({ me, office: officeParam, year: yearParam, today: t, lo
           {!list.length && <tr><td colSpan={edit ? 4 : 3} className="empty">{office ? `No public holidays for ${office.name} in ${year}.` : `No public holidays in ${year} yet.`}</td></tr>}
         </tbody>
       </table></div>
-      {edit
-        ? <HolidayForm offices={offices} today={t < `${year}-01-01` || t > `${year}-12-31` ? `${year}-01-01` : t} />
-        : <p className="note" style={{ margin: "12px 0 0" }}>Only admins can add or change public holidays.</p>}
     </section>
   );
 }

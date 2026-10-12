@@ -104,7 +104,7 @@ export function HolidayForm({ offices, today }: { offices: { id: string; name: s
   }, [state, router]);
   const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
-    <form ref={form} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }} style={{ marginTop: 14 }}>
+    <form ref={form} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }} style={{ margin: "0 0 16px" }}>
       <h3 style={{ margin: "0 0 8px" }}>Add a public holiday</h3>
       <div className="row">
         <div style={{ flex: "0 1 170px" }}><label htmlFor="ho-date">Date</label><input id="ho-date" type="date" name="date" defaultValue={today} /></div>
