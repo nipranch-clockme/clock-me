@@ -32,7 +32,7 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
   const tagRows = lines.some((l) => l.group === "tags");
   return (
     <section className="panel full" id="monthly-report">
-      <div className="row between" style={{ flexWrap: "wrap", gap: 10 }}>
+      <div className="row between mreport-head" style={{ flexWrap: "wrap", gap: 12 }}>
         <h3 style={{ margin: 0 }}>Monthly report, {office.name}, {report.year}</h3>
         <div className="row" style={{ gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <AutoForm className="phd-a" key={`${report.year}-${office.id}`}>
@@ -43,12 +43,12 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
           <a className="btn" href={`/dashboard/report?${q}`} download>Download for Excel</a>
         </div>
       </div>
-      <div className="tablebox" style={{ marginTop: 10 }}><table className="mgrid mreport">
+      <div className="tablebox"><table className="mgrid mreport">
         <thead>{head("")}</thead>
         <tbody>{body("summary")}</tbody>
         {tagRows && <><tbody>{head("Hours by tag")}</tbody><tbody>{body("tags")}</tbody></>}
       </table></div>
-      <p className="note" style={{ margin: "8px 0 0" }}>
+      <p className="note mreport-note">
         Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; admins are not counted.
         Utilisation is hours logged divided by inventory, and fulfilment is hours logged divided by the contract hours of the clients looked after
         by teams in this office (for a client with no fixed hours, the hours clocked for it). The current month counts up to yesterday, and fixed

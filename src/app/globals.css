@@ -853,11 +853,14 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .wtbox{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 4px;max-width:340px}
 .mg-save{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);padding:10px 0 2px;margin-top:6px;border-top:1px solid var(--line)}
 .chart .barval{font-size:10.5px;fill:var(--ink);font-variant-numeric:tabular-nums}
-/* Monthly report on the Dashboard */
-.mreport tbody tr.rsec th{padding-top:16px;font-weight:600}
-.mreport tbody tr.rsec th:first-child{text-align:left}
+/* Monthly report on the Dashboard (Detailed tab) */
+.mreport{min-width:960px;font-size:13px}
+.mreport td,.mreport th{padding:11px 6px}
+.mreport td:first-child,.mreport th:first-child{white-space:normal;min-width:130px;padding-left:12px;padding-right:14px}
+.mreport td.tot,.mreport th:last-child{padding-left:12px;padding-right:12px}
+.mreport tbody tr.rsec th{padding-top:28px;padding-bottom:10px;font-weight:600}
+.mreport tbody tr.rsec th:first-child{text-align:left;font-size:14px;color:var(--ink)}
 .mreport tr.pctrow td{font-weight:600}
-.mreport{min-width:900px;font-size:13px}
-.mreport td,.mreport th{padding-left:6px;padding-right:6px}
-.mreport td:first-child{white-space:normal;min-width:140px}
-.dtabs{margin:0 0 16px}
+.mreport-head{margin-bottom:16px}
+.mreport-note{margin:16px 0 0;max-width:110ch;line-height:1.55}
+.dtabs{margin:4px 0 20px}
