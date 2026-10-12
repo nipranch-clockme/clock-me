@@ -68,7 +68,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok('admin: This month is the default period',(await a.inputValue('#cl-range'))==='thismonth');
   {
    const c=await cells(a,FX), exp=minutes('fx',m0,todayStr);
-   ok('fixed client: type and monthly hours',c[1].includes('Fixed monthly hours')&&c[1].includes('10 h a month'),c[1]);
+   ok('fixed client: type is shown without the monthly text, which the Contracted column already gives',c[1]==='Fixed monthly hours',c[1]);
    ok('fixed client: hours logged count everyone, archived projects included',c[2]===f(exp),`${c[2]} vs ${f(exp)}`);
    ok('fixed client: this month is one full month of contract',c[3]===f(600),c[3]);
    ok('fixed client: utilisation',c[4].startsWith(pct(exp/600))&&!/over contract/i.test(c[4]),c[4]);
@@ -82,15 +82,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    ok('no-commitment client: no contract columns',fl.length===4,String(fl.length));
    const names=await a.$$eval('table.clients tbody tr',rs=>rs.map(r=>r.querySelector('td:nth-child(2)').textContent.startsWith('Fixed')));
    ok('fixed clients are listed first',names.indexOf(false)===-1||names.slice(names.indexOf(false)).every(x=>!x));
-   // summary strip against the database
-   const rows=sql(`select coalesce(sum(e.minutes),0)/(c."monthlyHours"*60) from "Client" c left join "Project" p on p."clientId"=c.id left join "TimeEntry" e on e."projectId"=p.id and e.date between '${m0}' and '${todayStr}' where c.type='FIXED' and c."monthlyHours">0 group by c.id,c."monthlyHours"`).split('\n').filter(Boolean).map(Number);
-   const total=+sql(`select coalesce(sum(minutes),0) from "TimeEntry" where date between '${m0}' and '${todayStr}'`);
-   const s=await stats(a), avg=rows.reduce((x,y)=>x+y,0)/rows.length;
-   ok('summary: total hours on clients',s[0]===`${f(total)} total hours on clients`,s[0]);
-   ok('summary: fixed-hours clients',s[1]===`${rows.length} fixed-hours clients`,s[1]);
-   ok('summary: average contract utilisation',s[2]===`${pct(avg)} average contract utilisation`,s[2]);
-   ok('summary: clients over contract',s[3]===`${rows.filter(x=>x>1).length} clients over contract`,s[3]);
-   ok('summary: clients under 50%',s[4]===`${rows.filter(x=>x<0.5).length} clients under 50% of contract`,s[4]);
+   ok('overview: no summary strip above the table (the table already has the numbers)',(await a.locator('.stats.spread.five').count())===0);
   }
   // other periods
   await a.selectOption('#cl-range','lastmonth');await a.waitForURL(/range=lastmonth/);await a.waitForLoadState('networkidle');

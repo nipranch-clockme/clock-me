@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { fmtHours, pct } from "@/lib/format";
+import { fmtHours } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
 import { PACE, clientPeriod, clientTypeName, contractFor, contractMinutes, contractText, loadContractMonths, minutesByClient, paceOf } from "@/lib/clients";
 import { PageHead, Pill } from "@/components/ui";
@@ -57,22 +57,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     return { c, monthly, m, contract, use: contract ? m / contract : 0, before: before.get(c.id) ?? 0, pace: nowMonthly ? paceOf(nowMonthly, soFar.get(c.id) ?? 0) : null };
   }).sort((x, y) => (x.monthly ? 0 : 1) - (y.monthly ? 0 : 1) || (x.monthly ? y.use - x.use : y.m - x.m) || x.c.name.localeCompare(y.c.name));
   const fixed = rows.filter((r) => r.monthly);
-  const total = rows.reduce((a, r) => a + r.m, 0);
-  const avgUse = fixed.length ? fixed.reduce((a, r) => a + r.use, 0) / fixed.length : 0;
 
   return (
     <>
       <PageHead title="Clients" beside={views} actions={<><PeriodPicker per={per} id="cl-range" />{admin && <AddClientButton teams={teamOpts} tags={tagOpts} />}</>} sub={periodNote(per)} />
       <div className="grid">
-        <section className="panel full">
-          <div className="stats spread five">
-            <div className="stat"><b>{f(total)}</b><span>total hours on clients</span></div>
-            <div className="stat"><b>{fixed.length}</b><span>fixed-hours clients</span></div>
-            <div className="stat"><b>{fixed.length ? pct(avgUse) : "–"}</b><span>average contract utilisation</span></div>
-            <div className="stat"><b>{fixed.filter((r) => r.use > 1).length}</b><span>clients over contract</span></div>
-            <div className="stat"><b>{fixed.filter((r) => r.use < 0.5).length}</b><span>clients under 50% of contract</span></div>
-          </div>
-        </section>
         <section className="panel full">
           <div className="row between" style={{ marginBottom: 10 }}>
             <h3 style={{ margin: 0 }}>Clients</h3>
@@ -85,7 +74,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 {rows.map((r) => (
                   <tr key={r.c.id}>
                     <td><span className="dot" style={{ background: `var(--${r.c.color})` }} /><Link href={`/clients/${r.c.id}?range=${per.key}`}>{r.c.name}</Link>{r.c.team && <div className="note">{teamLabelOf(r.c.team)}</div>}</td>
-                    <td data-l="Type" className="nw">{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}{r.monthly && <div className="note">{r.monthly}</div>}</td>
+                    <td data-l="Type" className="nw">{clientTypeName(r.monthly ? "FIXED" : "FLOATING")}</td>
                     <td className="num" data-l="Hours logged">{f(r.m)}</td>
                     {r.monthly ? <>
                       <td className="num" data-l="Contracted">{f(r.contract)}</td>
