@@ -42,15 +42,16 @@ const count=(q)=>+sql(q);
 // The refusal reads the same whether the person is in another office or an admin, so nobody can tell who exists there.
 const GENERIC="isn't in your list|can't change the hours";
  const go=async(p,path)=>{await p.goto(BASE+path);await p.waitForLoadState('networkidle');};
- const saved=async(p,text)=>{await p.waitForFunction((x)=>[...document.querySelectorAll('.mg-save .note')].some((n)=>n.textContent.includes(x)),text,{timeout:20000}).catch(()=>{});};
+ const saved=async(p,text)=>{await p.waitForFunction((x)=>[...document.querySelectorAll('.mg-save .note[role="status"]')].some((n)=>n.textContent.includes(x)),text,{timeout:20000}).catch(()=>{});};
  const pages=[];
- const signIn=async(email)=>{const p=await login(b,email);watch(p);pages.push(p);return p;};
+ const signIn=async(email)=>{const p=await login(b,email);watch(p);p.dialogs=[];p.dialogMode='accept';p.on('dialog',async(d)=>{p.dialogs.push(d.message());try{if(p.dialogMode==='dismiss')await d.dismiss();else await d.accept();}catch(e){}});pages.push(p);return p;};
  const inp=(id,i)=>`input[data-cell="m|${id}|${ymAt(i)}"]`;
+ const unlockPast=async(p)=>{const btn=p.locator('.mg-save button:has-text("Change past months")');if(!(await btn.count()))return;await btn.click();await p.waitForSelector('.mg-save :text("Past months are unlocked")');};
  const overview=async(p,range,name)=>{await go(p,`/clients?range=${range}`);return p.locator(`tr:has(a:text-is("${name}")) td`).allInnerTexts();};
  try{
   // ---- setup
   sql(`insert into "Tag"(id,name) values('${TA}','${WA}'),('${TB}','${WB}')`);
-  sql(`insert into "Client"(id,name,color,type,"monthlyHours","teamId") values('${C1}','${N1}','s1','FIXED',10,'${FLASH}'),('${C2}','${N2}','s2','FLOATING',null,null)`);
+  sql(`insert into "Client"(id,name,color,type,"monthlyHours","teamId",status) values('${C1}','${N1}','s1','FIXED',10,'${FLASH}','CONTRACTED'),('${C2}','${N2}','s2','FLOATING',null,null,'PROJECT_BASED')`);
   insU(M,'Mg Member','MEMBER',KLH,FLASH);
   insU(LM2,'Mg Manager','LOCATION',KLH,null);
   insU(OM,'Mg Other','MEMBER',daniel[0],daniel[1]);
@@ -68,23 +69,44 @@ const GENERIC="isn't in your list|can't change the hours";
   const vals=async(id)=>adm.$$eval(`input[data-cell^="m|${id}|"]`,(is)=>is.map((i)=>i.value));
   ok('contracts: the usual hours fill every month of a fixed client, and a no-commitment client is empty',(await vals(C1)).every((v)=>v==='10')&&(await vals(C2)).every((v)=>v===''));
   const rowOf=(name)=>adm.locator(`tr:has(td.cl a:text-is("${name}"))`);
-  ok('contracts: year total, per day and per week',(await rowOf(N1).locator('td.tot').innerText())==='120'&&(await rowOf(N1).locator('td').nth(2+12+1).innerText())===(10/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2})&&(await rowOf(N1).locator('td').nth(2+12+2).innerText())===(10/workdaysIn(ym)*5).toLocaleString('en-US',{maximumFractionDigits:2}),(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(-60));
-  ok('contracts: status shows Active, and No contract for the other',/Active/.test(await rowOf(N1).innerText())&&/No contract/.test(await rowOf(N2).innerText()));
+  ok('contracts: year total and per day, and no per week column',(await rowOf(N1).locator('td.tot').innerText())==='120'&&(await rowOf(N1).locator('td').nth(2+12+1).innerText())===(10/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2})&&!(await adm.locator('table.mgrid thead').innerText()).includes('Per week'),(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(-60));
+  ok('contracts: each client has its own status',await adm.inputValue(`select[aria-label="${N1} status"]`)==='CONTRACTED'&&await adm.inputValue(`select[aria-label="${N2} status"]`)==='PROJECT_BASED');
   ok('contracts: the current month is marked in the heading',(await adm.locator('th.now').innerText())===['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mi]);
-  ok('contracts: Save is off until something changes',await adm.locator('.mg-save button').isDisabled());
+  ok('contracts: Save is off until something changes',await adm.locator('.mg-save button.primary').isDisabled());
 
   // change this month (the contract ends part-way: 6 h), next (ends: 0) and give the floating client a figure
+  if(other<mi) await unlockPast(adm);
   await adm.fill(inp(C1,mi),'6');await adm.fill(inp(C1,other),'0');await adm.fill(inp(C2,mi),'20');
   ok('contracts: changed boxes turn blue and the total follows as you type',await adm.locator(inp(C1,mi)).evaluate((e)=>e.classList.contains('chg'))&&(await rowOf(N1).locator('td.tot').innerText())==='106');
-  ok('contracts: Save is on, with a warning about leaving',await adm.locator('.mg-save button').isEnabled()&&/unsaved/i.test(await adm.locator('.mg-save .note').innerText()));
-  await cap('saveContracts',()=>adm.click('.mg-save button'));await saved(adm,'Saved changes');
-  ok('contracts: saved, with how many clients',/Saved changes for 2 clients/.test(await adm.locator('.mg-save .note').innerText()),await adm.locator('.mg-save .note').innerText());
+  ok('contracts: Save is on, with a warning about leaving',await adm.locator('.mg-save button.primary').isEnabled()&&/unsaved/i.test(await adm.locator('.mg-save .note[role="status"]').innerText()));
+  await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
+  ok('contracts: saved, with how many clients',/Saved changes for 2 clients/.test(await adm.locator('.mg-save .note[role="status"]').innerText()),await adm.locator('.mg-save .note[role="status"]').innerText());
   ok('contracts: only the months that differ from the usual hours are stored',count(`select count(*) from "ClientMonth" where "clientId"='${C1}'`)===2&&eff(C1,ymAt(mi))===6&&eff(C1,ymAt(other))===0&&count(`select count(*) from "ClientMonth" where "clientId"='${C2}'`)===1&&eff(C2,ymAt(mi))===20);
   ok('contracts: the change log has a line per client with what changed',count(`select count(*) from "AuditLog" where action like 'Changed contracted hours for client ${N1}, ${y}: %'`)===1&&count(`select count(*) from "AuditLog" where action like 'Changed contracted hours for client ${N2}, ${y}: %'`)===1);
   await go(adm,'/clients?view=contracts');
   const v1=await vals(C1), v2=await vals(C2);
   ok('contracts: after a reload the boxes show what was saved',v1[mi]==='6'&&v1[other]==='0'&&v2[mi]==='20'&&v1.filter((v,i)=>i!==mi&&i!==other).every((v)=>v==='10'),v1.join());
-  ok('contracts: the floating client with a figure shows as active',/Active/.test(await rowOf(N2).innerText()));
+  ok('contracts: the floating client keeps its own status',await adm.inputValue(`select[aria-label="${N2} status"]`)==='PROJECT_BASED');
+  // past months are locked: both warnings are needed, a dismissed first one changes nothing, and a saved change locks them again
+  if(mi>0){
+    ok('past months: a past box is locked, the current one is open, and Change past months is offered',await adm.locator(inp(C1,0)).isDisabled()&&await adm.locator(inp(C1,mi)).isEnabled()&&await adm.locator('.mg-save button:has-text("Change past months")').count()===1);
+    const seen=adm.dialogs.length;
+    adm.dialogMode='dismiss';
+    await adm.click('.mg-save button:has-text("Change past months")');await adm.waitForTimeout(400);
+    adm.dialogMode='accept';
+    ok('past months: dismissing the first warning changes nothing',adm.dialogs.length===seen+1&&adm.dialogs[seen].includes('Warning 1 of 2')&&await adm.locator(inp(C1,0)).isDisabled());
+    await adm.click('.mg-save button:has-text("Change past months")');
+    await adm.waitForSelector('.mg-save :text("Past months are unlocked")');
+    ok('past months: both warnings, then they open',adm.dialogs.length===seen+3&&adm.dialogs[seen+1].includes('Warning 1 of 2')&&adm.dialogs[seen+2].includes('Warning 2 of 2')&&await adm.locator(inp(C1,0)).isEnabled());
+    await adm.fill(inp(C1,0),'7');
+    await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
+    ok('past months: the change is saved and logged as a past month',eff(C1,ymAt(0))===7&&count(`select count(*) from "AuditLog" where action like 'Changed contracted hours for client ${N1}, ${y}: %(a past month, after the warning)'`)===1);
+    await adm.waitForSelector(`input[data-cell="m|${C1}|${ymAt(0)}"]:disabled`,{timeout:10000}).catch(()=>{});
+    ok('past months: they lock again after the save',await adm.locator(inp(C1,0)).isDisabled());
+    await unlockPast(adm);await adm.fill(inp(C1,0),'10');
+    await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
+    ok('past months: the usual figure put back, so the month has no figure of its own',count(`select count(*) from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(0)}-01'`)===0);
+  }
 
   // the Clients overview works each month out from its own figure
   let c=await overview(adm,'thismonth',N1);
@@ -93,24 +115,25 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('overview: a client with a figure for the month counts as fixed that month',/Fixed/.test(c[1])&&c[3]===f(1200),c.join(' | '));
   c=await overview(adm,'thisyear',N1);
   let sum=0;for(let i=0;i<=mi;i++)sum+=eff(C1,ymAt(i));
-  ok('overview: this year adds up each month\'s own figure and says it varies',c[3]===f(sum*60)&&(mi===0||/varies by month/.test(c[1])),c.join(' | ')+' want '+f(sum*60));
+  ok('overview: this year adds up each month\'s own figure',c[3]===f(sum*60),c.join(' | ')+' want '+f(sum*60));
   await go(adm,`/clients/${C1}?range=thisyear`);
   ok('client page: contracted hours add up each month\'s own figure',(await adm.locator('.stats').first().innerText()).includes(f(sum*60)),(await adm.locator('.stats').first().innerText()).replace(/\s+/g,' '));
 
   // typing the usual hours again removes the month's own figure; a blank box means no contract
   await go(adm,'/clients?view=contracts');
+  if(third<mi) await unlockPast(adm);
   await adm.fill(inp(C1,mi),'10');await adm.fill(inp(C1,third),'');
-  await cap('saveContracts',()=>adm.click('.mg-save button'));await saved(adm,'Saved changes');
+  await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
   ok('contracts: the usual figure removes that month\'s own one; blank is stored as 0',count(`select count(*) from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(mi)}-01'`)===0&&count(`select hours from "ClientMonth" where "clientId"='${C1}' and month='${ymAt(third)}-01'`)===0&&count(`select count(*) from "ClientMonth" where "clientId"='${C1}'`)===2);
   await go(adm,'/clients?view=contracts'); // read what the server saved, not what was typed
-  ok('contracts: a month with no contract shows 0 and the status stays Active',(await vals(C1))[third]==='0'&&/Active/.test(await rowOf(N1).innerText()),`box ${JSON.stringify((await vals(C1)))} status ${(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(0,120)}`);
+  ok('contracts: a month with no contract shows 0 and the status stays Contracted',(await vals(C1))[third]==='0'&&await adm.inputValue(`select[aria-label="${N1} status"]`)==='CONTRACTED',`box ${JSON.stringify((await vals(C1)))}`);
 
   // work types
   await go(adm,'/clients?view=contracts');
   await rowOf(N1).locator('details.wtpick summary').click();
   await rowOf(N1).locator(`.tagpick-i:has-text("${WB}") input`).check();await rowOf(N1).locator(`.tagpick-i:has-text("${WA}") input`).check();
   ok('work types: the summary lists them in tag order',(await rowOf(N1).locator('details.wtpick summary').innerText())===`${WA} + ${WB}`);
-  await cap('saveContracts',()=>adm.click('.mg-save button'));await saved(adm,'Saved changes');
+  await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
   ok('work types: saved on the client and in the change log',sql(`select array_to_string(array(select unnest("workTypeIds") order by 1),',') from "Client" where id='${C1}'`)===[TA,TB].sort().join(',')&&count(`select count(*) from "AuditLog" where action='Changed work types for client ${N1} to ${WA} + ${WB}'`)===1);
   await go(adm,'/clients?view=contracts');
   ok('work types: still there after a reload',(await rowOf(N1).locator('td.wt').innerText()).includes(`${WA} + ${WB}`));
@@ -125,21 +148,50 @@ const GENERIC="isn't in your list|can't change the hours";
   // removing the tag takes it off the client
   await go(adm,'/settings');
   const item=adm.locator(`.item:has-text("${WA}")`);
-  adm.on('dialog',(x)=>x.accept());
+  adm.dialogMode='accept'; // the dialog recorder from sign-in accepts it
   await item.locator('button:has-text("Remove")').click();await adm.waitForTimeout(400);
   const confirmBtn=adm.locator('dialog[open] button:has-text("Remove")');if(await confirmBtn.count())await confirmBtn.first().click();
   await adm.waitForFunction((n)=>!document.body.innerText.includes(n),WA,{timeout:15000}).catch(()=>{});
   ok('work types: removing a tag takes it off the client',count(`select count(*) from "Tag" where id='${TA}'`)===0&&sql(`select cardinality("workTypeIds") from "Client" where id='${C1}'`)==='0');
 
+  // ---- status, drawing standard and the location filter
+  await go(adm,'/clients?view=contracts'); // the steps before left the admin on Settings
+  // a status is a choice (Contracted, Project Based, Lost); rows run Contracted first, then Project Based, then Lost, each alphabetical
+  const RANK={CONTRACTED:0,PROJECT_BASED:1,LOST:2};
+  const orderRows=await adm.$$eval('table.mgrid tbody tr',(trs)=>trs.map((tr)=>({s:tr.querySelector('select[aria-label$=" status"]')?.value,n:tr.querySelector('td.cl a')?.textContent})));
+  ok('status: rows run Contracted, then Project Based, then Lost, and alphabetical within each',orderRows.length>=2&&orderRows.every((x,i)=>i===0||RANK[orderRows[i-1].s]<RANK[x.s]||(RANK[orderRows[i-1].s]===RANK[x.s]&&orderRows[i-1].n.localeCompare(x.n)<=0)),orderRows.map((x)=>x.s).join(','));
+  ok('status: the choices are Contracted, Project Based and Lost',(await adm.locator(`select[aria-label="${N2} status"] option`).allInnerTexts()).join()==='Contracted,Project Based,Lost');
+  ok('drawing standard: the choices are Not set, AVDL, Modified AVDL and Proprietary',(await adm.locator(`select[aria-label="${N1} drawing standard"] option`).allInnerTexts()).join()==='Not set,AVDL,Modified AVDL,Proprietary');
+  await rowOf(N1).locator('select[aria-label$=" drawing standard"]').selectOption('MODIFIED_AVDL');
+  await rowOf(N2).locator('select[aria-label$=" status"]').selectOption('LOST');
+  await cap('saveContracts',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved changes');
+  ok('status and drawing standard: saved on the client',sql(`select "drawingStandard" from "Client" where id='${C1}'`)==='MODIFIED_AVDL'&&sql(`select status from "Client" where id='${C2}'`)==='LOST');
+  ok('status and drawing standard: in the change log',count(`select count(*) from "AuditLog" where action='Changed drawing standard for client ${N1} to Modified AVDL'`)===1&&count(`select count(*) from "AuditLog" where action='Changed status for client ${N2} to Lost'`)===1);
+  await go(adm,'/clients?view=contracts');
+  ok('status: a lost client shows its name in red, and the choices are kept after a reload',((await adm.locator(`tr:has(td.cl a:text-is("${N2}")) td.cl a`).getAttribute('class'))||'').includes('t-bad')&&await adm.inputValue(`select[aria-label="${N2} status"]`)==='LOST'&&await adm.inputValue(`select[aria-label="${N1} drawing standard"]`)==='MODIFIED_AVDL');
+  const placeName=sql(`select l.name from "Team" t join "Location" l on l.id=t."locationId" where t.id='${FLASH}'`);
+  await adm.click(`.seg button:text-is("${placeName}")`);
+  ok('location filter: the chosen location is pressed, and only its clients show',(await adm.getAttribute(`.seg button:text-is("${placeName}")`,'aria-pressed'))==='true'&&await adm.locator(`tr:has(td.cl a:text-is("${N1}")):not(.out)`).count()===1&&await adm.locator(`tr:has(td.cl a:text-is("${N2}")):not(.out)`).count()===0,placeName);
+  const visibleMonth=(i)=>adm.evaluate((k)=>[...document.querySelectorAll('table.mgrid tbody tr:not(.out)')].reduce((a,tr)=>{const c=tr.querySelectorAll('td.mc')[k];const el=c&&c.querySelector('input');return a+(Number(el?el.value:(c?c.textContent:''))||0);},0),i);
+  const footerMonth=(i)=>adm.evaluate((k)=>Number(document.querySelectorAll('table.mgrid tfoot td')[1+k].textContent.replace(/,/g,'')),i);
+  ok('location filter: the total says the location and adds up its clients only',(await adm.locator('tfoot td.tl').innerText())===`${placeName} total`&&Math.abs((await footerMonth(mi))-(await visibleMonth(mi)))<0.01,`${await footerMonth(mi)} vs ${await visibleMonth(mi)}`);
+  await adm.click('.seg button:text-is("All locations")');
+  ok('location filter: All locations shows everyone again, with the company total',(await adm.locator('table.mgrid tbody tr:not(.out)').count())===(await adm.locator('table.mgrid tbody tr').count())&&(await adm.locator('tfoot td.tl').innerText())==='All clients');
+  let r=await act(adm,'/clients','saveContracts',{year:String(y),[`st|${C2}`]:'BOGUS'});
+  ok('status: a status that is not on the list is refused',refused(r,'choose a status'));
+  r=await act(adm,'/clients','saveContracts',{year:String(y),[`dr|${C2}`]:'NOPE'});
+  ok('drawing standard: one that is not on the list is refused',refused(r,'choose a drawing standard'));
+
   // ---- crafted calls
   const snap=()=>sql(`select string_agg("clientId"||month||hours,',' order by "clientId",month) from "ClientMonth" where "clientId" in ('${C1}','${C2}')`);
   const before=snap();
-  let r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|${C1}|${ymAt(mi)}`]:'-5',[`m|${C2}|${ymAt(other)}`]:'7'});
+  r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|${C1}|${ymAt(mi)}`]:'-5',[`m|${C2}|${ymAt(other)}`]:'7'});
   ok('crafted: a negative figure is refused and nothing else in the same save is kept',refused(r,'0 to')&&snap()===before,r.text.slice(-140));
   r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|${C1}|${ymAt(mi)}`]:'abc'});
   ok('crafted: text instead of a number is refused',refused(r,'0 to')&&snap()===before);
   r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|${C1}|${ymAt(mi)}`]:'100001'});
   ok('crafted: more than the ceiling is refused',refused(r,'0 to')&&snap()===before);
+  if(mi>0){r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|${C1}|${ymAt(0)}`]:'5'});ok('past months: the server refuses a change to a past month without the confirmation',refused(r,'past months are locked')&&snap()===before,r.text.slice(-140));}
   r=await act(adm,'/clients','saveContracts',{year:String(y),[`w|${C1}`]:['','nosuchtag']});
   ok('crafted: a work type that is not a tag is refused',refused(r,'work types')&&sql(`select cardinality("workTypeIds") from "Client" where id='${C1}'`)==='0');
   r=await act(adm,'/clients','saveContracts',{year:String(y),[`m|nosuchclient|${ymAt(mi)}`]:'5'});
@@ -166,13 +218,14 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('hours: two views, this one is current',(await rav.locator('nav[aria-label="People view"] a').allInnerTexts()).join()==='People,Monthly hours'&&await rav.locator('nav[aria-label="People view"] a[aria-current=page]').innerText()==='Monthly hours');
   const rowP=(p,name)=>p.locator(`tr:has(td.cl a:text-is("${name}"))`);
   ok('hours: the manager changes people in their office',await rav.locator(`input[data-cell^="m|${M}|"]`).count()===12);
-  ok('hours: but not another location manager, nor themselves',await rowP(rav,'Mg Manager').count()===1&&await rav.locator(`input[data-cell^="m|${LM2}|"]`).count()===0&&await rav.locator(`input[data-cell^="m|${RAVI}|"]`).count()===0&&await rowP(rav,'Ravi Desai').count()===1);
+  const hp=[await rav.locator(`tr:has(a[href="/profile/${LM2}"])`).count(),await rav.locator(`input[data-cell^="m|${LM2}|"]`).count(),await rav.locator(`input[data-cell^="m|${RAVI}|"]`).count(),await rav.locator(`tr:has(a[href="/profile/${RAVI}"])`).count()];
+  ok('hours: but not another location manager, nor themselves',hp[0]===1&&hp[1]===0&&hp[2]===0&&hp[3]===1,`rows and boxes ${hp.join(' ')}`);
   ok('hours: nobody from another office, and admins are not listed',await rowP(rav,'Mg Other').count()===0&&await rowP(rav,'Mg Admin').count()===0);
   ok('hours: the usual hours fill the boxes and the average is shown',(await rav.$$eval(`input[data-cell^="m|${M}|"]`,(is)=>is.map((i)=>i.value))).every((v)=>v==='40')&&(await rowP(rav,'Mg Member').locator('td.tot').innerText())==='40');
   await rav.fill(inp(M,mi),'20');
   ok('hours: the average follows as you type',(await rowP(rav,'Mg Member').locator('td.tot').innerText())===((11*40+20)/12).toLocaleString('en-US',{maximumFractionDigits:2}));
-  await cap('saveHours',()=>rav.click('.mg-save button'));await saved(rav,'Saved hours');
-  ok('hours: saved, one stored month, and the change log names the person',/Saved hours for 1 person/.test(await rav.locator('.mg-save .note').innerText())&&count(`select count(*) from "UserMonth" where "userId"='${M}'`)===1&&+sql(`select "weeklyHours" from "UserMonth" where "userId"='${M}' and month='${ym}-01'`)===20&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${M}' and action like 'Changed expected hours per week for Mg Member, ${y}: %'`)===1);
+  await cap('saveHours',()=>rav.click('.mg-save button.primary'));await saved(rav,'Saved hours');
+  ok('hours: saved, one stored month, and the change log names the person',/Saved hours for 1 person/.test(await rav.locator('.mg-save .note[role="status"]').innerText())&&count(`select count(*) from "UserMonth" where "userId"='${M}'`)===1&&+sql(`select "weeklyHours" from "UserMonth" where "userId"='${M}' and month='${ym}-01'`)===20&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${M}' and action like 'Changed expected hours per week for Mg Member, ${y}: %'`)===1);
   // the person's own dashboard divides by the month's figure
   const mp=await signIn(M+'@example.com');
   await go(mp,'/dashboard');
@@ -181,7 +234,7 @@ const GENERIC="isn't in your list|can't change the hours";
   await go(rav,'/people?view=hours');
   ok('hours: after a reload the box shows 20',(await rav.inputValue(inp(M,mi)))==='20');
   await rav.fill(inp(M,mi),'40');await rav.fill(inp(M,other),'');
-  await cap('saveHours',()=>rav.click('.mg-save button'));await saved(rav,'Saved hours');
+  await cap('saveHours',()=>rav.click('.mg-save button.primary'));await saved(rav,'Saved hours');
   ok('hours: the usual hours remove the month\'s own figure; blank is stored as 0 (nothing expected)',count(`select count(*) from "UserMonth" where "userId"='${M}' and month='${ym}-01'`)===0&&+sql(`select "weeklyHours" from "UserMonth" where "userId"='${M}' and month='${ymAt(other)}-01'`)===0);
   const snapH=()=>sql(`select coalesce(string_agg("userId"||month||"weeklyHours",',' order by "userId",month),'') from "UserMonth" where "userId" in (${ALLU.map((x)=>`'${x}'`).join(',')})`);
   const beforeH=snapH();
@@ -205,7 +258,7 @@ const GENERIC="isn't in your list|can't change the hours";
   r=await act(adm,'/people','saveHours',{year:String(y),[`m|${KA}|${ymAt(mi)}`]:'30'});
   ok('crafted: even an admin cannot give an admin expected hours (not a resource)',refused(r,'not a resource')&&snapH()===beforeH,r.text.slice(-140));
   await adm.fill(inp(OM,mi),'30');
-  await cap('saveHours',()=>adm.click('.mg-save button'));await saved(adm,'Saved hours');
+  await cap('saveHours',()=>adm.click('.mg-save button.primary'));await saved(adm,'Saved hours');
   ok('hours: the admin saved another office\'s figure',+sql(`select "weeklyHours" from "UserMonth" where "userId"='${OM}' and month='${ym}-01'`)===30);
   sql(`delete from "UserMonth" where "userId" in (${ALLU.map((x)=>`'${x}'`).join(',')})`);
 

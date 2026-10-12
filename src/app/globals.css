@@ -846,6 +846,9 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .mgrid tfoot td{border-top:2px solid var(--line2);font-weight:600}
 .mgrid td.tot{font-weight:600}
 .mgrid td.wt{min-width:150px;white-space:normal;vertical-align:top}
+.mgrid tr.out{display:none} /* not at the chosen location (kept in the form, so unsaved figures still go) */
+.mgrid .past,.mgrid td.past input.cell:disabled{color:var(--muted)}
+.mgrid td.cur{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
 .wtpick summary{cursor:pointer;font-size:13px;padding:4px 0}
 .wtbox{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 4px;max-width:340px}
 .mg-save{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);padding:10px 0 2px;margin-top:6px;border-top:1px solid var(--line)}
