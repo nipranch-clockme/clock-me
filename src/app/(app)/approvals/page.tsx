@@ -143,11 +143,6 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           {!late.length && <div className="empty">Everyone submitted.</div>}
         </div>
       </section>
-      <section className="panel">
-        <h3>Lock status</h3>
-        <p style={{ margin: "0 0 8px" }}>Timesheets on or before <strong>{settings.lockBeforeStr ? longDate(settings.lockBeforeStr) : "(none)"}</strong> are locked.</p>
-        <p className="note" style={{ margin: 0 }}>{me.role === "ADMIN" ? "Change this in Settings." : "Only admins can change the lock date."}</p>
-      </section>
     </div>
     </>
   );
