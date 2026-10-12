@@ -13,6 +13,8 @@ import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
 import MonthBars from "@/components/MonthBars";
 import { PageHead, Ifld } from "@/components/ui";
+import MonthlyReportTable from "@/components/MonthlyReportTable";
+import { monthlyReport, reportYears } from "@/lib/monthlyReport";
 
 const PERIODS: [string, string][] = [["thisweek", "This week"], ["lastweek", "Last week"], ["thismonth", "This month"], ["lastmonth", "Last month"], ["thisquarter", "This quarter"], ["thisyear", "This year"], ["lastyear", "Last year"]];
 const OFFCOL = ["s1", "s2", "s8", "s3", "s6"];
@@ -20,7 +22,7 @@ const TEAMCOL = ["s1", "s2", "s8", "s3", "s6", "s7", "s5"]; // one colour per te
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("dashboard");
   const settings = await getSettings();
@@ -90,6 +92,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ] });
     }
   }
+  // The office's monthly report (location managers: their office; admins: the office they pick), like the sheet they kept before.
+  let report: React.ReactNode = null;
+  if (me.role === "LOCATION" || me.role === "ADMIN") {
+    const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
+    const office = offices.find((o) => o.id === sp.roffice) ?? offices.find((o) => locs.some((l) => l.id === o.id)) ?? offices[0];
+    if (office) {
+      const years = await reportYears(office.id);
+      const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
+      report = <MonthlyReportTable report={await monthlyReport(office.id, year)} office={office} offices={me.role === "ADMIN" ? offices : undefined} years={years} keep={{ range, rank }} />;
+    }
+  }
   const hoursText = (v: number) => `${Math.round(v).toLocaleString("en-US")} h`;
 
   // The # column is the place in the full ranking, so the bottom five read as, say, 9th to 12th.
@@ -113,6 +126,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <PageHead title="Dashboard"
         actions={<AutoForm className="phd-a" key={range + rank}>
+          {sp.ryear && <input type="hidden" name="ryear" value={sp.ryear} />}{sp.roffice && <input type="hidden" name="roffice" value={sp.roffice} />}
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
@@ -180,6 +194,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
           </section>
         ))}
+        {report}
         <section className="panel full">
           <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {me.role === "ADMIN" ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>

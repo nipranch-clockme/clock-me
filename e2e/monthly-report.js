@@ -1,0 +1,46 @@
+// Monthly report on the Dashboard: location managers see their office, admins pick an office, others don't see it; the CSV matches.
+const { start, login, BASE } = require("./helpers");
+(async () => {
+  const b = await start(); let fails = 0;
+  const ok = (c, m) => { console.log((c ? "ok   " : "FAIL ") + m); if (!c) fails++; };
+  const loc = await login(b, "oliver@example.com");
+  await loc.goto(BASE + "/dashboard"); await loc.waitForLoadState("networkidle");
+  const box = loc.locator("#monthly-report");
+  ok(await box.count() === 1, "location manager sees the monthly report");
+  const labels = await box.locator("tbody td:first-child").allInnerTexts();
+  for (const l of ["Inventory available", "Actual total logged", "Total active employees", "Inventory utilisation", "Contracted hours", "Contract fulfilment"]) ok(labels.includes(l), "row " + l);
+  ok(labels.some((l) => l.startsWith("OT")), "OT row shown");
+  ok(await loc.locator("#mr-office").count() === 0, "no office picker for a location manager");
+  const yrs = await loc.locator("#mr-year option").allInnerTexts();
+  ok(yrs.length >= 2, "years offered: " + yrs.join(","));
+  await loc.selectOption("#mr-year", yrs[1]); await loc.waitForURL(/ryear=/); await loc.waitForLoadState("networkidle");
+  ok((await box.locator("h3").innerText()).includes(yrs[1]), "year switch shows " + yrs[1]);
+  ok(/range=/.test(loc.url()), "page period kept when the year changes");
+  // utilisation = logged / inventory in the year column
+  const cell = async (label) => (await box.locator("tr", { has: loc.locator(`td:first-child:text-is("${label}")`) }).locator("td.tot").innerText()).replace(/[,%]/g, "");
+  const inv = +(await cell("Inventory available")), act = +(await cell("Actual total logged")), ut = +(await cell("Inventory utilisation"));
+  ok(inv > 0 && Math.abs(act / inv * 100 - ut) < 0.02, `year utilisation ${ut} = ${act}/${inv}`);
+  const csv = await loc.request.get(BASE + "/dashboard/report?year=" + yrs[1]);
+  const text = await csv.text();
+  ok(csv.status() === 200 && text.includes("Inventory available") && text.includes("Hours by tag"), "CSV downloads");
+  ok(text.split("\r\n").find((l) => l.startsWith("Inventory available")).endsWith("," + inv), "CSV year inventory matches the page");
+  ok(loc.errs.length === 0, "no page errors " + loc.errs.join(" | "));
+  const adm = await login(b, "admin@example.com");
+  await adm.goto(BASE + "/dashboard"); await adm.waitForLoadState("networkidle");
+  const offs = await adm.locator("#mr-office option").allInnerTexts();
+  ok(offs.length > 1, "admin office picker: " + offs.join(","));
+  await adm.selectOption("#mr-office", { label: offs[1] }); await adm.waitForURL(/roffice=/); await adm.waitForLoadState("networkidle");
+  ok((await adm.locator("#monthly-report h3").innerText()).includes(offs[1]), "admin switched office");
+  await adm.selectOption("#ds-range", "lastmonth"); await adm.waitForURL(/range=lastmonth/); await adm.waitForLoadState("networkidle");
+  ok((await adm.locator("#monthly-report h3").innerText()).includes(offs[1]), "office kept when the period changes");
+  ok(adm.errs.length === 0, "no admin page errors " + adm.errs.join(" | "));
+  const lead = await login(b, "daniel@example.com");
+  await lead.goto(BASE + "/dashboard"); await lead.waitForLoadState("networkidle");
+  ok(await lead.locator("#monthly-report").count() === 0, "team manager does not see it");
+  ok((await lead.request.get(BASE + "/dashboard/report")).status() === 403, "team manager cannot download it");
+  await loc.setViewportSize({ width: 390, height: 900 }); await loc.goto(BASE + "/dashboard"); await loc.waitForLoadState("networkidle");
+  ok(await loc.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no page-wide sideways scroll on a phone");
+  await loc.setViewportSize({ width: 1280, height: 1000 }); await loc.goto(BASE + "/dashboard"); await loc.waitForLoadState("networkidle");
+  await box.screenshot({ path: process.env.SHOT || "/tmp/monthly-report.png" });
+  await b.close(); console.log(fails ? `${fails} failed` : "all passed"); process.exit(fails ? 1 : 0);
+})();
