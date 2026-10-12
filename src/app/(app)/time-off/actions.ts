@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { holidayError, timeOffError } from "@/lib/scope";
+import { holidayError, timeOffApproveError, timeOffApproverWhere, timeOffError } from "@/lib/scope";
 import { findVisiblePerson } from "@/lib/profile";
 import { addDays, isDateStr, longDate, shortDate, today, toDate, toStr } from "@/lib/dates";
 import { weekdaysBetween } from "@/lib/expected";
@@ -18,7 +18,8 @@ const MAX_DAYS = 366;
 
 const range = (a: string, b: string) => (a === b ? longDate(a) : `${shortDate(a)} to ${shortDate(b)}`);
 
-/** Adds time off for a person: the signed-in person, or someone they manage. */
+/** Asks for time off for the signed-in person (a request a location manager or admin approves), or adds it for someone they manage
+ *  (a location manager for their office, an admin for anyone), which takes effect at once. Past dates are allowed, unless locked. */
 export async function addTimeOff(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
   const me = await requireTab("time-off");
   const settings = await getSettings(); // sets the company time zone, which decides "today"
@@ -26,6 +27,7 @@ export async function addTimeOff(_: TimeOffResult, form: FormData): Promise<Time
   const person = await findVisiblePerson(me, userId);
   if (!person) return fail("Choose a person.");
   if (!person.active) return fail("That person is not active.");
+  const own = person.id === me.id;
   const denied = timeOffError(me, person);
   if (denied) return fail(denied);
 
@@ -43,30 +45,85 @@ export async function addTimeOff(_: TimeOffResult, form: FormData): Promise<Time
   const label = TYPES.includes(type) ? type : "PTO";
   const note = cleanText(String(form.get("note") ?? "")).slice(0, 200);
 
-  // Two rows on the same days would confuse the count, so ask to change the existing one instead.
-  const clash = await db.timeOff.findFirst({ where: { userId: person.id, startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } } });
-  if (clash) return fail(`${person.id === me.id ? "You" : person.name} already ${person.id === me.id ? "have" : "has"} time off on ${range(toStr(clash.startDate), toStr(clash.endDate))}. Remove it first to change it.`);
+  // Two rows on the same days would confuse the count, so ask to change the existing one instead. Declined requests don't count.
+  const clash = await db.timeOff.findFirst({ where: { userId: person.id, status: { in: ["PENDING", "APPROVED"] }, startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } } });
+  if (clash) {
+    const what = `${clash.status === "PENDING" ? "a request for " : ""}time off on ${range(toStr(clash.startDate), toStr(clash.endDate))}`;
+    const fix = clash.status === "PENDING" ? "Withdraw it first to send a different one."
+      : own ? "Ask your location manager or an admin to change it."
+      : "Remove it first to change it.";
+    return fail(`${own ? "You" : person.name} already ${own ? "have" : "has"} ${what}. ${fix}`);
+  }
 
-  await db.timeOff.create({ data: { userId: person.id, startDate: toDate(from), endDate: toDate(to), fraction: half ? 0.5 : 1, label, note, source: "manual", createdById: me.id } });
+  const pending = own;
+  await db.timeOff.create({ data: {
+    userId: person.id, startDate: toDate(from), endDate: toDate(to), fraction: half ? 0.5 : 1, label, note, source: "manual", createdById: me.id,
+    status: pending ? "PENDING" : "APPROVED", decidedById: pending ? null : me.id, decidedAt: pending ? null : new Date(),
+  } });
+  if (pending) {
+    await logAction(me.id, `Asked for ${label}: ${range(from, to)}${half ? " (half days)" : ""}`, me.id);
+    return done("Request sent. A location manager or admin will approve it.");
+  }
   await logAction(me.id, `Added ${label} for ${person.name}: ${range(from, to)}${half ? " (half days)" : ""}`, person.id);
   return done();
 }
 
-/** Removes time off typed in the app. Time off that came from another system can't be changed here. */
+/** Removes time off typed in the app. A person can withdraw their own request, and remove their own or someone they manage's time off.
+ *  Time off from another system can't be changed here. Requests from others are approved or declined in Approvals. */
 export async function removeTimeOff(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
   const me = await requireTab("time-off");
   const settings = await getSettings();
   const row = await db.timeOff.findUnique({ where: { id: String(form.get("id") ?? "") } });
   const person = row ? await findVisiblePerson(me, row.userId) : null;
   if (!row || !person) return fail("That time off isn't there any more.");
+  const a = toStr(row.startDate), b = toStr(row.endDate);
+  if (row.status === "PENDING") {
+    if (row.userId !== me.id) return fail("Approve or decline this request in Approvals.");
+    await db.timeOff.delete({ where: { id: row.id } });
+    await logAction(me.id, `Withdrew the request for ${row.label}: ${range(a, b)}`, me.id);
+    return done("Request withdrawn.");
+  }
   const denied = timeOffError(me, person);
   if (denied) return fail(denied);
   if (row.source !== "manual") return fail("This time off comes from another system and can't be changed here.");
-  const a = toStr(row.startDate), b = toStr(row.endDate);
   if (settings.lockBeforeStr && a <= settings.lockBeforeStr) return fail(`${LOCKED} Time off that starts on or before ${longDate(settings.lockBeforeStr)} can't be removed.`);
   await db.timeOff.delete({ where: { id: row.id } });
   await logAction(me.id, `Removed ${row.label} for ${person.name}: ${range(a, b)}`, person.id);
   return done();
+}
+
+/** Approves a request for time off (location managers and admins, see timeOffApproveError). Dates on or before the lock date can't be approved. */
+export async function approveTimeOff(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
+  const me = await requireTab("approvals");
+  const settings = await getSettings();
+  const where = timeOffApproverWhere(me);
+  const row = where ? await db.timeOff.findFirst({ where: { AND: [where, { id: String(form.get("id") ?? "") }] }, include: { user: true } }) : null;
+  if (!row) return fail("That request isn't there any more.");
+  const denied = timeOffApproveError(me, row.user);
+  if (denied) return fail(denied);
+  const a = toStr(row.startDate), b = toStr(row.endDate);
+  if (settings.lockBeforeStr && a <= settings.lockBeforeStr) return fail(`${LOCKED} Time off that starts on or before ${longDate(settings.lockBeforeStr)} can't be approved.`);
+  // Two requests for the same days can both be waiting. Only one can be approved.
+  const clash = await db.timeOff.findFirst({ where: { userId: row.userId, id: { not: row.id }, status: "APPROVED", startDate: { lte: row.endDate }, endDate: { gte: row.startDate } } });
+  if (clash) return fail(`${row.user.name} already has approved time off on ${range(toStr(clash.startDate), toStr(clash.endDate))}. Decline this request, or remove that one first.`);
+  await db.timeOff.update({ where: { id: row.id }, data: { status: "APPROVED", decidedById: me.id, decidedAt: new Date(), decisionNote: "" } });
+  await logAction(me.id, `Approved ${row.label} for ${row.user.name}: ${range(a, b)}`, row.userId);
+  return done("Approved.");
+}
+
+/** Declines a request for time off, with an optional note for the person who asked. */
+export async function declineTimeOff(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
+  const me = await requireTab("approvals");
+  const where = timeOffApproverWhere(me);
+  const row = where ? await db.timeOff.findFirst({ where: { AND: [where, { id: String(form.get("id") ?? "") }] }, include: { user: true } }) : null;
+  if (!row) return fail("That request isn't there any more.");
+  const denied = timeOffApproveError(me, row.user);
+  if (denied) return fail(denied);
+  const note = cleanText(String(form.get("note") ?? "")).slice(0, 200);
+  const a = toStr(row.startDate), b = toStr(row.endDate);
+  await db.timeOff.update({ where: { id: row.id }, data: { status: "DECLINED", decidedById: me.id, decidedAt: new Date(), decisionNote: note } });
+  await logAction(me.id, `Declined the ${row.label} request from ${row.user.name}: ${range(a, b)}`, row.userId);
+  return done("Declined.");
 }
 
 // ---------- public holidays ----------
@@ -87,15 +144,18 @@ function parseLines(text: string): { rows: Parsed[]; bad: string[] } {
   return { rows, bad };
 }
 
-/** Adds a public holiday (or several, pasted one per line) to an office, or to every office when an admin picks that. */
+/** Adds a public holiday, or several pasted one per line, to each office ticked. Admins only. */
 export async function addHoliday(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
   const me = await requireTab("time-off");
+  const denied = holidayError(me);
+  if (denied) return fail(denied);
   const settings = await getSettings();
-  const pick = String(form.get("locationId") ?? "");
-  // Location managers only ever work on their own office, whatever the form says.
-  const offices = me.role === "ADMIN" ? (pick === "all" ? await db.location.findMany({ select: { id: true } }) : await db.location.findMany({ where: { id: pick }, select: { id: true } })) : [{ id: me.locationId }];
-  if (!offices.length) return fail("Choose an office.");
-  for (const o of offices) { const e = holidayError(me, o.id); if (e) return fail(e); }
+  const ids = [...new Set(form.getAll("locationId").map(String).filter(Boolean))];
+  if (!ids.length) return fail("Choose at least one office.");
+  const offices = await db.location.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+  if (offices.length !== ids.length) return fail("One of those offices isn't there any more. Reload the page and try again.");
+  const total = await db.location.count();
+  const where = offices.length === total && total > 1 ? "all offices" : offices.length <= 3 ? offices.map((o) => o.name).join(", ") : `${offices.length} offices`;
 
   const bulk = String(form.get("bulk") ?? "").trim();
   let list: Parsed[];
@@ -118,24 +178,25 @@ export async function addHoliday(_: TimeOffResult, form: FormData): Promise<Time
   const names = [...new Map(list.map((h) => [h.date, h])).values()]; // the same date twice in one paste: the last one wins
   const data = offices.flatMap((o) => names.map((h) => ({ locationId: o.id, date: toDate(h.date), name: h.name, fraction: h.fraction })));
   const r = await db.holiday.createMany({ data, skipDuplicates: true });
-  const where = offices.length > 1 ? "all offices" : (await db.location.findUnique({ where: { id: offices[0].id }, select: { name: true } }))?.name ?? "the office";
   if (!r.count) return fail(names.length === 1 && offices.length === 1 ? `${where} already has a holiday on ${longDate(names[0].date)}. Remove it first to change it.` : "Those holidays are already there.");
   await logAction(me.id, `Added ${r.count} public ${r.count === 1 ? "holiday" : "holidays"} for ${where}: ${names.length === 1 ? `${names[0].name}, ${longDate(names[0].date)}` : `${shortDate(names[0].date)} and others`}`);
   const skipped = data.length - r.count;
   return done(`Added ${r.count} ${r.count === 1 ? "holiday" : "holidays"} to ${where}${skipped ? ` (${skipped} already there)` : ""}.`);
 }
 
+/** Removes a holiday everywhere it is listed: the ids are every office's copy of that holiday, as the list groups them. Admins only. */
 export async function removeHoliday(_: TimeOffResult, form: FormData): Promise<TimeOffResult> {
   const me = await requireTab("time-off");
-  const settings = await getSettings();
-  const row = await db.holiday.findUnique({ where: { id: String(form.get("id") ?? "") }, include: { location: { select: { name: true } } } });
-  if (!row) return fail("That holiday isn't there any more.");
-  const denied = holidayError(me, row.locationId);
+  const denied = holidayError(me);
   if (denied) return fail(denied);
-  const d = toStr(row.date);
+  const settings = await getSettings();
+  const ids = String(form.get("id") ?? "").split(",").filter(Boolean);
+  const rows = ids.length ? await db.holiday.findMany({ where: { id: { in: ids } }, include: { location: { select: { name: true } } } }) : [];
+  if (!rows.length) return fail("That holiday isn't there any more.");
+  const d = toStr(rows[0].date);
   if (settings.lockBeforeStr && d <= settings.lockBeforeStr) return fail(`${LOCKED} A holiday on or before ${longDate(settings.lockBeforeStr)} can't be removed.`);
-  await db.holiday.delete({ where: { id: row.id } });
-  await logAction(me.id, `Removed public holiday ${row.name}, ${longDate(d)} for ${row.location.name}`);
+  await db.holiday.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
+  const where = rows.length === 1 ? rows[0].location.name : `${rows.length} offices`;
+  await logAction(me.id, `Removed public holiday ${rows[0].name}, ${longDate(d)} for ${where}`);
   return done();
 }
-

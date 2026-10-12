@@ -39,17 +39,34 @@ export function manageError(me: Me, locationId: string, role: Role): string | nu
  *  the same people who edit them on the People page. */
 export const canManagePerson = (me: Me, p: { locationId: string; role: Role }) => !manageError(me, p.locationId, p.role);
 
-/** Why this person can't add or remove someone's time off, or null when they can. Everyone manages their own. A Team/Project
- *  Manager manages their team, a location manager their office (never admins or location managers, as with people), an admin everyone. */
-export function timeOffError(me: Me, p: { id: string; locationId: string; teamId: string | null; role: Role }): string | null {
+/** Why this person can't add or remove someone's time off, or null when they can. Everyone manages their own (by asking for it, see
+ *  time-off/actions.ts). A location manager adds it for their office (never admins or location managers, as with people), an admin for
+ *  anyone. Team/Project Managers can't add or remove anyone else's. */
+export function timeOffError(me: Me, p: { id: string; locationId: string; role: Role }): string | null {
   if (p.id === me.id || me.role === "ADMIN") return null;
-  const NO = "You don't have permission to change that person's time off.";
-  if (me.role === "MEMBER") return NO;
+  if (me.role !== "LOCATION") return "Only location managers and admins can add or change someone else's time off.";
+  if (p.locationId !== me.locationId) return "You can only change time off for people in your own office.";
   if (p.role === "ADMIN" || p.role === "LOCATION") return "Only admins can change an admin's or location manager's time off.";
-  if (me.role === "LOCATION") return p.locationId === me.locationId ? null : "You can only change time off for people in your own office.";
-  return me.teamId && p.teamId === me.teamId ? null : NO;
+  return null;
 }
 export const canManageTimeOff = (me: Me, p: Parameters<typeof timeOffError>[1]) => !timeOffError(me, p);
+
+/** Who may approve a request for time off from this person, or null when they may not. An admin approves anyone's but their own; a
+ *  location manager approves the members and team managers of their office. Nobody approves their own request. */
+export function timeOffApproveError(me: Me, p: { id: string; locationId: string; role: Role }): string | null {
+  if (p.id === me.id) return "You can't approve your own time off. Another admin or location manager does that.";
+  if (me.role === "ADMIN") return null;
+  if (me.role !== "LOCATION") return "Only location managers and admins approve time off.";
+  if (p.locationId !== me.locationId) return "You can only approve time off for people in your own office.";
+  if (p.role === "ADMIN" || p.role === "LOCATION") return "Only admins approve time off for an admin or a location manager.";
+  return null;
+}
+/** The pending time off requests this person may approve (none for other roles). */
+export function timeOffApproverWhere(me: Me): Prisma.TimeOffWhereInput | null {
+  if (me.role === "ADMIN") return { status: "PENDING", userId: { not: me.id } };
+  if (me.role === "LOCATION") return { status: "PENDING", userId: { not: me.id }, user: { locationId: me.locationId, role: { in: ["MEMBER", "LEADER"] } } };
+  return null;
+}
 
 /** Why this person can't add or change someone's time entries, or null when they can. Everyone changes their own. Location managers
  *  can for their own office (never admins or other location managers, as with people), admins for everyone. */
@@ -62,12 +79,11 @@ export function timeEditError(me: Me, p: { id: string; locationId: string; role:
 }
 export const canEditTimeFor = (me: Me, p: Parameters<typeof timeEditError>[1]) => !timeEditError(me, p);
 
-/** Why this person can't change an office's public holidays, or null when they can: admins any office, location managers their own. */
-export function holidayError(me: Me, locationId: string): string | null {
-  if (me.role === "ADMIN" || (me.role === "LOCATION" && locationId === me.locationId)) return null;
-  return me.role === "LOCATION" ? "You can only change the holidays of your own office." : "Only admins and the office's location manager can change its public holidays.";
+/** Why this person can't add or remove public holidays, or null when they can. Only admins do, for any office. Everyone can see them. */
+export function holidayError(me: Me): string | null {
+  return me.role === "ADMIN" ? null : "Only admins can add or change public holidays.";
 }
-export const canManageHolidays = (me: Me, locationId: string) => !holidayError(me, locationId);
+export const canManageHolidays = (me: Me) => !holidayError(me);
 
 export const scopeLabel = (me: Me) =>
   me.role === "ADMIN" ? "Whole company"

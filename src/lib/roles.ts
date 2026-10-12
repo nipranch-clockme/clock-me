@@ -26,9 +26,11 @@ export const PERMISSIONS: [string, Record<Role, Cell>][] = [
   ["Invite people, set expected hours, employee IDs and joining dates", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "y" }],
   ["Set a person's expected hours for each month (People > Monthly hours)", { MEMBER: "n", LEADER: "n", LOCATION: "Own office, not admins or location managers", ADMIN: "y" }],
   ["Change profile pictures", { MEMBER: "Own", LEADER: "Own", LOCATION: "Own office", ADMIN: "y" }],
-  ["Add own time off (PTO)", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
-  ["Add or remove other people's time off", { MEMBER: "n", LEADER: "Own team", LOCATION: "Own office", ADMIN: "y" }],
-  ["Set an office's public holidays", { MEMBER: "n", LEADER: "n", LOCATION: "Own office", ADMIN: "All offices" }],
+  ["Ask for own time off (PTO, sick leave); it counts once approved", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
+  ["Approve or decline time off requests", { MEMBER: "n", LEADER: "n", LOCATION: "Own office, members and team managers only", ADMIN: "Yes, everyone except their own" }],
+  ["Add or remove someone else's time off (counts at once)", { MEMBER: "n", LEADER: "n", LOCATION: "Own office, not admins or location managers", ADMIN: "y" }],
+  ["See every office's public holidays", { MEMBER: "y", LEADER: "y", LOCATION: "y", ADMIN: "y" }],
+  ["Add, change or remove public holidays, for one or several offices", { MEMBER: "n", LEADER: "n", LOCATION: "n", ADMIN: "y" }],
   ["Lock timesheets, required and custom fields, reminders", { MEMBER: "n", LEADER: "n", LOCATION: "n", ADMIN: "y" }],
 ];
 

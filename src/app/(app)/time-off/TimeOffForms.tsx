@@ -4,22 +4,22 @@ import { useRouter } from "next/navigation";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { addHoliday, addTimeOff, type TimeOffResult } from "./actions";
 
-/** "Add time off": a button that opens a small form. Managers can pick whose time off it is. */
-export function AddTimeOff({ people, meId, today }: { people: SearchOption[]; meId: string; today: string }) {
+/** "Request time off" for people asking for their own, "Add time off" for managers who can also add it for someone else. */
+export function AddTimeOff({ people, meId, today, others, approver }: { people: SearchOption[]; meId: string; today: string; others: boolean; approver: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
   return (
     <>
-      <button type="button" className="btn primary" onClick={() => setOpen(true)}>Add time off</button>
+      <button type="button" className="btn primary" onClick={() => setOpen(true)}>{others ? "Add time off" : "Request time off"}</button>
       <dialog ref={ref} className="wide" onClose={() => setOpen(false)} aria-labelledby="to-title">
-        {open && <TimeOffForm people={people} meId={meId} today={today} onDone={() => ref.current?.close()} />}
+        {open && <TimeOffForm people={people} meId={meId} today={today} others={others} approver={approver} onDone={() => ref.current?.close()} />}
       </dialog>
     </>
   );
 }
 
-function TimeOffForm({ people, meId, today, onDone }: { people: SearchOption[]; meId: string; today: string; onDone: () => void }) {
+function TimeOffForm({ people, meId, today, others, approver, onDone }: { people: SearchOption[]; meId: string; today: string; others: boolean; approver: string; onDone: () => void }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<TimeOffResult, FormData>(addTimeOff, null);
   const [from, setFrom] = useState(today);
@@ -28,10 +28,14 @@ function TimeOffForm({ people, meId, today, onDone }: { people: SearchOption[]; 
   return (
     <div className="panel">
       <div className="row between" style={{ marginBottom: 8 }}>
-        <h2 id="to-title">Add time off</h2>
+        <h2 id="to-title">{others ? "Add time off" : "Request time off"}</h2>
         <button type="button" className="btn sm" onClick={onDone}>Close</button>
       </div>
-      <p className="sub">Days off are taken out of expected hours, so productivity stays fair. Time can still be logged on them.</p>
+      <p className="sub">
+        {others
+          ? `Time off you add for someone else takes effect straight away. Your own requests go to ${approver} to approve. Past dates are fine.`
+          : `${approver.charAt(0).toUpperCase()}${approver.slice(1)} approves it. Until then it doesn't count toward your expected hours, and you can withdraw it. Past dates are fine.`}
+      </p>
       <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }}>
         <div className="row">
           {people.length > 1 && (
@@ -55,64 +59,80 @@ function TimeOffForm({ people, meId, today, onDone }: { people: SearchOption[]; 
           </div>
         </div>
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}
-        <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={pending}>{pending ? "Saving…" : "Add time off"}</button></div>
+        <div className="row" style={{ marginTop: 14 }}><button className="btn primary" disabled={pending}>{pending ? "Saving…" : others ? "Save" : "Send request"}</button></div>
       </form>
     </div>
   );
 }
 
-/** A Remove button that asks first and shows why it failed (a locked date, someone else's time off) right beside it. */
-export function RemoveButton({ id, action, what }: { id: string; action: (prev: TimeOffResult, form: FormData) => Promise<TimeOffResult>; what: string }) {
+/** A Remove (or Withdraw) button that asks first and shows why it failed (a locked date, someone else's time off) right beside it. */
+export function RemoveButton({ id, action, what, label = "Remove" }: { id: string; action: (prev: TimeOffResult, form: FormData) => Promise<TimeOffResult>; what: string; label?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   return (
     <>
-      <button type="button" className="btn sm" disabled={pending} aria-label={`Remove ${what}`}
+      <button type="button" className="btn sm" disabled={pending} aria-label={`${label} ${what}`}
         onClick={() => {
-          if (!window.confirm(`Remove ${what}?`)) return;
+          if (!window.confirm(`${label} ${what}?`)) return;
           setError("");
           start(async () => {
             const fd = new FormData(); fd.set("id", id);
             const r = await action(null, fd);
             if (r?.ok) router.refresh(); else setError(r?.error ?? "Something went wrong. Try again.");
           });
-        }}>{pending ? "Removing…" : "Remove"}</button>
+        }}>{pending ? "Working…" : label}</button>
       {error && <p className="err-text" role="alert">{error}</p>}
     </>
   );
 }
 
-/** Add a public holiday to an office: one at a time, or several pasted one per line. Admins can add it to every office at once. */
-export function HolidayForm({ offices, officeId, today, admin }: { offices: { id: string; name: string }[]; officeId: string; today: string; admin: boolean }) {
+/** Add a public holiday to one or more offices, one at a time or several pasted one per line. Admins only. Every office is ticked to start with,
+ *  since most holidays are shared: untick the ones that are not taken there. */
+export function HolidayForm({ offices, today }: { offices: { id: string; name: string }[]; today: string }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState<TimeOffResult, FormData>(addHoliday, null);
-  useEffect(() => { if (state?.ok) { form.current?.reset(); router.refresh(); } }, [state, router]);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(offices.map((o) => o.id)));
+  useEffect(() => {
+    if (!state?.ok || !form.current) return;
+    // Clear the name and list, but keep the offices ticked: the next holiday is often for the same ones.
+    (form.current.elements.namedItem("name") as HTMLInputElement).value = "";
+    (form.current.elements.namedItem("bulk") as HTMLTextAreaElement).value = "";
+    (form.current.elements.namedItem("half") as HTMLInputElement).checked = false;
+    router.refresh();
+  }, [state, router]);
+  const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
     <form ref={form} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }} style={{ marginTop: 14 }}>
       <h3 style={{ margin: "0 0 8px" }}>Add a public holiday</h3>
       <div className="row">
         <div style={{ flex: "0 1 170px" }}><label htmlFor="ho-date">Date</label><input id="ho-date" type="date" name="date" defaultValue={today} /></div>
         <div style={{ flex: "2 1 220px" }}><label htmlFor="ho-name">Name</label><input id="ho-name" name="name" maxLength={80} placeholder="For example: Diwali" /></div>
-        {admin && (
-          <div style={{ flex: "1 1 180px" }}>
-            <label htmlFor="ho-office">For</label>
-            <select id="ho-office" name="locationId" defaultValue={officeId}>
-              {offices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              {offices.length > 1 && <option value="all">All offices</option>}
-            </select>
-          </div>
-        )}
         <div style={{ flex: "0 1 auto", alignSelf: "flex-end" }}><label className="check"><input type="checkbox" name="half" /> Half day</label></div>
-        <div style={{ flex: "0 1 auto", alignSelf: "flex-end" }}><button className="btn primary" disabled={pending}>{pending ? "Adding…" : "Add holiday"}</button></div>
       </div>
+      <fieldset style={{ margin: "12px 0 0", padding: 0, border: 0 }}>
+        <legend style={{ marginBottom: 6 }}>For these offices</legend>
+        <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+          <button type="button" className="btn sm" onClick={() => setPicked(new Set(offices.map((o) => o.id)))}>All offices</button>
+          <button type="button" className="btn sm" onClick={() => setPicked(new Set())}>None</button>
+        </div>
+        <div className="row" style={{ gap: 14 }}>
+          {offices.map((o) => (
+            <label key={o.id} className="check"><input type="checkbox" name="locationId" value={o.id} checked={picked.has(o.id)} onChange={() => toggle(o.id)} /> {o.name}</label>
+          ))}
+        </div>
+      </fieldset>
       <details style={{ marginTop: 10 }}>
         <summary className="linkbtn" style={{ cursor: "pointer" }}>Add several at once</summary>
-        <label htmlFor="ho-bulk" style={{ marginTop: 8 }}>One holiday per line: the date, a comma, then the name. Add (half) at the end of a line for a half day. This is used instead of the single holiday above.</label>
+        <label htmlFor="ho-bulk" style={{ marginTop: 8 }}>One holiday per line: the date, a comma, then the name. Add (half) at the end of a line for a half day. The offices ticked above get every line.</label>
         <textarea id="ho-bulk" name="bulk" rows={6} placeholder={"2026-10-20, Diwali\n2026-12-25, Christmas Day\n2026-12-24, Christmas Eve (half)"} />
       </details>
-      {state?.error && <p className="err-text" role="alert">{state.error}</p>}
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn primary" disabled={pending || picked.size === 0}>{pending ? "Adding…" : "Add holiday"}</button>
+        {picked.size === 0 && <span className="note">Tick at least one office.</span>}
+      </div>
+      {state?.error && <p className="err-text" role="alert" style={{ margin: "8px 0 0" }}>{state.error}</p>}
       {state?.ok && state.message && <p className="note" role="status" style={{ margin: "8px 0 0" }}>{state.message}</p>}
     </form>
   );

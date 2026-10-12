@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
-import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, expectsHoursWhere, scopeLabel } from "@/lib/scope";
+import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, expectsHoursWhere, scopeLabel, timeOffApproverWhere } from "@/lib/scope";
 import { getSettings } from "@/lib/settings";
-import { addDays, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
+import { addDays, DAYS, dow, longDate, monday, shortDate, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
 import { PageHead, Pill } from "@/components/ui";
 import { approve, approveAll } from "./actions";
 import { RemindButton, SendBack } from "./ApprovalForms";
+import { ApproveTimeOff, DeclineTimeOff } from "./TimeOffRequestForms";
+import { weekdaysBetween } from "@/lib/expected";
 import { loadExpected } from "@/lib/timeoff";
 import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import { staleText } from "@/lib/approvalText";
@@ -21,6 +23,13 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   if (!where) {
     return <section className="panel"><h2>Approvals</h2><p className="empty">Only Team/Project Managers, location managers and admins approve timesheets.</p></section>;
   }
+  // Time off requests: only location managers and admins decide them (see timeOffApproverWhere). Past requests are listed too, marked as past.
+  const timeOffWhere = timeOffApproverWhere(me);
+  const requests = timeOffWhere
+    ? await db.timeOff.findMany({ where: timeOffWhere, include: { user: { include: { team: true, location: true } } }, orderBy: [{ startDate: "asc" }, { createdAt: "asc" }], take: 200 })
+    : [];
+  const t = today();
+  const span = (a: string, b: string) => (a === b ? longDate(a) : `${DAYS[dow(a)]} ${shortDate(a)} to ${DAYS[dow(b)]} ${shortDate(b)}`);
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
     db.timesheet.findMany({ where: { status: "SUBMITTED", user: where }, include: { user: { include: { team: true, location: true } } }, orderBy: [{ weekStart: "asc" }] }),
@@ -97,6 +106,34 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           <div className="ch"><h2>Waiting with their Team/Project Managers</h2><span className="cd">{others.length} timesheet{others.length === 1 ? "" : "s"}</span></div>
           <p className="note" style={{ margin: "0 0 10px" }}>Their managers approve these. Step in only if really needed, for example if a manager is away.</p>
           <div className="list">{others.map(item)}</div>
+        </section>
+      )}
+      {timeOffWhere && (
+        <section className="panel full">
+          <div className="ch"><h2>Time off requests</h2><span className="cd">{requests.length} request{requests.length === 1 ? "" : "s"}</span></div>
+          <p className="note" style={{ margin: "0 0 10px" }}>{me.role === "ADMIN"
+            ? "Requests from everyone except yourself. Requests from admins and location managers are for another admin to decide."
+            : `Requests from people in ${me.location.name} office. Requests from admins and location managers are for an admin to decide.`}</p>
+          <div className="list">
+            {requests.map((r) => {
+              const a = toStr(r.startDate), b = toStr(r.endDate);
+              const days = weekdaysBetween(a, b) * r.fraction;
+              return (
+                <div className="item" style={{ flexWrap: "wrap" }} key={r.id}>
+                  <div style={{ minWidth: 0, flex: "1 1 300px" }}>
+                    <strong><Link className="plink" href={`/profile/${r.userId}`}>{r.user.name}</Link></strong> <span className="meta">· {r.user.team?.name ?? "No team"} · {r.user.location.name}</span>
+                    <div className="meta">{span(a, b)} · {Number.isInteger(days) ? days : days.toFixed(1)} working day{days === 1 ? "" : "s"}{r.fraction < 1 && " (half days)"} · {r.label}{b < t && <> <Pill tone="warn">Past</Pill></>}</div>
+                    {r.note && <div className="meta">“{r.note}”</div>}
+                  </div>
+                  <div className="row" style={{ alignItems: "center" }}>
+                    <ApproveTimeOff id={r.id} />
+                    <DeclineTimeOff id={r.id} />
+                  </div>
+                </div>
+              );
+            })}
+            {!requests.length && <div className="empty">No time off requests waiting.</div>}
+          </div>
         </section>
       )}
       <section className="panel">

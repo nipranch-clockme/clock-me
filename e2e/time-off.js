@@ -1,6 +1,6 @@
-// Public holidays (per office) and time off (per person): who can change what (screens and crafted server calls), how they
-// change expected hours on the profile, "Your numbers", approvals and reminders, how days show on the Timesheet and Calendar,
-// the lock date, rows that came from another system, and pasting several holidays.
+// Time off requests and public holidays: who can ask for, approve, add and remove time off and holidays (screens and crafted server calls),
+// how only approved time off counts (expected hours, Timesheet badges, reminders), the approvals section, the lock date, rows that came from
+// another system, ticking several offices at once and pasting several holidays.
 // Sets up its own test people and holidays directly in the local database, and removes them again.
 //   BASE=http://localhost:3500 PSQL="psql -h /var/run/postgresql tags_t" node e2e/time-off.js
 const {execSync}=require('child_process');
@@ -18,12 +18,15 @@ const esc=(s)=>String(s).replace(/'/g,"''");
 
 (async()=>{
  const b=await start();
- const t='to'+process.pid, M=t+'m', K=t+'k', ALL=[M,K];
+ const t='to'+process.pid, M=t+'m', K=t+'k', K2=t+'k2', ALL=[M,K,K2];
  const id=(email)=>sql(`select id from "User" where email='${email}'`);
  const row=(email)=>sql(`select id||'|'||"locationId"||'|'||coalesce("teamId",'')||'|'||name from "User" where email='${email}'`).split('|');
- const [PRIYA,,,PRIYA_NAME]=row('priya@example.com'), [MARCUS,,,MARCUS_NAME]=row('marcus@example.com');
+ const [PRIYA,,,PRIYA_NAME]=row('priya@example.com');
  const daniel=row('daniel@example.com'), tom=row('tom@example.com');
+ const DAN=daniel[0], RAVI=id('ravi@example.com'), ADM=id('admin@example.com');
  const AMD=daniel[1], HULK=daniel[2], KLH=tom[1], FLASH=tom[2];
+ const AMD_NAME=sql(`select name from "Location" where id='${AMD}'`), KLH_NAME=sql(`select name from "Location" where id='${KLH}'`);
+ const NLOC=+sql(`select count(*) from "Location"`);
  const hash=sql(`select "passwordHash" from "User" where email='daniel@example.com'`);
  const tz=sql(`select "timeZone" from "Settings"`), format=sql(`select "timeFormat" from "Settings"`);
  const lockOld=sql(`select coalesce("lockBefore"::text,'') from "Settings"`);
@@ -31,12 +34,12 @@ const esc=(s)=>String(s).replace(/'/g,"''");
  const f=(m)=>format==='hhmm'?`${Math.floor(Math.round(m)/60)}:${String(Math.round(m)%60).padStart(2,'0')}`:(m/60).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
  const [pa,xa]=sql(`select p.id||'|'||ph.id from "Project" p join "Phase" ph on ph."projectId"=p.id where p.access='PUBLIC' and not p.archived and ph.sort<999 order by p.name, ph.sort limit 1`).split('|');
  const tagId=sql(`select id from "Tag" order by name limit 1`);
- const ws=mondayOf(today), lws=addDays(ws,-7);
+ const ws=mondayOf(today);
  const lm=addMonths(today.slice(0,7),-1), la=lm+'-01', lb=endOfMonth(lm);
  const weekdays=(a,z)=>{const out=[];for(let d=a;d<=z&&d<=yesterday;d=addDays(d,1))if(dow(d)<5)out.push(d);return out;};
  const lwd=weekdays(la,lb);
- // days this test uses last month: a holiday for AMD, two days and a half day of PTO for the test member
- const HOL=lwd[10], PTO=[lwd[12],lwd[13]], HALF=lwd[15];
+ // last month: a holiday for AMD, two days and a half day of PTO for the test member
+ const HOL=lwd[10], PTO=[lwd[12],lwd[13]], HALF=lwd[15], PENDING_DAY=lwd[8];
  // holidays the database already has for AMD or KLH last month are part of the sums too
  const have=(loc)=>sql(`select to_char(date,'YYYY-MM-DD')||'|'||fraction from "Holiday" where "locationId"='${loc}' and date between '${la}' and '${lb}' and name not like 'E2E %' and extract(dow from date) between 1 and 5`).split('\n').filter(Boolean).map((l)=>l.split('|'));
  const haveAmd=have(AMD), haveKlh=have(KLH);
@@ -55,237 +58,249 @@ const esc=(s)=>String(s).replace(/'/g,"''");
  const entry=(uid,n,d,minutes)=>sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${uid}e${n}','${uid}','${pa}','${xa}','{${tagId}}','${d}',540,${minutes},'work','{}',now())`);
  const hol=(n,loc,d,name,fr=1)=>sql(`insert into "Holiday"(id,"locationId",date,name,fraction) values('${t}h${n}','${loc}','${d}','${esc(name)}',${fr})`);
  const off=(n,uid,a,z,fr=1,source='manual',label='PTO',ext=null)=>sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,source,"externalId","updatedAt") values('${t}o${n}','${uid}','${a}','${z}',${fr},'${label}','${source}',${ext?`'${ext}'`:'null'},now())`);
+ // status | who asked | who decided | decision note, for the time off on that day (empty when there is none)
+ const timeOffOf=(uid,a)=>sql(`select status||'|'||coalesce("createdById",'')||'|'||coalesce("decidedById",'')||'|'||coalesce("decisionNote",'') from "TimeOff" where "userId"='${uid}' and "startDate"='${a}'`);
+ const idOf=(uid,a)=>sql(`select id from "TimeOff" where "userId"='${uid}' and "startDate"='${a}'`);
+
  try{
   ins(M,'Timeoff Test',AMD,HULK,'MEMBER',120);
   ins(K,'Klh Test',KLH,FLASH,'MEMBER',120);
-  // last month: 8 hours on three ordinary days for the AMD test member
-  const logged=[lwd[0],lwd[1],lwd[2]];logged.forEach((d,i)=>entry(M,i,d,480));
+  ins(K2,'Klh Manager Test',KLH,null,'LOCATION',120);
+  const mp=await signIn(M+'@example.com');
+
+  // ---- expected hours: approved time off and holidays come off, a request still waiting does not
+  const wdM=lwd.length;
+  [0,1,2].forEach((i)=>entry(M,i,lwd[i],480)); // last month: 8 hours on three ordinary days
   hol('1',AMD,HOL,'E2E Founders Day');
   off('1',M,PTO[0],PTO[1]);
   off('2',M,HALF,HALF,0.5,'manual','Sick leave');
-
-  // ---- expected hours on the profile and "Your numbers"
-  const wdM=lwd.length, lostM=lost([[HOL,1],...PTO.map((d)=>[d,1]),[HALF,0.5]],haveAmd);
+  sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,source,status,"updatedAt") values('${t}p1','${M}','${PENDING_DAY}','${PENDING_DAY}',1,'PTO','manual','PENDING',now())`);
+  const lostM=lost([[HOL,1],...PTO.map((d)=>[d,1]),[HALF,0.5]],haveAmd);
   const wantM=480*(wdM-lostM), wantK=480*(wdM-lost([],haveKlh));
   const adm=await signIn('admin@example.com');
   await go(adm,`/profile/${M}`);
-  let stats=await adm.$$eval('.stats.spread.five .stat b',(bs)=>bs.map((x)=>x.textContent.trim()));
   await adm.selectOption('#pr-range','lastmonth');await adm.waitForLoadState('networkidle');await adm.waitForTimeout(600);
-  stats=await adm.$$eval('.stats.spread.five .stat b',(bs)=>bs.map((x)=>x.textContent.trim()));
-  ok('profile: expected hours last month take out the office holiday, the PTO days and the half day',stats[2]===f(wantM),`${stats[2]} vs ${f(wantM)} (${wdM} weekdays, ${lostM} off)`);
+  let stats=await adm.$$eval('.stats.spread.five .stat b',(bs)=>bs.map((x)=>x.textContent.trim()));
+  ok('profile: expected hours last month take out the office holiday and the approved time off, not the request waiting on that day',stats[2]===f(wantM),`${stats[2]} vs ${f(wantM)} (${wdM} weekdays, ${lostM} off)`);
   ok('profile: utilisation is hours over those expected hours',stats[0]===`${Math.round(1440/wantM*100)}%`,`${stats[0]} vs ${Math.round(1440/wantM*100)}%`);
-  const note=(await adm.textContent('main')).replace(/\s+/g,' ');
-  ok('profile: a line says how many days were holidays and time off',/public holiday \(E2E Founders Day\)/.test(note)&&/days? (is|are) time off/.test(note)&&/expected\./.test(note),note.match(/Of \d+ working days[^.]*\./)?.[0]);
-  ok('profile: the note links to the Time off page',(await adm.locator('main a[href="/time-off"]').count())>=1);
   await go(adm,`/profile/${K}`);await adm.selectOption('#pr-range','lastmonth');await adm.waitForLoadState('networkidle');await adm.waitForTimeout(600);
   stats=await adm.$$eval('.stats.spread.five .stat b',(bs)=>bs.map((x)=>x.textContent.trim()));
   ok("profile: another office's holiday does not change this person's expected hours",stats[2]===f(wantK),`${stats[2]} vs ${f(wantK)}`);
-  const mp=await signIn(M+'@example.com');
   await go(mp,'/dashboard');
   const tiles=(await mp.locator('.insights .insight').allInnerTexts()).map((x)=>x.replace(/\s+/g,' '));
   ok('"Your numbers": last month is out of the reduced expected hours',tiles[1]?.includes(`(${f(1440)} of ${f(wantM)} h)`),tiles[1]);
 
-  // ---- markers on the Timesheet and Calendar this week: a holiday on Wednesday, PTO Thursday, half-day PTO Friday
-  entry(M,'t',ws,60); // gives the grid a project row this week
-  hol('2',AMD,addDays(ws,2),'E2E Spring Festival');
-  off('3',M,addDays(ws,3),addDays(ws,3));
-  off('4',M,addDays(ws,4),addDays(ws,4),0.5);
-  await go(mp,'/timesheet');
-  const marks=await mp.$$eval('table.sheet thead th',(ths)=>ths.map((th)=>{const m=th.querySelector('.dmark');return m?{text:m.textContent,title:m.getAttribute('title'),cls:m.className}:null;}));
-  ok('timesheet: Wednesday shows a Holiday badge with the name on hover',marks[3]?.text==='Holiday'&&/E2E Spring Festival, public holiday/.test(marks[3].title)&&/hol/.test(marks[3].cls),JSON.stringify(marks[3]));
-  ok('timesheet: Thursday shows PTO and Friday half PTO',marks[4]?.text==='PTO'&&marks[5]?.text==='Half PTO',JSON.stringify([marks[4],marks[5]]));
-  ok('timesheet: other days have no badge',[1,2,6,7].every((i)=>!marks[i]),JSON.stringify(marks));
-  const cellCls=await mp.$$eval('table.sheet tbody tr:first-child td.sheetcell',(tds)=>tds.map((td)=>td.className));
-  ok('timesheet: the cells are tinted but still open for time (no lock)',/hol/.test(cellCls[2]||'')&&/pto/.test(cellCls[3]||'')&&cellCls.slice(2,5).every((c)=>/open/.test(c)&&!/locked/.test(c)),JSON.stringify(cellCls));
-  const list=await mp.locator('ul.dayoffs li').allInnerTexts();
-  ok('timesheet: a plain list under the grid names each day off (for phones)',list.length===3&&/E2E Spring Festival/.test(list[0])&&/PTO/.test(list[1])&&/half day/.test(list[2]),JSON.stringify(list));
-  const stat=(await mp.locator('.stats .stat').nth(1).innerText()).replace(/\s+/g,' ');
-  ok('timesheet: the week stat is out of the reduced expected hours',/of 20(\.00)? h expected|of 20:00 h expected/.test(stat),stat);
-  await go(mp,'/timesheet?view=cal');
-  const cm=await mp.$$eval('.cal .hd .dmark',(ms)=>ms.map((m)=>m.textContent));
-  ok('calendar: the same three badges',cm.join('|')==='Holiday|PTO|Half PTO',cm.join('|'));
-  ok('calendar: marked columns still take clicks and drags (crosshair, not locked)',(await mp.$$eval('.cal .col.hol, .cal .col.pto',(cs)=>cs.map((c)=>c.className.includes('locked')||getComputedStyle(c).cursor!=='crosshair'))).every((x)=>!x));
-  const dan=await signIn('daniel@example.com');
-  await go(dan,`/timesheet?view=cal&u=${M}`);
-  ok("calendar: a manager viewing someone's calendar sees that person's marks",(await dan.locator('.cal .hd .dmark').count())===3);
-  await go(dan,`/timesheet?view=cal&u=${K}`);
-  ok("calendar: ...and not another office's person's badges",(await dan.locator('.cal .hd .dmark').count())===0||true);
-  // the test member in Klh sees only their own office (Daniel can't open K's calendar: other office), so look at K directly
-  const kp=await signIn(K+'@example.com');await go(kp,'/timesheet');
-  ok('timesheet: a person in another office gets no badge for it',(await kp.locator('table.sheet thead .dmark').count())===0);
-
-  // ---- people: Time off page, adding and removing
-  const pri=await signIn('priya@example.com');
-  for(const [p,who] of [[pri,'member'],[dan,'team manager'],[adm,'admin']]){
-    ok(`${who}: the sidebar has Time off`,(await (async()=>{await go(p,'/time-off');return p.locator('nav.snav a[href="/time-off"]').count();})())===1);
-  }
-  await go(pri,'/time-off');
-  ok('member: the Add time off button, but no person picker',(await pri.locator('main button.btn.primary:has-text("Add time off")').count())===1&&(await (async()=>{await pri.click('main button.btn.primary:has-text("Add time off")');await pri.waitForSelector('dialog[open] #to-from');return pri.locator('dialog[open] #to-person').count();})())===0);
-  const nm=addDays(mondayOf(addDays(today,35)),0), nw=addDays(nm,2);
-  await pri.fill('#to-from',nm);await pri.fill('#to-to',nw);
-  await cap('addTimeOff',()=>pri.click('dialog[open] button.btn.primary:has-text("Add time off")'));
-  await pri.waitForSelector('dialog[open]',{state:'detached'});await pri.waitForLoadState('networkidle');
-  ok('member: own time off is added and listed',(await pri.locator('table.ctable tbody tr',{hasText:'PTO'}).count())>=1&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${nm}' and "endDate"='${nw}' and source='manual' and "createdById"='${PRIYA}'`)==='1');
-  ok('member: the change log has a line about it for them',sql(`select count(*) from "AuditLog" where "userId"='${PRIYA}' and "targetUserId"='${PRIYA}' and action like 'Added PTO for ${esc(PRIYA_NAME)}:%'`)==='1');
-  await pri.click('main button.btn.primary:has-text("Add time off")');await pri.waitForSelector('dialog[open] #to-from');
-  await pri.fill('#to-from',addDays(nm,1));await pri.fill('#to-to',addDays(nm,5));
-  await pri.click('dialog[open] button.btn.primary:has-text("Add time off")');
-  await pri.waitForSelector('dialog[open] .err-text');
-  ok('member: overlapping time off is refused, naming the existing days',/already have time off/.test(await pri.textContent('dialog[open] .err-text')),await pri.textContent('dialog[open] .err-text'));
-  await pri.fill('#to-from',addDays(nm,5));await pri.fill('#to-to',addDays(nm,6)); // a Saturday and Sunday
-  await pri.click('dialog[open] button.btn.primary:has-text("Add time off")');await pri.waitForTimeout(800);
-  ok('a weekend alone is refused',/weekend/.test(await pri.textContent('dialog[open] .err-text')));
-  await pri.click('dialog[open] button:has-text("Close")');
-  // crafted calls from a member
-  const crafted=await act(pri,'/time-off','addTimeOff',{userId:MARCUS,from:addDays(nm,14),to:addDays(nm,14)});
-  ok("member: cannot add time off for someone else (crafted call)",refused(crafted)&&sql(`select count(*) from "TimeOff" where "userId"='${MARCUS}'`)==='0',crafted.text.slice(0,200));
-  ok('member: cannot add a public holiday (screen and crafted call)',(await (async()=>{await go(pri,'/time-off?view=holidays');return pri.locator('#ho-date').count();})())===0&&await (async()=>{
-    await go(adm,'/time-off?view=holidays');await adm.fill('#ho-date',addDays(today,60));await adm.fill('#ho-name','E2E Probe');await cap('addHoliday',()=>adm.click('button:has-text("Add holiday")'));await adm.waitForLoadState('networkidle');await adm.waitForTimeout(500);
-    adm.once('dialog',(d)=>d.accept());
-    await cap('removeHoliday',()=>adm.click('table.ctable tbody tr:has-text("E2E Probe") button:has-text("Remove")'));await adm.waitForLoadState('networkidle');await adm.waitForTimeout(500);
-    sql(`delete from "Holiday" where name='E2E Probe'`);
-    const r=await act(pri,'/time-off','addHoliday',{locationId:AMD,date:addDays(today,70),name:'E2E Sneaky'});
-    return refused(r,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Sneaky'`)==='0';})());
-  // removing: the member removes their own row from the screen (and a crafted removal of someone else's is refused)
-  await go(pri,'/time-off');
-  pri.once('dialog',(d)=>d.accept());
-  await cap('removeTimeOff',()=>pri.click(`table.ctable tbody tr:has-text("PTO") button:has-text("Remove") >> nth=0`));
-  await pri.waitForLoadState('networkidle');await pri.waitForTimeout(500);
-  ok('member: removes their own time off',sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}'`)==='0'&&sql(`select count(*) from "AuditLog" where "userId"='${PRIYA}' and action like 'Removed PTO for ${esc(PRIYA_NAME)}:%'`)==='1');
-  const rm=await act(pri,'/time-off','removeTimeOff',{id:t+'o1'});
-  ok("member: cannot remove someone else's time off (crafted call)",refused(rm)&&sql(`select count(*) from "TimeOff" where id='${t}o1'`)==='1',rm.text.slice(0,160));
-
-  // Team/Project Manager: adds for their own team, not for another team
-  await go(dan,'/time-off');
-  await dan.click('main button.btn.primary:has-text("Add time off")');await dan.waitForSelector('dialog[open] #to-person');
-  const opts=await dan.$$eval('dialog[open] #to-person option',(os)=>os.map((o)=>o.textContent.trim()));
-  ok('team manager: the person picker lists their team (Hulk) and no one else',opts.some((o)=>o.includes(PRIYA_NAME))&&!opts.some((o)=>o.includes(MARCUS_NAME))&&!opts.some((o)=>o.includes('Admin')),opts.join(', '));
-  await dan.selectOption('#to-person',{label:PRIYA_NAME});await dan.fill('#to-from',nm);await dan.fill('#to-to',nm);
-  await dan.selectOption('#to-type','Sick leave');
-  await dan.click('dialog[open] button.btn.primary:has-text("Add time off")');await dan.waitForSelector('dialog[open]',{state:'detached'});await dan.waitForLoadState('networkidle');
-  ok('team manager: added time off for a team member, recorded as theirs',sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and label='Sick leave' and "createdById"='${daniel[0]}'`)==='1'&&sql(`select count(*) from "AuditLog" where "userId"='${daniel[0]}' and "targetUserId"='${PRIYA}' and action like 'Added Sick leave for%'`)==='1');
-  const dr=await act(dan,'/time-off','addTimeOff',{userId:MARCUS,from:addDays(nm,14),to:addDays(nm,14)});
-  ok("team manager: cannot add for another team's person (crafted call)",refused(dr)&&sql(`select count(*) from "TimeOff" where "userId"='${MARCUS}'`)==='0',dr.text.slice(0,160));
-  const dr2=await act(dan,'/time-off','addTimeOff',{userId:id('admin@example.com'),from:addDays(nm,14),to:addDays(nm,14)});
-  ok("team manager: cannot add for an admin",refused(dr2),dr2.text.slice(0,160));
-  await go(pri,'/time-off');
-  ok('member: sees time off a manager added, with who added it',/Added by Daniel/.test(await pri.textContent('main')));
-  // another team's manager cannot remove it
-  const ros=await signIn('rosa@example.com');
-  await go(ros,'/time-off');
-  await ros.click('main button.btn.primary:has-text("Add time off")');await ros.waitForSelector('dialog[open] #to-from');await ros.click('dialog[open] button:has-text("Close")');
-  pri.once('dialog',(d)=>d.accept());
-  await go(pri,'/time-off');await cap('removeTimeOff',()=>pri.click(`table.ctable tbody tr:has-text("Sick leave") button:has-text("Remove") >> nth=0`));await pri.waitForLoadState('networkidle');await pri.waitForTimeout(400);
-  const rid=sql(`select id from "TimeOff" where "userId"='${M}' and "startDate"='${PTO[0]}'`);
-  const rr=await act(ros,'/time-off','removeTimeOff',{id:rid});
-  ok("another team's manager cannot remove it (crafted call)",refused(rr)&&sql(`select count(*) from "TimeOff" where id='${rid}'`)==='1',rr.text.slice(0,160));
-
-  // ---- Keka-style rows: shown with a badge, never changed from the app
-  off('5',M,addDays(nm,21),addDays(nm,22),1,'keka','PTO','K-1001');
-  await go(adm,'/time-off');
-  const kekaRow=adm.locator('table.ctable tbody tr',{hasText:'Keka'});
-  ok('a row from another system shows its source and has no Remove',(await kekaRow.count())===1&&(await kekaRow.locator('button:has-text("Remove")').count())===0);
-  const kr=await act(adm,'/time-off','removeTimeOff',{id:t+'o5'});
-  ok("...and even an admin can't remove it (crafted call)",refused(kr,'another system')&&sql(`select count(*) from "TimeOff" where id='${t}o5'`)==='1',kr.text.slice(0,160));
-  const kd=await act(adm,'/time-off','addTimeOff',{userId:M,from:addDays(nm,21),to:addDays(nm,21)});
-  ok('a new row cannot overlap an imported one',refused(kd,'already has time off'));
-
-  // ---- holidays: location manager works on their own office only; admin on any, or all at once
+  // ---- public holidays: admins only, for one office, several offices, or every office
+  const submitHoliday=async()=>{await cap('addHoliday',()=>adm.click('button:has-text("Add holiday")'));await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);};
+  const onlyOffices=async(ids)=>{await adm.click('fieldset button:has-text("None")');for(const x of ids)await adm.check(`input[name="locationId"][value="${x}"]`);};
+  const hA=addDays(today,200), hB=addDays(today,201), hC=addDays(today,202), hD=addDays(today,203), hE=addDays(today,204);
+  await go(adm,'/time-off?view=holidays');
+  ok('admin: the form has a box for every office, all ticked to start with',(await adm.locator('input[name="locationId"]').count())===NLOC&&(await adm.$$eval('input[name="locationId"]',(bs)=>bs.every((x)=>x.checked))));
+  await adm.fill('#ho-date',hA);await adm.fill('#ho-name','E2E Common Day');
+  await submitHoliday();
+  ok('admin: a holiday with every office ticked is added to each office',sql(`select count(*) from "Holiday" where name='E2E Common Day'`)===String(NLOC));
+  const common=adm.locator('table.ctable tbody tr',{hasText:'E2E Common Day'});
+  ok('admin: the list shows it once, with "All offices" in the Offices column',(await common.count())===1&&/All offices/.test(await common.innerText()));
+  await adm.fill('#ho-date',hB);await adm.fill('#ho-name','E2E Exception Day');
+  await onlyOffices([AMD]);
+  await submitHoliday();
+  ok('admin: ticking one office adds the holiday to that office only',sql(`select "locationId" from "Holiday" where name='E2E Exception Day'`)===AMD);
+  await adm.fill('#ho-date',hC);await adm.fill('#ho-name','E2E Two Offices');
+  await onlyOffices([AMD,KLH]);
+  await submitHoliday();
+  ok('admin: ticking two offices adds it to exactly those two',sql(`select count(*) from "Holiday" where name='E2E Two Offices' and "locationId" in ('${AMD}','${KLH}')`)==='2'&&sql(`select count(*) from "Holiday" where name='E2E Two Offices'`)==='2');
+  const two=adm.locator('table.ctable tbody tr',{hasText:'E2E Two Offices'});
+  const twoText=(await two.count())?await two.innerText():'';
+  ok('admin: that is one line naming both offices',(await two.count())===1&&(NLOC>2?twoText.includes(AMD_NAME)&&twoText.includes(KLH_NAME):true),twoText.replace(/\s+/g,' '));
+  await adm.locator('details summary').click();
+  await onlyOffices([KLH]);
+  await adm.fill('#ho-bulk',`${hD}, E2E Bulk One\n${hE};E2E Bulk Half (half)\nnot a date, Oops`);
+  await adm.click('button:has-text("Add holiday")');await adm.waitForSelector('.err-text');
+  ok('bulk: a line that cannot be read is named, and nothing is added',/couldn't read this line/.test(await adm.textContent('.err-text'))&&sql(`select count(*) from "Holiday" where name like 'E2E Bulk%'`)==='0',await adm.textContent('.err-text'));
+  await adm.fill('#ho-bulk',`${hD}, E2E Bulk One\n${hE}, E2E Bulk Half (half)`);
+  await submitHoliday();
+  ok('bulk: every line goes to each office ticked, and "(half)" makes a half day',sql(`select string_agg(name||':'||fraction, ',' order by name) from "Holiday" where name like 'E2E Bulk%' and "locationId"='${KLH}'`)==='E2E Bulk Half:0.5,E2E Bulk One:1');
+  await adm.fill('#ho-date',hA);await adm.fill('#ho-name','E2E Again');
+  await onlyOffices([AMD]);
+  await submitHoliday();
+  ok('a holiday the office already has that day is refused, with a plain message',/already has a holiday/.test((await adm.locator('.err-text').allTextContents()).join(' ')));
+  // admin removes a holiday that is listed for two offices: it goes from both
+  await go(adm,'/time-off?view=holidays');
+  adm.once('dialog',(d)=>d.accept());
+  await cap('removeHoliday',()=>adm.click('table.ctable tbody tr:has-text("E2E Two Offices") button:has-text("Remove")'));
+  await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);
+  ok('admin: removing a holiday takes it out of every office it was listed for',sql(`select count(*) from "Holiday" where name='E2E Two Offices'`)==='0');
+  // members, location managers and team managers see the list and cannot change it
+  await go(mp,'/time-off?view=holidays');
+  ok("member: sees every office's holidays, with the offices for each, and can't add one",(await mp.locator('#ho-date').count())===0&&/Only admins can add or change public holidays/.test(await mp.textContent('main'))&&(await mp.locator('table.ctable tbody tr',{hasText:'E2E Exception Day'}).innerText()).includes(AMD_NAME));
   const rav=await signIn('ravi@example.com');
   await go(rav,'/time-off?view=holidays');
-  ok('location manager: can add, and sees no office picker',(await rav.locator('#ho-date').count())===1&&(await rav.locator('#ho-office').count())===0);
-  const hd=addDays(today,90);
-  await rav.fill('#ho-date',hd);await rav.fill('#ho-name','E2E Ravi Day');
-  await cap('addHoliday',()=>rav.click('button:has-text("Add holiday")'));await rav.waitForLoadState('networkidle');await rav.waitForTimeout(500);
-  ok('location manager: the holiday is added to their own office',sql(`select count(*) from "Holiday" where name='E2E Ravi Day' and "locationId"='${KLH}'`)==='1');
-  // a location manager can add for people in their office, but not for another location manager or an admin
-  ins(K+'2','Klh Manager Test',KLH,null,'LOCATION',120);ALL.push(K+'2');
-  const lmOther=await act(rav,'/time-off','addTimeOff',{userId:K+'2',from:addDays(nm,28),to:addDays(nm,28)});
-  ok('location manager: cannot add time off for another location manager',refused(lmOther)&&sql(`select count(*) from "TimeOff" where "userId"='${K}2'`)==='0',lmOther.text.slice(0,160));
-  const lmOwn=await act(rav,'/time-off','addTimeOff',{userId:K,from:addDays(nm,28),to:addDays(nm,28)});
-  ok('location manager: can add time off for a member of their office',/"ok":true/.test(lmOwn.text)&&sql(`select count(*) from "TimeOff" where "userId"='${K}'`)==='1',lmOwn.text.slice(0,160));
-  const sneaky=await act(rav,'/time-off','addHoliday',{locationId:AMD,date:addDays(today,91),name:'E2E Other Office'});
-  ok("location manager: a crafted office is ignored; it goes to their own office, never another",sql(`select count(*) from "Holiday" where name='E2E Other Office' and "locationId"='${AMD}'`)==='0');
-  sql(`delete from "Holiday" where name='E2E Other Office'`);
-  const rrem=await act(rav,'/time-off','removeHoliday',{id:t+'h1'});
-  ok("location manager: cannot remove another office's holiday (crafted call)",refused(rrem,'own office')&&sql(`select count(*) from "Holiday" where id='${t}h1'`)==='1',rrem.text.slice(0,160));
-  const dup=await act(rav,'/time-off','addHoliday',{date:hd,name:'E2E Again'});
-  ok('the same day twice in an office is refused with a plain message',refused(dup,'already has a holiday'));
-  // admin: all offices, bulk paste
-  const nloc=+sql(`select count(*) from "Location"`);
-  await go(adm,'/time-off?view=holidays');
-  ok('admin: office picker with counts',(await adm.locator('#ho-sel option').count())===nloc);
-  await adm.fill('#ho-date',addDays(today,120));await adm.fill('#ho-name','E2E Everyone');await adm.selectOption('#ho-office','all');
-  await cap('addHoliday',()=>adm.click('button:has-text("Add holiday")'));await adm.waitForLoadState('networkidle');await adm.waitForTimeout(600);
-  ok('admin: "All offices" adds it to every office',sql(`select count(*) from "Holiday" where name='E2E Everyone'`)===String(nloc));
-  const y1=today.slice(0,4)==='2099'?'2098':String(+today.slice(0,4)+1);
-  await adm.selectOption('#ho-office',AMD);
-  await adm.locator('details summary').click();
-  await adm.fill('#ho-bulk',`${y1}-03-05, E2E Bulk One\n${y1}-03-06;E2E Bulk Half (half)\nnot a date, Oops`);
-  await adm.click('button:has-text("Add holiday")');await adm.waitForSelector('.err-text');
-  ok('bulk paste: a line that cannot be read is named and nothing is added',/couldn't read this line: not a date, Oops/.test(await adm.textContent('.err-text'))&&sql(`select count(*) from "Holiday" where name like 'E2E Bulk%'`)==='0',await adm.textContent('.err-text'));
-  await adm.fill('#ho-bulk',`${y1}-03-05, E2E Bulk One\n${y1}-03-06;E2E Bulk Half (half)`);
-  await adm.click('button:has-text("Add holiday")');await adm.waitForSelector('main p[role=status]');
-  ok('bulk paste: both are added to the chosen office, the half day as half',sql(`select string_agg(name||':'||fraction, ',' order by name) from "Holiday" where name like 'E2E Bulk%' and "locationId"='${AMD}'`)==='E2E Bulk Half:0.5,E2E Bulk One:1',await adm.textContent('main p[role=status]'));
-  await adm.fill('#ho-bulk',`${y1}-03-05, E2E Bulk One\n${y1}-03-06;E2E Bulk Half (half)`);
-  await adm.click('button:has-text("Add holiday")');await adm.waitForSelector('.err-text');
-  ok('bulk paste: pasting them again is refused as already there',/already there/.test(await adm.textContent('.err-text')));
-  // removing a holiday from the screen
-  await go(adm,`/time-off?view=holidays&office=${AMD}`);
-  adm.once('dialog',(d)=>d.accept());
-  await cap('removeHoliday',()=>adm.click('table.ctable tbody tr:has-text("E2E Everyone") button:has-text("Remove")').catch(()=>{}));
-  await adm.waitForLoadState('networkidle');
-  ok('admin: removes a holiday from the screen',sql(`select count(*) from "Holiday" where name='E2E Everyone'`)===String(nloc-1)||sql(`select count(*) from "Holiday" where name='E2E Everyone'`)===String(nloc),'(the row is in next year if today is late in the year)');
-  ok('holidays are in the change log',sql(`select count(*) from "AuditLog" where action like 'Added % public holiday%'`)!=='0');
+  ok('location manager: no holiday form, the same list',(await rav.locator('#ho-date').count())===0);
+  const r1=await act(rav,'/time-off','addHoliday',{locationId:KLH,date:addDays(today,205),name:'E2E Crafted'});
+  ok('location manager: adding a holiday is refused, even by a crafted call',refused(r1,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Crafted'`)==='0',r1.text.slice(0,160));
+  const dan=await signIn('daniel@example.com');
+  const r2=await act(dan,'/time-off','removeHoliday',{id:sql(`select id from "Holiday" where name='E2E Common Day' and "locationId"='${AMD}'`)});
+  ok('team manager: removing a holiday is refused, even by a crafted call',refused(r2,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Common Day'`)===String(NLOC),r2.text.slice(0,160));
 
-  // ---- approvals and reminders skip what is off
-  const prev=today; // placeholder so the names below read clearly
-  hol('3',AMD,addDays(lws,2),'E2E Last Wednesday');
-  [0,1,3,4].forEach((i)=>entry(M,'w'+i,addDays(lws,i),480));
-  sql(`insert into "Timesheet"(id,"userId","weekStart",status,"updatedAt") values('${t}s1','${M}','${lws}','SUBMITTED',now())`);
-  await go(dan,'/approvals');
-  const card=(await dan.locator('.item',{hasText:'Timeoff Test'}).first().innerText()).replace(/\s+/g,' ');
-  ok('approvals: the week shows its reduced expected hours, with the reason',new RegExp(`${f(1920).replace('.','\\.')} of ${f(1920).replace('.','\\.')} h expected`).test(card)&&/target less holidays and time off/.test(card),card.slice(0,220));
-  ok('approvals: no "Under target" for a week that met the reduced hours',!/Under target/.test(card));
-  sql(`delete from "TimeEntry" where id='${M}ew3'`);
-  await go(dan,'/approvals');
-  const card2=(await dan.locator('.item',{hasText:'Timeoff Test'}).first().innerText()).replace(/\s+/g,' ');
-  ok('approvals: it does show "Under target" when below the reduced hours',/Under target/.test(card2),card2.slice(0,200));
-  sql(`delete from "Timesheet" where id='${t}s1'`);
+  // ---- time off requests: a member asks; a location manager or an admin decides
+  const reqA=addDays(ws,3), reqP=addDays(ws,-11), reqWd=addDays(ws,4), reqWe=addDays(ws,5);
+  const openRequest=async(p)=>{await p.click('main button.btn.primary:has-text("Request time off")');await p.waitForSelector('dialog[open] #to-from');};
+  const sendRequest=async(p)=>{await cap('addTimeOff',()=>p.click('dialog[open] button.btn.primary:has-text("Send request")'));await p.waitForTimeout(800);};
+  await go(mp,'/time-off');
+  ok('member: the button asks for time off, rather than adding it',(await mp.locator('main button.btn.primary:has-text("Request time off")').count())===1);
+  await openRequest(mp);
+  ok('member: no person picker when asking for their own time off',(await mp.locator('dialog[open] #to-person').count())===0);
+  await mp.fill('#to-from',reqA);await mp.fill('#to-note','E2E first');
+  await sendRequest(mp);
+  await mp.waitForLoadState('networkidle');
+  ok('member: the request waits for approval, and records who asked',timeOffOf(M,reqA).startsWith(`PENDING|${M}|`),timeOffOf(M,reqA));
+  ok('member: the list says it is waiting',(await mp.locator('table.ctable tbody tr',{hasText:'Waiting for approval'}).count())===1);
+  await openRequest(mp);
+  await mp.fill('#to-from',reqP);await mp.fill('#to-note','E2E past one');
+  await sendRequest(mp);
+  ok('member: a past date can be asked for too',timeOffOf(M,reqP).startsWith('PENDING|'));
+  await openRequest(mp);
+  await mp.fill('#to-from',reqWe);await mp.fill('#to-to',addDays(reqWe,1));
+  await sendRequest(mp);
+  ok('a weekend on its own is refused',/weekend/.test(await mp.textContent('dialog[open] .err-text')));
+  await mp.click('dialog[open] button:has-text("Close")');
+  await openRequest(mp);
+  await mp.fill('#to-from',reqA);
+  await sendRequest(mp);
+  ok('a request overlapping one already waiting is refused',/already have a request for time off/.test(await mp.textContent('dialog[open] .err-text')));
+  await mp.click('dialog[open] button:has-text("Close")');
+  await openRequest(mp);
+  await mp.fill('#to-from',reqWd);await mp.fill('#to-note','E2E withdraw me');
+  await sendRequest(mp);
+  mp.once('dialog',(d)=>d.accept());
+  await cap('removeTimeOff',()=>mp.click('table.ctable tbody tr:has-text("E2E withdraw me") button:has-text("Withdraw")'));
+  await mp.waitForLoadState('networkidle');await mp.waitForTimeout(700);
+  ok('member: withdraws their own request, which is removed and logged',timeOffOf(M,reqWd)===''&&sql(`select count(*) from "AuditLog" where "userId"='${M}' and action like 'Withdrew the request%'`)==='1');
 
-  // the daily reminder (weekdays only): nobody is reminded about a day they were off
+  // a Klh member and a Klh location manager ask too
+  const kp=await signIn(K+'@example.com');
+  await go(kp,'/time-off');
+  await openRequest(kp);
+  await kp.fill('#to-from',reqA);await kp.fill('#to-note','E2E klh');
+  await sendRequest(kp);
+  // a location manager asks for their own time off from the same dialog: it is the person picker's default, and waits for an admin
+  const kp2=await signIn(K2+'@example.com');
+  await go(kp2,'/time-off');
+  await kp2.click('main button.btn.primary:has-text("Add time off")');await kp2.waitForSelector('dialog[open] #to-from');
+  await kp2.fill('#to-from',reqA);await kp2.fill('#to-note','E2E manager');
+  await cap('addTimeOff',()=>kp2.click('dialog[open] button.btn.primary:has-text("Save")'));
+  await kp2.waitForTimeout(800);
+  ok("location manager: their own request waits for an admin, not their office",timeOffOf(K2,reqA).startsWith(`PENDING|${K2}|`),timeOffOf(K2,reqA));
+
+  // ---- approvals: a location manager decides their office's requests; an admin decides the rest, and their own is for another admin
+  await go(rav,'/approvals');
+  const rsec=rav.locator('section:has(h2:has-text("Time off requests"))');
+  ok('location manager: sees a member of their office asking for time off',(await rsec.locator('.item',{hasText:'Klh Test'}).count())===1);
+  ok("location manager: does not see another location manager's request",(await rsec.locator('.item',{hasText:'Klh Manager Test'}).count())===0);
+  await cap('approveTimeOff',()=>rsec.locator('.item',{hasText:'Klh Test'}).locator('button:has-text("Approve")').click());
+  await rav.waitForLoadState('networkidle');await rav.waitForTimeout(700);
+  ok("location manager: approving a member's request makes it approved, with them as the one who decided",timeOffOf(K,reqA).startsWith(`APPROVED|${K}|${RAVI}|`),timeOffOf(K,reqA));
+  const craftApprove=await act(rav,'/approvals','approveTimeOff',{id:idOf(K2,reqA)});
+  ok("location manager: cannot approve another location manager's request, even by a crafted call",refused(craftApprove)&&timeOffOf(K2,reqA).startsWith('PENDING|'),craftApprove.text.slice(0,160));
+  await go(dan,'/approvals');
+  ok('team manager: no time off requests section, since they do not decide them',(await dan.locator('h2:has-text("Time off requests")').count())===0);
+  await go(mp,'/approvals');
+  const selfApprove=await act(mp,'/time-off','approveTimeOff',{id:idOf(M,reqA)});
+  ok('member: cannot approve their own request, even by a crafted call',timeOffOf(M,reqA).startsWith('PENDING|'),selfApprove.text.slice(0,120));
+  await go(adm,'/approvals');
+  const asec=adm.locator('section:has(h2:has-text("Time off requests"))');
+  ok("admin: sees everyone's requests, including a location manager's",(await asec.locator('.item',{hasText:'Klh Manager Test'}).count())===1&&(await asec.locator('.item',{hasText:'Timeoff Test'}).count())>=1);
+  await cap('approveTimeOff',()=>asec.locator('.item',{hasText:'Klh Manager Test'}).locator('button:has-text("Approve")').click());
+  await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);
+  ok("admin: approves a location manager's request",timeOffOf(K2,reqA).startsWith(`APPROVED|${K2}|${ADM}|`),timeOffOf(K2,reqA));
+  // the Timesheet shows time off only once approved
+  hol('W',AMD,addDays(ws,2),'E2E Spring Festival');
+  const badges=async()=>mp.$$eval('table.sheet thead th',(ths)=>ths.map((th)=>th.querySelector('.dmark')?.textContent??null));
+  await go(mp,'/timesheet?view=sheet');
+  const before=await badges();
+  ok('timesheet: a request still waiting shows no day off',before[4]!=='PTO',JSON.stringify(before));
+  await cap('approveTimeOff',()=>asec.locator('.item',{hasText:'E2E first'}).locator('button:has-text("Approve")').click());
+  await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);
+  ok('admin: approving a request makes it approved, recorded as theirs',timeOffOf(M,reqA).startsWith(`APPROVED|${M}|${ADM}|`),timeOffOf(M,reqA));
+  await go(mp,'/timesheet?view=sheet');
+  const after=await badges();
+  ok('timesheet: once approved, that day shows PTO, and the holiday shows too',after[4]==='PTO'&&after[3]==='Holiday',JSON.stringify(after));
+  // a declined request, with the reason
+  const past=asec.locator('.item',{hasText:'E2E past one'});
+  await past.locator('button:has-text("Decline")').click();
+  await past.locator('input[name="note"]').fill('Please use the leave form next time');
+  await cap('declineTimeOff',()=>past.locator('form button:has-text("Decline")').click());
+  await adm.waitForLoadState('networkidle');await adm.waitForTimeout(700);
+  ok('admin: declines a request with a reason',timeOffOf(M,reqP)===`DECLINED|${M}|${ADM}|Please use the leave form next time`,timeOffOf(M,reqP));
+  await go(mp,'/time-off?show=thisyear');
+  const declined=mp.locator('table.ctable tbody tr',{hasText:'E2E past one'});
+  ok('member: sees the request declined, with the reason',(await declined.count())===1&&/Declined/.test(await declined.innerText())&&(await declined.innerText()).includes('Please use the leave form next time'));
+
+  // ---- the lock date: a request on a locked day can't be approved, and no time off can be added on or before it
+  const lockReq=lwd[5];
+  const asked=await act(mp,'/time-off','addTimeOff',{from:lockReq,to:lockReq});
+  ok('member: asks for a day last month, before the lock',/"ok":true/.test(asked.text)&&timeOffOf(M,lockReq).startsWith('PENDING|'),asked.text.slice(0,120));
+  sql(`update "Settings" set "lockBefore"='${lb}'`);
+  const lk1=await act(adm,'/approvals','approveTimeOff',{id:idOf(M,lockReq)});
+  ok("lock date: a request on or before it can't be approved",refused(lk1,'locked')&&timeOffOf(M,lockReq).startsWith('PENDING|'),lk1.text.slice(0,160));
+  const lk2=await act(adm,'/time-off','addTimeOff',{userId:M,from:lwd[6],to:lwd[6]});
+  ok('lock date: no time off can be added on or before it',refused(lk2,'locked'),lk2.text.slice(0,160));
+  const lk3=await act(adm,'/time-off','addHoliday',{locationId:AMD,date:lb,name:'E2E Locked Add'});
+  ok('lock date: no holiday can be added on or before it',refused(lk3,'locked')&&sql(`select count(*) from "Holiday" where name='E2E Locked Add'`)==='0',lk3.text.slice(0,160));
+  hol('L',AMD,lb,'E2E Locked Day');
+  const lk4=await act(adm,'/time-off','removeHoliday',{id:`${t}hL`});
+  ok('lock date: a holiday on or before it can not be removed',refused(lk4,'locked')&&sql(`select count(*) from "Holiday" where id='${t}hL'`)==='1',lk4.text.slice(0,160));
+  sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
+
+  // ---- on someone's behalf: a location manager or admin adds time off for someone in their scope, and it counts at once
+  const hb=addDays(ws,10);
+  await go(rav,'/time-off');
+  ok('location manager: the button says Add time off, since they can add it for others',(await rav.locator('main button.btn.primary:has-text("Add time off")').count())===1);
+  await rav.click('main button.btn.primary:has-text("Add time off")');await rav.waitForSelector('dialog[open] #to-person');
+  const opts=await rav.$$eval('dialog[open] #to-person option',(os)=>os.map((o)=>o.textContent.trim()));
+  ok("location manager: the person picker lists their office, not another location manager",opts.some((o)=>o.includes('Klh Test'))&&!opts.some((o)=>o.includes('Klh Manager Test')),opts.join(', '));
+  await rav.selectOption('#to-person',{label:'Klh Test'});
+  await rav.fill('#to-from',hb);await rav.fill('#to-to',hb);
+  await rav.selectOption('#to-type','Sick leave');
+  await cap('addTimeOff',()=>rav.click('dialog[open] button.btn.primary:has-text("Save")'));
+  await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
+  ok('location manager: time off added for a member counts at once, recorded as theirs',timeOffOf(K,hb).startsWith(`APPROVED|${RAVI}|${RAVI}|`),timeOffOf(K,hb));
+  const lmK2=await act(rav,'/time-off','addTimeOff',{userId:K2,from:addDays(ws,12),to:addDays(ws,12)});
+  ok('location manager: cannot add time off for another location manager (crafted call)',refused(lmK2,'Only admins')&&sql(`select count(*) from "TimeOff" where "userId"='${K2}' and "startDate"='${addDays(ws,12)}'`)==='0',lmK2.text.slice(0,160));
+  await go(dan,'/time-off');
+  ok('team manager: the button asks for their own time off, with no person picker',(await dan.locator('main button.btn.primary:has-text("Request time off")').count())===1);
+  const dr=await act(dan,'/time-off','addTimeOff',{userId:PRIYA,from:addDays(ws,12),to:addDays(ws,12)});
+  ok("team manager: cannot add time off for a team member (crafted call)",refused(dr,'Only location managers and admins')&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${addDays(ws,12)}'`)==='0',dr.text.slice(0,160));
+  const ar=await act(adm,'/time-off','addTimeOff',{userId:M,from:addDays(ws,12),to:addDays(ws,12),type:'PTO'});
+  ok('admin: adds time off for anyone at once',/"ok":true/.test(ar.text)&&timeOffOf(M,addDays(ws,12)).startsWith(`APPROVED|${ADM}|${ADM}|`),ar.text.slice(0,120));
+  const rm=await act(mp,'/time-off','removeTimeOff',{id:idOf(K,hb)});
+  ok("member: cannot remove someone else's time off (crafted call)",refused(rm)&&sql(`select count(*) from "TimeOff" where "userId"='${K}' and "startDate"='${hb}'`)==='1',rm.text.slice(0,120));
+
+  // ---- rows from another system: shown with a badge, never changed from the app
+  off('5',M,addDays(ws,20),addDays(ws,20),1,'keka','PTO','K-1001');
+  await go(adm,'/time-off');
+  const keka=adm.locator('table.ctable tbody tr',{hasText:'Keka'});
+  ok('a row from another system shows its source and has no Remove',(await keka.count())===1&&(await keka.locator('button:has-text("Remove")').count())===0);
+  const kr=await act(adm,'/time-off','removeTimeOff',{id:`${t}o5`});
+  ok("...and even an admin can't remove it (crafted call)",refused(kr,'another system')&&sql(`select count(*) from "TimeOff" where id='${t}o5'`)==='1',kr.text.slice(0,160));
+
+  // ---- reminders skip the days someone is approved off (weekdays only)
   const dailyOn=sql(`select "remindDaily"::text||'|'||"dailyMinimum" from "Settings"`).split('|');
   if(dow(today)<5&&dailyOn[0]==='true'&&+dailyOn[1]>0){
    const secret=(require('fs').readFileSync(process.env.ENVFILE||'/tmp/cm-demo/.env','utf8').match(/^CRON_SECRET="?([^"\n]+)"?/m)||[])[1];
    const cron=async()=>(await (await fetch(BASE+'/api/cron/reminders',{headers:{authorization:`Bearer ${secret}`}})).json()).sent.daily;
    const pv=dow(today)===0?addDays(today,-3):addDays(today,-1);
-   sql(`delete from "Holiday" where id='${t}h2'`); // this week's test holiday is Wednesday, which is "yesterday" on a Thursday
    sql(`update "User" set "createdAt"=now()-interval '200 days' where id='${M}'`);
    sql(`delete from "TimeEntry" where "userId"='${M}' and date='${pv}'`);
    const c0=await cron();
    off('6',M,pv,pv);
    const c1=await cron();
-   ok('reminders: a person with the day booked off is not reminded',c1===c0-1,`${c0} then ${c1}`);
+   ok('reminders: a person with the day approved off is not reminded',c1===c0-1,`${c0} then ${c1}`);
    sql(`delete from "TimeOff" where id='${t}o6'`);off('7',M,pv,pv,0.5);
    const c2=await cron();
    ok('reminders: half a day off halves the minimum, so someone with no time is still reminded',c2===c0,`${c0} then ${c2}`);
-   sql(`delete from "TimeOff" where id='${t}o7'`);hol('4',AMD,pv,'E2E Yesterday');
-   const c3=await cron();
-   ok("reminders: nobody in an office with a holiday that day is reminded",c3<=c0-1,`${c0} then ${c3}`);
-   sql(`delete from "Holiday" where id='${t}h4'`);
+   sql(`delete from "TimeOff" where id='${t}o7'`);
   } else ok('reminders: skipped (weekend or reminders off)',true);
-
-  // ---- the lock date stops changes to closed periods
-  sql(`update "Settings" set "lockBefore"='${lb}'`);
-  const lk=await act(adm,'/time-off','addHoliday',{locationId:AMD,date:HOL,name:'E2E Locked'});
-  ok('lock date: no holiday can be added on or before it',refused(lk,'locked')&&sql(`select count(*) from "Holiday" where name='E2E Locked'`)==='0',lk.text.slice(0,160));
-  const lk2=await act(adm,'/time-off','removeHoliday',{id:t+'h1'});
-  ok('lock date: no holiday on or before it can be removed',refused(lk2,'locked')&&sql(`select count(*) from "Holiday" where id='${t}h1'`)==='1');
-  const lk3=await act(adm,'/time-off','addTimeOff',{userId:M,from:lwd[5],to:lwd[5]});
-  ok('lock date: no time off can start on or before it',refused(lk3,'locked'));
-  const lk4=await act(adm,'/time-off','removeTimeOff',{id:rid});
-  ok('lock date: existing time off before it cannot be removed',refused(lk4,'locked')&&sql(`select count(*) from "TimeOff" where id='${rid}'`)==='1');
-  sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
 
   // ---- the page after it all
   for(const p of pages){const bad=p.errs.filter((e)=>!/Failed to load resource/.test(e));ok(`no page errors (${p.url().replace(BASE,'')})`,bad.length===0,bad.slice(0,2).join(' | '));}
@@ -293,8 +308,8 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
   const list=ALL.map((x)=>`'${x}'`).join(',');
   sql(`delete from "Holiday" where name like 'E2E %'`);
-  sql(`delete from "TimeOff" where "userId" in ('${PRIYA}','${MARCUS}',${list}) and "userId" not in (${list}) or "userId" in (${list})`);
-  sql(`delete from "AuditLog" where "userId" in (${list}) or "targetUserId" in (${list}) or action like '%E2E %' or action like 'Added % public holiday%' or action like 'Removed public holiday E2E%' or ("targetUserId" in ('${PRIYA}','${MARCUS}') and (action like 'Added PTO for%' or action like 'Added Sick leave for%' or action like 'Removed PTO for%' or action like 'Removed Sick leave for%'))`);
+  sql(`delete from "TimeOff" where "userId" in (${list}) or id like '${t}%' or ("userId" in ('${PRIYA}') and "createdById" in ('${DAN}','${RAVI}','${ADM}') and "createdAt" > now() - interval '1 day')`);
+  sql(`delete from "AuditLog" where "userId" in (${list}) or "targetUserId" in (${list}) or action like '%E2E %' or action like 'Added % public holiday%' or action like 'Removed public holiday E2E%' or ("targetUserId" in ('${PRIYA}') and (action like 'Added Sick leave for%' or action like 'Removed Sick leave for%'))`);
   sql(`delete from "User" where id in (${list})`);
   await b.close();
  }

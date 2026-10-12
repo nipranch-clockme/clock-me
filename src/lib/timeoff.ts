@@ -11,10 +11,10 @@ export type { DayOff, Expected } from "./expected";
 export const allHolidays = cache(async (): Promise<HolidayRow[]> =>
   (await db.holiday.findMany({ orderBy: { date: "asc" } })).map((h) => ({ locationId: h.locationId, date: toStr(h.date), name: h.name, fraction: h.fraction })));
 
-/** The time off of these people that touches [from, to]. */
+/** The approved time off of these people that touches [from, to]. Requests waiting for a decision, and declined ones, take nothing out. */
 export async function leaveFor(userIds: string[], from: string, to: string): Promise<LeaveRow[]> {
   if (!userIds.length) return [];
-  const rows = await db.timeOff.findMany({ where: { userId: { in: userIds }, startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } } });
+  const rows = await db.timeOff.findMany({ where: { userId: { in: userIds }, status: "APPROVED", startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } } });
   return rows.map((r) => ({ id: r.id, userId: r.userId, from: toStr(r.startDate), to: toStr(r.endDate), fraction: r.fraction, label: r.label, source: r.source }));
 }
 

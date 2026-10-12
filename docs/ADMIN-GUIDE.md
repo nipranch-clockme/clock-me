@@ -18,7 +18,7 @@ Move all three into accounts the company owns (not one person's personal login) 
 3. Projects: add clients (pick a team and add points of contact) and projects.
 4. People: invite a second admin straight away, then the pilot office's location manager, managers and members.
 5. Settings: choose time format, required fields, lock date, tags and phase templates.
-6. Time off, Public holidays: add each office's holidays for the year. Offices with no holidays listed get nothing taken off, and the page warns about them. Add the next year's before it starts.
+6. Time off, Public holidays (admins only): add each year's holidays. Most are shared by every office, so they start with every office ticked. Untick the offices a holiday doesn't apply to. Offices with no holidays listed get nothing taken off, and the page warns about them. Add the next year's before it starts.
 
 ## Bringing people, projects and time in from CSV
 Import & export, Import tab. Do the three in this order: projects first, so the People file's *Projects Managed* column can link people to them; time last, because it needs the people and the projects.
@@ -43,7 +43,7 @@ Clients, open the client, **Client link**, Create link. Copy it and send it to t
 - The panel shows when the link was last opened. Only admins can create or change links.
 
 ## Roles
-Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers (their own office) and admins (anyone) can also add and change time on someone's behalf. Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
+Team Member (own time), Team/Project Manager (own team; approves their team's timesheets and their own), Location Manager (own office), Admin (everyone). Location managers (their own office) and admins (anyone) can also add and change time on someone's behalf, and add time off for the people they manage. Time off that people ask for is approved by a location manager (for their office's members and team managers) or an admin; a location manager's request goes to an admin, and an admin's to another admin. Location managers and admins approve only when really needed: weeks of people whose team has no Team/Project Manager (including managers' and admins' own weeks), or weeks that waited more than 3 days. Reminder emails to them cover only those weeks.
 
 ## Pilot, then roll out
 Run one office for 1 to 2 weeks. Check that people submit, managers approve, and Reports match expectations. Then add one office at a time.
@@ -56,8 +56,8 @@ Run one office for 1 to 2 weeks. Check that people submit, managers approve, and
 - **A client's contract changes, or ends part-way through a month:** Clients, **Monthly contracts**. Type that month's hours in its box (0 for a month with no contract, a smaller figure for one that ends part-way), then Save changes. Blue boxes differ from the client's usual monthly hours; boxes left the same follow the usual hours. Utilisation, hours left and pace on the Clients page use each month's own figure. Admins change them; location managers can look. Pick the client's **work types** (your tags, such as CAD or ENG) in the same row, for the record.
 - **Someone's expected hours change through the year:** People, **Monthly hours**. Type the hours per week for that month, then Save changes (location managers can do this for their own office). Productivity and "Your numbers" use the figure for each month. Admins are not a resource, so they are not listed and are left out of utilisation, reminders and the Top 5 lists.
 - **Close a month:** set the lock date in Settings. Holidays and time off on or before the lock date can't be added or removed either.
-- **Public holiday:** Time off, Public holidays, pick the office (admins) and add it. "All offices" is for a holiday everyone shares. Paste several at once with one line each, like `2026-12-25, Christmas Day` (add `(half)` for a half day).
-- **Someone is on leave:** Time off, Add time off. Managers can add it for the people they manage. Hours logged on a day off still count, as extra. Changing a holiday or time off changes the numbers for past periods too.
+- **Public holiday (admins only):** Time off, Public holidays. Tick the offices it applies to (all are ticked to start with, and None clears them), then add it. Paste several at once with one line each, like `2026-12-25, Christmas Day`, and every line goes to the offices ticked (add `(half)` for a half day). The list shows each holiday once, with its offices in a column. Removing a holiday takes it from every office in that column.
+- **Someone is on leave:** anyone can ask for it: Time off, Request time off. Past dates are fine. A location manager or admin approves it under Approvals, and it counts toward expected hours only once approved. A person can withdraw a request that is still waiting. Location managers and admins can add time off for the people they manage (admins for anyone), and it counts at once. Hours logged on a day off still count, as extra. Changing a holiday or time off changes the numbers for past periods too.
 - **Export everything:** Import and export, or Reports, Export, Save as CSV (it follows whatever filters are applied).
 
 ## Backups

@@ -86,6 +86,7 @@ model User {
   monthlyHours   UserMonth[]
   timeOff        TimeOff[]           @relation("TimeOffPerson")
   timeOffAdded   TimeOff[]           @relation("TimeOffAddedBy")
+  timeOffDecided TimeOff[]           @relation("TimeOffDecidedBy")
 }
 
 /// A person's profile picture: a 256x256 JPEG made in the browser. Kept apart from User so lists of people don't load it.
@@ -97,19 +98,19 @@ model ProfilePhoto {
 }
 
 model Client {
-  id           String          @id @default(cuid())
-  name         String          @unique
-  color        String          @default("s1")
-  type         ClientType      @default(FLOATING)
-  monthlyHours Float? // contracted hours per month, for FIXED clients only
-  projects     Project[]
-  teamId       String? // the team that looks after this client
-  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  contacts     ClientContact[]
-  workTypeIds  String[]        @default([]) // the kinds of work done for this client (ids of Tags), kept for the record
-  months       ClientMonth[]
-  shareToken        String?   @unique // the secret in the client's view-only report link; null while the link is off
-  shareApprovedOnly Boolean   @default(false) // the shared report counts only time in approved timesheets
+  id                String          @id @default(cuid())
+  name              String          @unique
+  color             String          @default("s1")
+  type              ClientType      @default(FLOATING)
+  monthlyHours      Float? // contracted hours per month, for FIXED clients only
+  projects          Project[]
+  teamId            String? // the team that looks after this client
+  team              Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  contacts          ClientContact[]
+  workTypeIds       String[]        @default([]) // the kinds of work done for this client (ids of Tags), kept for the record
+  months            ClientMonth[]
+  shareToken        String?         @unique // the secret in the client's view-only report link; null while the link is off
+  shareApprovedOnly Boolean         @default(false) // the shared report counts only time in approved timesheets
   shareViewedAt     DateTime? // when the link was last opened (updated at most once an hour)
 }
 
@@ -284,27 +285,35 @@ model Holiday {
 }
 
 /// A stretch of time off (PTO, sick leave...) for one person, from startDate to endDate. It takes its Monday to Friday
-/// days out of that person's expected hours (fraction 0.5 = half of each day). Time can still be logged on it.
+/// days out of that person's expected hours (fraction 0.5 = half of each day), once it is APPROVED. Time can still be logged on it.
+/// Someone asking for time off makes a PENDING row; a location manager or admin approves it (APPROVED) or declines it (DECLINED).
+/// Rows added on someone else's behalf are APPROVED at once.
 /// Leave pulled from an HR system later (Keka) lands here too: source says where a row came from ("manual" is typed in
 /// the app), externalId is the other system's id for it, and rows from another system can't be edited in the app.
 model TimeOff {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation("TimeOffPerson", fields: [userId], references: [id], onDelete: Cascade)
-  startDate   DateTime @db.Date
-  endDate     DateTime @db.Date
-  fraction    Float    @default(1)
-  label       String   @default("PTO")
-  note        String   @default("")
-  source      String   @default("manual")
-  externalId  String?
-  createdById String? // who added it; null for rows that came from another system
-  createdBy   User?    @relation("TimeOffAddedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation("TimeOffPerson", fields: [userId], references: [id], onDelete: Cascade)
+  startDate    DateTime  @db.Date
+  endDate      DateTime  @db.Date
+  fraction     Float     @default(1)
+  label        String    @default("PTO")
+  note         String    @default("")
+  source       String    @default("manual")
+  externalId   String?
+  createdById  String? // who added it; null for rows that came from another system
+  createdBy    User?     @relation("TimeOffAddedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  status       String    @default("APPROVED") // "PENDING" | "APPROVED" | "DECLINED"
+  decidedById  String?
+  decidedBy    User?     @relation("TimeOffDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  decisionNote String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([source, externalId])
   @@index([userId, startDate, endDate])
+  @@index([status])
 }
 
 model Settings {
