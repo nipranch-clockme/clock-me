@@ -7,6 +7,7 @@
 import { PrismaClient, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { ensureDefaults } from "../src/lib/defaults";
+import { phaseIndexOn } from "../src/lib/phaseProgress";
 
 const db = new PrismaClient();
 const toDate = (s: string) => new Date(s + "T00:00:00Z");
@@ -97,21 +98,21 @@ async function main() {
     });
     clients[c.name] = row.id;
   }
-  // Every client project goes through five submissions; internal work has the one phase "Ongoing".
+  // Every client project goes through five submissions in order, and is on `current` today; internal work has the one phase "Ongoing".
   const subs = ["Submission 1", "Submission 2", "Submission 3", "Submission 4", "Submission 5"];
-  const projDefs: { name: string; client: string; use: number; phases: string[]; managers: string[]; restricted?: { teams: string[]; users: string[] } }[] = [
-    { name: "Driver app redesign", client: "Northwind Logistics", use: 0.74, phases: subs, managers: ["rosa"] },
-    { name: "Route dashboard", client: "Northwind Logistics", use: 0.61, phases: subs, managers: ["aisha"] },
-    { name: "Patient portal", client: "Bluebird Health", use: 0.88, phases: subs, managers: ["rosa"], restricted: { teams: ["Hulk|l1", "Batman|l1", "Ironman|l2"], users: ["daniel", "aisha"] } },
-    { name: "Brand refresh", client: "Bluebird Health", use: 0.67, phases: subs, managers: ["daniel"], restricted: { teams: [], users: ["priya", "tom", "daniel"] } },
-    { name: "Website rebuild", client: "Harbor & Co", use: 0.93, phases: subs, managers: ["rosa"] },
-    { name: "Admin and meetings", client: "Internal", use: 0, phases: ["Ongoing"], managers: [] },
-    { name: "Training", client: "Internal", use: 0, phases: ["Ongoing"], managers: [] },
+  const projDefs: { name: string; client: string; use: number; phases: string[]; current: number; managers: string[]; restricted?: { teams: string[]; users: string[] } }[] = [
+    { name: "Driver app redesign", client: "Northwind Logistics", use: 0.74, phases: subs, current: 2, managers: ["rosa"] },
+    { name: "Route dashboard", client: "Northwind Logistics", use: 0.61, phases: subs, current: 1, managers: ["aisha"] },
+    { name: "Patient portal", client: "Bluebird Health", use: 0.88, phases: subs, current: 4, managers: ["rosa"], restricted: { teams: ["Hulk|l1", "Batman|l1", "Ironman|l2"], users: ["daniel", "aisha"] } },
+    { name: "Brand refresh", client: "Bluebird Health", use: 0.67, phases: subs, current: 3, managers: ["daniel"], restricted: { teams: [], users: ["priya", "tom", "daniel"] } },
+    { name: "Website rebuild", client: "Harbor & Co", use: 0.93, phases: subs, current: 4, managers: ["rosa"] },
+    { name: "Admin and meetings", client: "Internal", use: 0, phases: ["Ongoing"], current: 0, managers: [] },
+    { name: "Training", client: "Internal", use: 0, phases: ["Ongoing"], current: 0, managers: [] },
   ];
-  const projects: { id: string; name: string; use: number; phaseIds: string[] }[] = [];
+  const projects: { id: string; name: string; use: number; phaseIds: string[]; current: number }[] = [];
   for (const p of projDefs) {
-    const existing = await db.project.findUnique({ where: { clientId_name: { clientId: clients[p.client], name: p.name } }, include: { phases: true } });
-    if (existing) { projects.push({ id: existing.id, name: p.name, use: p.use, phaseIds: existing.phases.map((x) => x.id) }); continue; }
+    const existing = await db.project.findUnique({ where: { clientId_name: { clientId: clients[p.client], name: p.name } }, include: { phases: { orderBy: { sort: "asc" } } } });
+    if (existing) { projects.push({ id: existing.id, name: p.name, use: p.use, phaseIds: existing.phases.map((x) => x.id), current: Math.min(p.current, existing.phases.length - 1) }); continue; }
     const created = await db.project.create({
       data: {
         name: p.name, clientId: clients[p.client], access: p.restricted ? "RESTRICTED" : "PUBLIC",
@@ -120,9 +121,9 @@ async function main() {
         teams: { create: (p.restricted?.teams ?? []).map((k) => ({ teamId: teamIds[k] })) },
         users: { create: (p.restricted?.users ?? []).map((k) => ({ userId: users[k].id })) },
       },
-      include: { phases: true },
+      include: { phases: { orderBy: { sort: "asc" } } },
     });
-    projects.push({ id: created.id, name: p.name, use: p.use, phaseIds: created.phases.map((x) => x.id) });
+    projects.push({ id: created.id, name: p.name, use: p.use, phaseIds: created.phases.map((x) => x.id), current: Math.min(p.current, created.phases.length - 1) });
   }
   if (await db.timeEntry.count()) { console.log("Time entries already exist, skipping."); return; }
 
@@ -162,7 +163,7 @@ async function main() {
         const minutes = i === n - 1 ? left : Math.max(30, Math.round((left * (0.3 + rnd() * 0.4)) / 15) * 15);
         const entryTags = [tags[pickW(tagMix[dept])]];
         if (rnd() < 0.2) entryTags.push(tags[pickW(tagMix[dept])]); // some work carries two tags
-        rows.push({ userId: u.id, projectId: p.id, phaseId: pick(p.phaseIds), tagIds: [...new Set(entryTags)].sort(), date: toDate(d), startMin: t, minutes, description: rnd() < 0.95 ? pick(notes) : "" });
+        rows.push({ userId: u.id, projectId: p.id, phaseId: p.phaseIds[phaseIndexOn(d, start, todayStr, p.current)], tagIds: [...new Set(entryTags)].sort(), date: toDate(d), startMin: t, minutes, description: rnd() < 0.95 ? pick(notes) : "" });
         minutesPerProject[p.id] = (minutesPerProject[p.id] || 0) + minutes;
         t += minutes + (i === 0 ? 45 : 15);
         left -= minutes;

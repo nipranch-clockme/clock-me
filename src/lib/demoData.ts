@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { DEMO_DOMAIN, isDemoEmail } from "./demoDomain";
 import { addDays, dow, monday, today, toDate } from "./dates";
+import { phaseIndexOn } from "./phaseProgress";
 
 /**
  * Demo data: sample people, projects and a year of time, for trying the app out before real use.
@@ -188,6 +189,9 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
   };
 
   const thisMon = monday(today());
+  // Each project sits on one of its phases today (a fixed pick per project); before that it went through the earlier phases in order.
+  const todayDay = today();
+  const currentPhase = new Map(projects.map((p) => [p.id, Math.floor(rng("phase:" + p.id)() * p.phases.length)]));
   const entries: Prisma.TimeEntryCreateManyInput[] = [];
   const sheets: Prisma.TimesheetCreateManyInput[] = [];
   const timeOff: Prisma.TimeOffCreateManyInput[] = [];
@@ -214,7 +218,7 @@ export async function addDemoTime(): Promise<{ ok: true; done: number; total: nu
         const cl = byClient.get(clientFor(d.slice(0, 7), r()))!;
         const p = cl[Math.floor(r() * cl.length)];
         const minutes = i === n - 1 ? left : Math.max(30, Math.round((left * (0.3 + r() * 0.4)) / 15) * 15);
-        const phase = p.phases[Math.floor(r() * p.phases.length)];
+        const phase = p.phases[phaseIndexOn(d, m.start, todayDay, currentPhase.get(p.id) ?? 0)];
         // one tag on most entries and two on about one in four (when there are two or more tags)
         const picked = tags.length ? [tags[Math.floor(r() * tags.length)].id] : [];
         if (tags.length > 1 && r() < 0.25) picked.push(tags[Math.floor(r() * tags.length)].id);
