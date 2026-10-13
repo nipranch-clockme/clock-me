@@ -54,11 +54,13 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   sql(`insert into "Project"(id,name,"clientId",access) values('${rproj}','E2E Restricted ${t}','${clientId}','RESTRICTED')`);
   sql(`insert into "Phase"(id,"projectId",name,sort) values('${rproj}ph','${rproj}','Only phase',0)`);
 
+  // the Whose time button opens a list of people; read the names there, then close it again
+  const whoOpts=async(p)=>{await p.click('.whose-btn');await p.waitForSelector('dialog[open] .whose-list');const o=await p.$$eval('dialog[open] .whose-opt',(bs)=>bs.map((b)=>b.textContent.trim()));await p.click('dialog[open] button:has-text("Cancel")');await p.waitForSelector('dialog[open]',{state:'detached'});return o;};
   // ---- the location manager of KLH
   const rav=await signIn('ravi@example.com');
   await go(rav,'/timesheet');
-  const opts=await rav.$$eval('#caluser option',(os)=>os.map((o)=>o.textContent.trim()));
-  ok('location manager: the Timesheet has a "Whose time" picker',(await rav.locator('label[for="caluser"]:has-text("Whose time")').count())===1);
+  const opts=await whoOpts(rav);
+  ok('location manager: the Timesheet has a "Whose time" button',(await rav.locator('.whose-label:has-text("Whose time")').count())===1&&(await rav.locator('.whose-btn').count())===1&&(await rav.locator('select#caluser').count())===0);
   ok('...listing their office members and themselves, but not other offices, admins or other location managers',opts.some((o)=>o.includes('Klh Test'))&&opts.some((o)=>o.includes('(you)'))&&!opts.some((o)=>/Amd Test|Priya|Admin|Klh Manager Test|Klh Inactive/.test(o)),opts.join(', '));
   await go(rav,`/timesheet?u=${K}`);
   const banner=(await rav.locator('.alert.info').first().innerText()).replace(/\s+/g,' ');
@@ -85,7 +87,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   // the person sees it on their own timesheet
   const kp=await signIn(K+'@example.com');await go(kp,'/timesheet');
   ok('the person sees the time on their own timesheet',(await kp.locator('.chipbtn').allInnerTexts()).map((x)=>x.trim()).includes(f(180)));
-  ok('...and no banner, picker or other person there',(await kp.locator('.alert.info:has-text("on behalf"), .alert.info:has-text("You are adding")').count())===0&&(await kp.locator('#caluser').count())===0);
+  ok('...and no banner, picker or other person there',(await kp.locator('.alert.info:has-text("on behalf"), .alert.info:has-text("You are adding")').count())===0&&(await kp.locator('.whose').count())===0);
   // delete (this also makes the row removable)
   await go(rav,`/timesheet?u=${K}`);
   await rav.locator('.chipbtn').first().click();await rav.waitForSelector('dialog[open] #e-dur');
@@ -143,7 +145,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
 
   // ---- calendar: the same for a location manager
   await go(rav,`/timesheet?view=cal&u=${K}`);
-  ok('calendar: banner and picker for the location manager',/You are adding and changing time for Klh Test/.test(await rav.textContent('main'))&&(await rav.locator('label[for="caluser"]:has-text("Whose time")').count())===1);
+  ok('calendar: banner and picker for the location manager',/You are adding and changing time for Klh Test/.test(await rav.textContent('main'))&&(await rav.locator('.whose-label:has-text("Whose time")').count())===1);
   ok('calendar: the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Next week"]','href')));
   const col=await rav.$('.cal .col >> nth=3');const box=await col.boundingBox();
   await rav.mouse.click(box.x+box.width/2,box.y+60);await rav.waitForSelector('dialog[open] #e-project');
@@ -155,7 +157,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('calendar: an existing entry opens for editing, not read only',(await rav.locator('dialog[open] button:has-text("Save changes")').count())===1);
   await rav.click('dialog[open] button:has-text("Close")');
   await go(rav,`/timesheet?view=timer&u=${K}`);
-  ok('the Timer is always your own: no banner, no picker',(await rav.locator('.alert.info:has-text("You are adding")').count())===0&&(await rav.locator('#caluser').count())===0);
+  ok('the Timer is always your own: no banner, no picker',(await rav.locator('.alert.info:has-text("You are adding")').count())===0&&(await rav.locator('.whose').count())===0);
   // another office's admin: read only, and the page must not carry that admin's project list (every project in the company)
   await go(rav,`/timesheet?view=cal&u=${KA}`);
   ok("calendar: an admin in the office is read only, and their project list does not reach the page",/Read only/.test(await rav.textContent('main'))&&!(await rav.content()).includes('E2E Restricted '+t),'');
@@ -166,7 +168,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   // ---- the admin
   const adm=await signIn('admin@example.com');
   await go(adm,'/timesheet');
-  const aopts=await adm.$$eval('#caluser option',(os)=>os.map((o)=>o.textContent.trim()));
+  const aopts=await whoOpts(adm);
   ok('admin: the picker lists people from every office, location managers included',aopts.some((o)=>o.includes('Klh Manager Test'))&&aopts.some((o)=>o.includes('Amd Test'))&&aopts.some((o)=>o.includes('Klh Test')),`${aopts.length} people`);
   const a1=await act(adm,'saveEntry',entryFields(K2));
   ok('admin: can add time for a location manager',/"ok":true/.test(a1.text)&&count(`select count(*) from "TimeEntry" where "userId"='${K2}' and description='crafted'`)===1,a1.text.slice(0,160));
@@ -183,7 +185,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   // ---- members and Team/Project Managers
   const pri=await signIn('priya@example.com');
   await go(pri,`/timesheet?u=${K}`);
-  ok('member: no picker, no banner, and ?u= gives their own week',(await pri.locator('#caluser').count())===0&&(await pri.locator('.alert.info:has-text("You are adding")').count())===0);
+  ok('member: no picker, no banner, and ?u= gives their own week',(await pri.locator('.whose').count())===0&&(await pri.locator('.alert.info:has-text("You are adding")').count())===0);
   const p1=await act(pri,'saveEntry',entryFields(K));
   ok('member: cannot add time for someone else (crafted call)',refused(p1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${K}' and description='crafted' and id<>'${kid}'`)===0,p1.text.slice(0,200));
   const p2=await act(pri,'deleteEntry',{id:kid},false);
@@ -192,7 +194,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('member: cannot add a project row for someone else',/"ok":false/.test(p3.text)&&count(`select count(*) from "TimesheetRow" where "userId"='${K}' and "weekStart"='${ws}'`)===0,p3.text.slice(0,160));
   const lead=await signIn('daniel@example.com');
   await go(lead,`/timesheet?u=${PRIYA}`);
-  ok('Team/Project Manager: no picker on the Timesheet and ?u= gives their own week',(await lead.locator('#caluser').count())===0&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
+  ok('Team/Project Manager: no picker on the Timesheet and ?u= gives their own week',(await lead.locator('.whose').count())===0&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
   const t1=await act(lead,'saveEntry',entryFields(PRIYA));
   ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${t}rd','${PRIYA}','${pa}','${xa}','{}','${addDays(ws,2)}',600,60,'ob-read','{}',now())`);
@@ -205,7 +207,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const klhName=sql(`select name from "Location" where id='${KLH}'`);
   ins(KD,'Klh Test','MEMBER',KLH,FLASH);
   await go(rav,'/timesheet');
-  const dupOpts=await rav.$$eval('#caluser option',(os)=>os.map((o)=>o.textContent.trim()));
+  const dupOpts=await whoOpts(rav);
   ok('same name twice: the picker adds the office to both',dupOpts.filter((o)=>o===`Klh Test (${klhName})`).length===2&&!dupOpts.includes('Klh Test'),dupOpts.join(', '));
   await go(rav,`/timesheet?u=${KD}`);
   ok('same name twice: the banner says which one',new RegExp(`time for Klh Test \\(${klhName}\\)`).test((await rav.locator('.alert.info').first().innerText()).replace(/\s+/g,' ')));

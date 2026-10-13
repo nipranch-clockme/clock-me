@@ -134,7 +134,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           {dates.some(adminLocked) && <Pill tone="locked">Locked period</Pill>}
         </div>
         {(!others || editable) && (
-          <div className="stats">
+          <div className="stats wk-stats">
             <div className="stat"><b>{fmtHours(total, settings.timeFormat)}</b><span>hours logged</span></div>
             <div className="stat"><b>{want ? Math.round((total / want) * 100) : weekly ? "–" : 0}{want || !weekly ? "%" : ""}</b><span title={want < weekly * 60 ? "The weekly target less public holidays and time off" : undefined}>{want === weekly * 60 ? `of ${weekly} h target` : `of ${fmtHours(want, settings.timeFormat)} h expected`}</span></div>
           </div>

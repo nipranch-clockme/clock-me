@@ -206,7 +206,7 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 /* Timesheet grid: one row per project; each day cell stacks one chip per entry, and its empty part is a button that adds time */
 .sheet tbody td{vertical-align:top}
 .sheet td.pcell{min-width:190px}
-.sheet th .dh{display:inline-block;padding:3px 7px;margin-right:-7px;border-radius:5px}
+.sheet th .dh{display:inline-block;padding:3px 7px;margin-right:-13px;border-radius:5px} /* the day's name ends where the entries end, 4 px in from the cell edge */
 .sheet th .lk{width:11px;height:11px;vertical-align:-1px;color:var(--muted)}
 .sheet th.today .dh{background:var(--lilac);color:var(--lilac-ink)}
 .plabel{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
@@ -256,6 +256,16 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
 .meter i.hi{background:var(--s2)} .meter i.over{background:var(--bad)} .meter i.done{background:var(--ok)}
 .stats{display:flex;flex-wrap:wrap;gap:28px}
+.stats.wk-stats{justify-content:flex-end;text-align:right;gap:24px} /* the week's figures sit at the right edge, each label under its figure */
+.stats.wk-stats .stat span{white-space:nowrap}
+.whose{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.whose-label{font-size:12px;font-weight:600;color:var(--muted)}
+.whose-btn{display:inline-flex;align-items:center;gap:8px;min-height:34px}
+.whose-caret{font-size:10px;color:var(--muted)}
+.whose-list{list-style:none;margin:12px 0 0;padding:0;max-height:min(360px,50dvh);overflow:auto;display:grid;gap:4px}
+.whose-opt{width:100%;text-align:left;font:inherit;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:6px;padding:8px 10px;cursor:pointer}
+.whose-opt:hover{background:var(--hover)}
+.whose-opt[aria-current="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .stat b{display:block;font:600 26px/1.15 var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .stat span{font-size:12px;color:var(--muted)}
 /* Key numbers as white tiles (the timesheet's week totals) */
