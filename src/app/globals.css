@@ -515,6 +515,7 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
   .fm+.fm::before{display:none}
   .mybar:nth-of-type(even) span{visibility:hidden}
   .sheet td:first-child,.sheet th:first-child{position:sticky;left:0;z-index:1;background:var(--card);min-width:120px!important;box-shadow:1px 0 0 var(--line)}
+  .sheet td.dc,.sheet th.wknd,.sheet th.today,.sheet th:not(:first-child):not(:last-child){min-width:46px} /* a week is scrolled sideways inside its box on a phone; each day keeps room for its hours, Sat and Sun included */
   .cal .hrs,.cal .hd:first-child{position:sticky;left:0;z-index:3;background:var(--card);box-shadow:1px 0 0 var(--line)}
 }
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .3s}}
