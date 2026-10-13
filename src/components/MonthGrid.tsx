@@ -134,8 +134,8 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
         <thead><tr>
           {heads}
           {statuses && <th scope="col">Status</th>}
-          {months.map((m, i) => <th key={m} className={`num${i === now ? " now" : ""}${isPast(i) ? " past" : ""}`} scope="col">{MONTH_ABBR[i]}</th>)}
-          <th className={contracts ? "num" : "num eh"} scope="col">{contracts ? "Year total" : "Average hours per week"}</th>
+          {months.map((m, i) => <th key={m} className={`num mo${i === now ? " now" : ""}${isPast(i) ? " past" : ""}`} scope="col">{MONTH_ABBR[i]}</th>)}
+          {!contracts && <th className="num eh" scope="col">Average hours per week</th>}
           {contracts && <><th className="num" scope="col">Per day</th><th scope="col">Work type</th>{drawings && <th scope="col">Drawing standard</th>}</>}
         </tr></thead>
         <tbody>
@@ -160,7 +160,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                 {months.map((m, i) => {
                   const diff = num(v[i]) !== r.usual, locked = isPast(i) && !unlocked;
                   return (
-                    <td key={m} className={`num mc${isPast(i) ? " past" : ""}${i === now ? " cur" : ""}`} data-l={MONTH_ABBR[i]}>
+                    <td key={m} className={`num mo mc${isPast(i) ? " past" : ""}${i === now ? " cur" : ""}`} data-l={MONTH_ABBR[i]}>
                       {r.editable
                         ? <input className={`cell${diff ? " chg" : ""}`} type="number" min="0" step="any" inputMode="decimal" name={changedCell(r, i) ? cellName(r.id, m) : undefined} data-cell={cellName(r.id, m)} value={v[i]} disabled={locked}
                             onChange={(e) => cell(r, i, e.target.value)} aria-label={`${r.name}, ${MONTH_ABBR[i]} ${year}`}
@@ -169,7 +169,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                     </td>
                   );
                 })}
-                <td className="num tot">{fmt(contracts ? total : total / 12)}</td>
+                {!contracts && <td className="num tot">{fmt(total / 12)}</td>}
                 {contracts && <>
                   <td className="num">{perDay ? fmt(perDay) : "–"}</td>
                   <td className="wt">
@@ -200,9 +200,10 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
         {rows.length > 0 && (
           <tfoot><tr>
             <td colSpan={leadCols} className="tl">{contracts ? (placeName ? `${placeName} total` : "All clients") : "Everyone listed"}</td>
-            {months.map((m, i) => <td key={m} className="num">{fmt(sums[i])}</td>)}
-            <td className="num">{fmt(contracts ? sums.reduce((a, b) => a + b, 0) : sums.reduce((a, b) => a + b, 0) / 12)}</td>
-            {contracts && <td colSpan={drawings ? 3 : 2} />}
+            {months.map((m, i) => <td key={m} className="num mo">{fmt(sums[i])}</td>)}
+            {contracts
+              ? <><td className="num">{refDays && sums[refMonth] ? fmt(sums[refMonth] / refDays) : "–"}</td><td colSpan={drawings ? 2 : 1} /></>
+              : <td className="num">{fmt(sums.reduce((a, b) => a + b, 0) / 12)}</td>}
           </tr></tfoot>
         )}
       </table></div>
