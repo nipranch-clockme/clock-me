@@ -134,7 +134,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     ok(num(await v.locator('.rtotal b').first().innerText()) === 2, 'the client tag filter matches entries that carry the tag');
     const shareCsv = await (await v.request.get(BASE + shr.replace('/share/', '/share/').replace('?', '/export?'))).text();
     const lines = shareCsv.split('\r\n').filter(Boolean);
-    ok(lines[0] === 'Project,Tags,Hours' && lines.some((l) => /^Patient portal,"CAD, ENG",2$/.test(l)) && lines.some((l) => /^Patient portal,CAD,1$/.test(l)), 'the client CSV has one line per project and set of tags', lines.join(' / '));
+    ok(lines[0].replace(/^\uFEFF/, '') === 'Project,Tags,Hours' && lines.some((l) => /^Patient portal,"CAD, ENG",2$/.test(l)) && lines.some((l) => /^Patient portal,CAD,1$/.test(l)), 'the client CSV has one line per project and set of tags', lines.join(' / '));
     ok(lines.slice(1).reduce((s, l) => s + parseFloat(l.split(',').pop()), 0) === 3.5, 'the client CSV adds up to the total');
 
     // ---- the timesheet import ----

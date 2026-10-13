@@ -9,7 +9,7 @@ export type DemoResult = { ok: boolean; error?: string; message?: string; status
 /** Only an admin gets this far: the Settings tab is theirs alone. */
 async function admin() {
   const me = await requireTab("settings");
-  if (me.role !== "ADMIN") throw new Error("Only an admin can do this.");
+  if (me.role !== "ADMIN") throw new Error("Only an Admin can do this.");
   return me;
 }
 const fail = async (error: string): Promise<NonNullable<DemoResult>> => ({ ok: false, error, status: await demoStatus() });
@@ -25,7 +25,7 @@ export async function startDemoData(): Promise<NonNullable<DemoResult>> {
     return { ok: true, status: await demoStatus() };
   } catch (e) {
     console.error("Demo data start failed", e);
-    return fail("Something went wrong, so the demo data wasn't added. Use Remove demo data to clear anything half added, then try again.");
+    return fail("Something went wrong, so the demo data wasn't added. Use Remove demo data to clear anything half-added, then try again.");
   }
 }
 

@@ -121,9 +121,9 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
       <input type="hidden" name="year" value={year} />
       {unlocked && <input type="hidden" name="pastOk" value="1" />}
       {places && places.length > 0 && (
-        <div className="row" role="group" aria-label="Location" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
+        <div className="row" role="group" aria-label="Office" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
           <div className="seg">
-            <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All locations</button>
+            <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
             {places.map((p) => <button key={p.id} type="button" aria-pressed={place === p.id} onClick={() => setPlace(p.id)}>{p.name}</button>)}
           </div>
           {place && <span className="note">{shown.length} of {rows.length} client{rows.length === 1 ? "" : "s"}</span>}
@@ -135,7 +135,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
           {heads}
           {statuses && <th scope="col">Status</th>}
           {months.map((m, i) => <th key={m} className={`num${i === now ? " now" : ""}${isPast(i) ? " past" : ""}`} scope="col">{MONTH_ABBR[i]}</th>)}
-          <th className="num" scope="col">{contracts ? "Year total" : "Average a week"}</th>
+          <th className={contracts ? "num" : "num eh"} scope="col">{contracts ? "Year total" : "Average hours per week"}</th>
           {contracts && <><th className="num" scope="col">Per day</th><th scope="col">Work type</th>{drawings && <th scope="col">Drawing standard</th>}</>}
         </tr></thead>
         <tbody>
@@ -211,7 +211,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
           <button className="btn primary" disabled={pending || !dirty}>{pending ? "Saving…" : "Save changes"}</button>
           {contracts && past > 0 && (unlocked
             ? <span className="note">Past months are unlocked. They lock again after you save.</span>
-            : <button type="button" className="btn sm" onClick={unlock}>Change past months</button>)}
+            : <button type="button" className="btn" onClick={unlock}>Change past months</button>)}
           <span className="note" role="status">{state?.error ? <span className="err-text">{state.error}</span> : dirty ? `You have unsaved changes. Save before you change the year.` : state?.message ?? `Nothing to save yet. Change a ${noun}'s hours above.`}</span>
         </div>
       )}

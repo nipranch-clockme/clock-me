@@ -37,7 +37,7 @@ function TimeOffForm({ people, meId, today, others, approver, onDone }: { people
           : `${approver.charAt(0).toUpperCase()}${approver.slice(1)} approves it. Until then it doesn't count toward your expected hours, and you can withdraw it. Past dates are fine.`}
       </p>
       <form onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }}>
-        <div className="row">
+        <div className="row" style={{ alignItems: "flex-start" }}>
           {people.length > 1 && (
             <div style={{ flexBasis: "100%" }}>
               <label htmlFor="to-person">Person</label>

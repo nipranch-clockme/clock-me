@@ -12,7 +12,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
       <section className="panel">
         {user ? (<><h2>{user.passwordHash ? "Reset your password" : `Welcome, ${user.name}`}</h2><p className="sub">{user.passwordHash ? `Choose a new password for ${user.email}.` : "Choose a password to finish setting up your account."}</p><InviteForm token={token} /></>)
-          : (<><h2>Link not valid</h2><p className="sub">This link has expired or has already been used. Ask your admin for a new one, or use "Forgot your password?" on the sign-in page.</p></>)}
+          : (<><h2>Link not valid</h2><p className="sub">This link has expired or has already been used. Ask an Admin for a new one, or use "Forgot your password?" on the sign-in page.</p></>)}
       </section>
     </div>
   );

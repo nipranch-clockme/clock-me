@@ -7,6 +7,9 @@ export type RRow = RKid & { people: number; color?: string; budget?: string; use
 
 type Sort = { by: "title" | "dur"; dir: 1 | -1 } | null;
 
+/** A group's name, isolated so text in another direction can't reorder what's around it, and cut to two lines (hover shows a long one in full). */
+const Name = ({ label }: { label: string }) => <bdi className="clamp2" title={label.length > 60 ? label : undefined}>{label}</bdi>;
+
 /** The Summary report's table: one row per group, click a row's arrow to see what is inside it, click a heading to sort. */
 export default function ReportTable({ rows, titleLabel, showPeople, showEstimate, empty }: { rows: RRow[]; titleLabel: string; showPeople: boolean; showEstimate: boolean; empty: string }) {
   const [sort, setSort] = useState<Sort>(null);
@@ -30,12 +33,12 @@ export default function ReportTable({ rows, titleLabel, showPeople, showEstimate
         <th>
           {hasKids && <button type="button" className="rg-chev all" aria-label={allOpen ? "Collapse all" : "Expand all"} aria-expanded={allOpen}
             onClick={() => setOpen(allOpen ? new Set() : new Set(rows.filter((r) => r.kids.length).map((r) => r.key)))}><i /></button>}
-          <button type="button" className="sorter" onClick={() => flip("title")} aria-label={`Sort by ${titleLabel.toLowerCase()}`}>{titleLabel.toUpperCase()} <span aria-hidden="true">{arrow("title")}</span></button>
+          <button type="button" className="sorter" onClick={() => flip("title")} aria-label={`Sort by ${titleLabel.toLowerCase()}`}>{titleLabel} <span aria-hidden="true">{arrow("title")}</span></button>
         </th>
-        {showPeople && <th className="num c-people">PEOPLE</th>}
-        {showEstimate && <><th className="num">BUDGET</th><th>USED, ALL TIME</th></>}
-        <th className="num"><button type="button" className="sorter" onClick={() => flip("dur")} aria-label="Sort by hours">HOURS <span aria-hidden="true">{arrow("dur")}</span></button></th>
-        <th className="num">SHARE</th>
+        {showPeople && <th className="num c-people">People</th>}
+        {showEstimate && <><th className="num">Budget</th><th>Used, all time</th></>}
+        <th className="num"><button type="button" className="sorter" onClick={() => flip("dur")} aria-label="Sort by hours">Hours <span aria-hidden="true">{arrow("dur")}</span></button></th>
+        <th className="num">Share</th>
       </tr></thead>
       <tbody>
         {ordered.map((r) => {
@@ -46,7 +49,7 @@ export default function ReportTable({ rows, titleLabel, showPeople, showEstimate
               <td data-l={titleLabel}><div className="rg-t">
                 {r.kids.length > 0 ? <button type="button" className={`rg-chev${isOpen ? " open" : ""}`} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} what is inside ${r.label}`} onClick={() => toggle(r.key)}><i /></button> : hasKids && <span className="rg-chev sp" />}
                 {r.color && <i className="dot" style={{ background: r.color }} />}
-                {r.href ? <Link className="plink" href={r.href}>{r.label}</Link> : r.label}
+                {r.href ? <Link className="plink" href={r.href}><Name label={r.label} /></Link> : <Name label={r.label} />}
               </div></td>
               {showPeople && <td className="num c-people" data-l="People">{r.people}</td>}
               {showEstimate && <>
@@ -58,7 +61,7 @@ export default function ReportTable({ rows, titleLabel, showPeople, showEstimate
             </tr>
             {isOpen &&  [...r.kids].sort(cmp).map((k) => (
               <tr key={`${r.key}/${k.key}`} className="rg-kid">
-                <td data-l="">{k.href ? <Link className="plink" href={k.href}>{k.label}</Link> : k.label}</td>
+                <td data-l="">{k.href ? <Link className="plink" href={k.href}><Name label={k.label} /></Link> : <Name label={k.label} />}</td>
                 {showPeople && <td className="c-people" />}
                 {showEstimate && <><td /><td /></>}
                 <td className="num">{k.dur}</td>

@@ -2,7 +2,8 @@
 import { useRouter } from "next/navigation";
 import SearchSelect from "@/components/SearchSelect";
 
-/** Switches the Timesheet or Calendar to another person, keeping the week. Your own week is the one with no `u` in the address. */
+/** Switches the Timesheet or Calendar to another person, keeping the week. Your own week is the one with no `u` in the address.
+ *  Names are shown as given: the page adds the office to shared names and "you" to yours, in one pair of brackets ("Sam Rivera (AMD, you)"). */
 export default function PersonPicker({ people, current, meId, offset, view = "cal", label = "Showing" }: { people: { id: string; name: string }[]; current: string; meId: string; offset: number; view?: "sheet" | "cal"; label?: string }) {
   const router = useRouter();
   return (
@@ -15,7 +16,7 @@ export default function PersonPicker({ people, current, meId, offset, view = "ca
         if (v !== meId) q.set("u", v);
         router.push(`/timesheet${q.size ? `?${q}` : ""}`);
       }}
-        options={people.map((p) => ({ value: p.id, label: p.name + (p.id === meId ? " (you)" : "") }))} />
+        options={people.map((p) => ({ value: p.id, label: p.name }))} />
     </div>
   );
 }

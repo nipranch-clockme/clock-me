@@ -3,11 +3,12 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
-import { GROUPS, TIME_GROUPS, TABS, STATUSES, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
+import { GROUPS, TIME_GROUPS, TABS, STATUSES, clipText, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
 import { hidesClients } from "@/lib/scope";
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
-import { clock, fmtHours, pct } from "@/lib/format";
+import { DESCRIPTION_MAX, clock, fmtHours, pct } from "@/lib/format";
 import { tagText } from "@/lib/tags";
+import { teamLabelOf } from "@/lib/clientTeams";
 import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
@@ -34,12 +35,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   // Dropdown options first: only what this person can see.
   const [people, scopeProjects, tags, locations] = await Promise.all([
-    db.user.findMany({ where: visibleUsersWhere(me), include: { team: true, location: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: visibleUsersWhere(me), include: { team: { include: { location: true } }, location: true }, orderBy: { name: "asc" } }),
     db.project.findMany({ where: { entries: { some: scope } }, include: { client: true }, orderBy: { name: "asc" } }),
     db.tag.findMany({ orderBy: { name: "asc" } }),
     me.role === "ADMIN" ? db.location.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
-  const teams = [...new Map(people.filter((u) => u.team).map((u) => [u.teamId!, `${u.team!.name}, ${u.location.name}`]))].sort((a, b) => a[1].localeCompare(b[1]));
+  const teams = [...new Map(people.filter((u) => u.team).map((u) => [u.teamId!, teamLabelOf(u.team!)]))].sort((a, b) => a[1].localeCompare(b[1]));
   const clients = [...new Map(scopeProjects.map((x) => [x.clientId, x.client.name]))].sort((a, b) => a[1].localeCompare(b[1]));
   // A filter whose value isn't among its options (e.g. a project from another client) would silently empty the report
   // while its list shows nothing ticked, so drop it.
@@ -74,7 +75,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const dupProjectName = (name: string) => scopeProjects.filter((x) => x.name === name).length > 1;
   const dupPersonName = (name: string) => people.filter((x) => x.name === name).length > 1;
 
-  // Review Time (from Approvals) also marks the time tagged OT (overtime). It is for reviewing only, so the other reports never show it.
+  // Review time (from Approvals) also marks the time tagged OT (overtime). It is for reviewing only, so the other reports never show it.
   const otIds = fromApprovals && me.role !== "MEMBER" ? await loadOtTagIds() : [];
   const otCombos = otIds.length ? combos.filter((c) => hasOtTag(c.tagIds, otIds)) : [];
   const ot = otCombos.length
@@ -89,10 +90,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     switch (g) {
       case "client": return [pr?.clientId ?? "?", pr?.client.name ?? "Unknown"];
       case "person": return [c.userId ?? "?", u ? (dupPersonName(u.name) ? `${u.name} (${u.location.name})` : u.name) : "Unknown"];
-      case "team": return [u?.teamId ?? "-", u?.team ? `${u.team.name}, ${u.location.name}` : "No team"];
+      case "team": return [u?.teamId ?? "-", u?.team ? teamLabelOf(u.team) : "No team"];
       case "location": return [u?.locationId ?? "?", u?.location.name ?? "Unknown"];
       case "phase": { const n = (c.phaseId && PH.get(c.phaseId)) || "No phase"; return [n, n]; }
-      case "description": return [c.description ?? "", c.description || "No description"];
+      case "description": return [c.description ?? "", c.description ? clipText(c.description, DESCRIPTION_MAX) : "No description"]; // an old, very long one is cut short
       case "day": { const d = toStr(c.date!); return [d, longDate(d)]; }
       case "month": { const k = toStr(c.date!).slice(0, 7); return [k, toDate(k + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })]; }
       default: return [c.projectId ?? "?", pr ? (dupProjectName(pr.name) && !hidesClients(me) ? `${pr.name} (${pr.client.name})` : pr.name) : "Unknown"];
@@ -139,18 +140,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ...(sorted.length > PALETTE.length ? [{ key: "other", label: `${sorted.length - PALETTE.length} others`, value: sorted.slice(PALETTE.length).reduce((a, [, n]) => a + n.m, 0), color: OTHER }] : [])];
   const groupLabel = GROUPS.find((g) => g[0] === p.group)![1];
 
-  // Hours over time. "All time" runs from the first entry to the last (which can be in the future).
+  // Hours over time. "All time" runs from the first entry to the last (which can be in the future, though the chart stops a year ahead).
   const dates = p.tab === "summary" ? byDate.map((r) => toStr(r.date!)) : [];
   const firstDate = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : today();
   const lastDate = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : today();
   const shownFrom = p.range === "all" ? firstDate : from;
-  const shownTo = p.range === "all" ? (lastDate > today() ? lastDate : today()) : to;
+  const cap = addDays(monday(today()), 6 + 7 * 52); // an old entry dated far ahead would otherwise give years of empty bars
+  const shownTo = p.range === "all" ? (lastDate > cap ? cap : lastDate > today() ? lastDate : today()) : to;
   const span = (toDate(shownTo).getTime() - toDate(shownFrom).getTime()) / 864e5 + 1;
   const unit = span <= 35 ? "day" : span <= 200 ? "week" : "month";
   const kOf = (d: string) => (unit === "day" ? d : unit === "week" ? monday(d) : d.slice(0, 7));
   const keys: string[] = [];
   const end = p.range === "all" ? shownTo : to < addDays(today(), 6) ? to : addDays(today(), 6);
-  for (let d = shownFrom; d <= end; d = addDays(d, 1)) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); }
+  for (let d = shownFrom; d <= end; ) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); const n = addDays(d, 1); if (n === d) break; d = n; }
   const lbl = (k: string) => (unit === "month" ? toDate(k + "-01").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }) : unit === "day" ? `${DAYS[dow(k)]}, ${shortDate(k)}` : shortDate(k));
   const series = colored ? slices : [{ key: "all", label: "Hours", value: total, color: "var(--s1)" }];
   const B: Record<string, Record<string, number>> = {};
@@ -207,15 +209,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </div>
 
         <section className="panel rfilters" aria-label="Filters">
-          <span className="rflabel">FILTER</span>
-          {people.length > 1 && <FilterMenu name="person" label="Person" options={opts(people.map((u) => [u.id, u.name]))} selected={p.person} />}
+          <span className="rflabel">Filter</span>
+          {people.length > 1 && <FilterMenu name="person" label="Person" plural="people" options={opts(people.map((u) => [u.id, u.name]))} selected={p.person} />}
           {teams.length > 1 && <FilterMenu name="team" label="Team" options={opts(teams)} selected={p.team} />}
           {!hidesClients(me) && <FilterMenu name="client" label="Client" options={opts(clients)} selected={p.client} />}
           <FilterMenu name="project" label="Project" options={opts(projOpts)} selected={p.project} />
           <FilterMenu name="phase" label="Phase" options={opts(phaseNames.map((x) => [x.name, x.name]))} selected={p.phase} />
           <FilterMenu name="tag" label="Tag" options={opts(tags.map((t) => [t.id, t.name]))} selected={p.tag} />
-          <FilterMenu name="status" label="Status" options={opts(STATUSES)} selected={p.status} />
-          {me.role === "ADMIN" && <FilterMenu name="location" label="Location" options={opts(locations.map((l) => [l.id, l.name]))} selected={p.location} />}
+          <FilterMenu name="status" label="Status" plural="statuses" options={opts(STATUSES)} selected={p.status} />
+          {me.role === "ADMIN" && <FilterMenu name="location" label="Office" options={opts(locations.map((l) => [l.id, l.name]))} selected={p.location} />}
           <input type="search" className="fm-desc" name="desc" defaultValue={p.desc ?? ""} placeholder="Description contains…" aria-label="Description contains" autoComplete="off" />
           <span className="sp" />
           {nf > 0 && <Link className="btn" href={clearHref}>Clear {nf} filter{nf > 1 ? "s" : ""}</Link>}
@@ -258,16 +260,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {p.tab === "detailed" && (
             <div className="tablebox">
               <table className="rtable">
-                <thead><tr><th>DATE</th><th>TIME</th><th>PERSON</th>{!hidesClients(me) && <th>CLIENT</th>}<th>PROJECT</th><th>PHASE</th><th>TAGS</th><th>DESCRIPTION</th><th className="num">HOURS</th></tr></thead>
+                <thead><tr><th>Date</th><th>Time</th><th>Person</th>{!hidesClients(me) && <th>Client</th>}<th>Project</th><th>Phase</th><th>Tags</th><th>Description</th><th className="num">Hours</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => (
                     <tr key={e.id} className={hasOtTag(e.tagIds, otIds) ? "otrow" : undefined}>
-                      <td data-l="Date">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
+                      <td data-l="Date" className="nowrap">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
                       <td data-l="Time" className="nw">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}</td>
-                      <td data-l="Person"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
+                      <td data-l="Person" className="nowrap"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
                       {!hidesClients(me) && <td data-l="Client">{e.project.client.name}</td>}
-                      <td data-l="Project">{e.project.name}</td><td data-l="Phase">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td><td data-l="Description">{e.description}</td>
-                      <td className="num" data-l="Hours">{f(e.minutes)}{hasOtTag(e.tagIds, otIds) && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
+                      <td data-l="Project">{e.project.name}</td><td data-l="Phase" className="nowrap">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td>
+                      <td data-l="Description"><bdi className="clamp2" title={e.description || undefined}>{clipText(e.description, DESCRIPTION_MAX)}</bdi></td>
+                      <td className="num nowrap" data-l="Hours">{f(e.minutes)}{hasOtTag(e.tagIds, otIds) && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
                     </tr>
                   ))}
                   {!detailRows.length && <tr><td colSpan={9} className="empty">No time in this range.</td></tr>}

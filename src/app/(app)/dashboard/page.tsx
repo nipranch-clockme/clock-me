@@ -35,9 +35,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
-  // Location managers and admins have three tabs: Team Overview (below), Client overview (each client's hours and utilisation, which used to be
-  // the Clients page's overview) and Detailed Utilization, the office's monthly report like the sheet they kept before. Location managers see
-  // their office; admins the office they pick. Human Resource sees the company's utilisation (Team Overview and Detailed Utilization, every
+  // Location managers and admins have three tabs: Team overview (below), Client overview (each client's hours and utilisation, which used to be
+  // the Clients page's overview) and Detailed utilisation, the office's monthly report like the sheet they kept before. Location managers see
+  // their office; admins the office they pick. Human Resource sees the company's utilisation (Team overview and Detailed utilisation, every
   // office) without anything about clients. Each tab keeps the other's choices in its links.
   const company = SEES_COMPANY_UTILISATION.includes(me.role);
   const tabs = me.role === "LOCATION" || company;
@@ -46,9 +46,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const shared = { range: sp.range, rank: sp.rank, crange: sp.crange, ryear: sp.ryear, roffice: sp.roffice };
   const tabNav = (on: "overview" | "clients" | "detailed") => tabs && (
     <nav className="seg rtabs dtabs" aria-label="Dashboard view">
-      <Link href={`/dashboard?${keep(shared)}`} aria-pressed={on === "overview"}>Team Overview</Link>
+      <Link href={`/dashboard?${keep(shared)}`} aria-pressed={on === "overview"}>Team overview</Link>
       {clientTabs && <Link href={`/dashboard?${keep({ tab: "clients", ...shared })}`} aria-pressed={on === "clients"}>Client overview</Link>}
-      <Link href={`/dashboard?${keep({ tab: "detailed", ...shared })}`} aria-pressed={on === "detailed"}>Detailed Utilization</Link>
+      <Link href={`/dashboard?${keep({ tab: "detailed", ...shared })}`} aria-pressed={on === "detailed"}>Detailed utilisation</Link>
     </nav>
   );
   if (clientTabs && sp.tab === "clients") {
@@ -71,7 +71,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
     return (
       <>
-        <PageHead title="Dashboard" sub="Each office's, or all offices' together, month by month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
+        <PageHead title="Dashboard" sub="Each office's, or all offices' together, month-by-month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
         {tabNav("detailed")}
         <div className="grid g3">
           {office
@@ -143,20 +143,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ] });
     }
   }
-  const hoursText = (v: number) => `${Math.round(v).toLocaleString("en-US")} h`;
 
-  // The # column is the place in the full ranking, so the bottom five read as, say, 9th to 12th.
+  // The # column is the place in the full ranking, so the bottom five read as, say, 9th to 12th. A top five and the bottom five under it share
+  // fixed column widths (toptable), so their columns line up; a list with nobody in it is just its message.
   const topTable = (list: Row[], showOffice: boolean, lowest = false) => {
     const up = ranking(list);
     const shown = lowest ? bottom(list) : up.slice(0, 5);
+    if (!shown.length) return <div className="tablebox"><p className="empty">{lowest && up.length ? "Everyone is in the top 5." : "Nobody to show."}</p></div>;
     return (
-      <div className="tablebox"><table>
+      <div className="tablebox"><table className={showOffice ? undefined : "toptable"}>
+        {!showOffice && <colgroup><col className="c-rank" /><col /><col className="c-prod" /><col className="c-hrs" /></colgroup>}
         <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th></tr></thead>
         <tbody>
           {shown.map((r) => (
             <tr key={r.id}><td className="num">{up.indexOf(r) + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
           ))}
-          {!shown.length && <tr><td colSpan={showOffice ? 5 : 4} className="empty">{lowest && up.length ? "Everyone is in the top 5." : "Nobody to show."}</td></tr>}
         </tbody>
       </table></div>
     );
@@ -170,7 +171,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by productivity, people with 0 inventory hours are left out; admins (who are not a resource) are always left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by productivity, people with 0 inventory hours are left out; Admins (who are not a resource) are always left out.`} />
       {tabNav("overview")}
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
@@ -181,7 +182,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <div className="stat"><b>{f(all.m)}</b><span>total hours</span></div>
             <div className="stat"><b>{f(all.tg)}</b><span>inventory hours</span></div>
             <div className="stat"><b>{f(all.avg)}</b><span>average hours per person</span></div>
-            <div className="stat"><b>{all.n}</b><span>people</span></div>
+            <div className="stat"><b>{all.n}</b><span>{all.n === 1 ? "person" : "people"}</span></div>
           </div>
         </section>
         {me.role === "LOCATION" && teamCards.length > 0 && (
@@ -211,7 +212,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           const o = sum(rows.filter((r) => r.locationId === l.id));
           return (
             <section className="panel" key={l.id}>
-              <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n} people</span></div>
+              <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
               <div className="stat" style={{ margin: "12px 0 8px" }}><b>{pct(o.prod)}</b><span>total productivity</span></div>
               <div className="meter" style={{ height: 10 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
               <div className="stats spread sm" style={{ marginTop: 12 }}>
@@ -230,9 +231,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {inventory.map((o) => (
           <section className="panel full" key={o.id}>
             <h3>Inventory vs actual, last 12 full months, {o.name}</h3>
-            <MonthBars months={months} series={o.series} fmt={hoursText} label={`Inventory and actual hours by month, ${o.name}`} />
+            <MonthBars months={months} series={o.series} label={`Inventory and actual hours by month, ${o.name}`} />
             <div className="legend">{o.series.map((x) => <span key={x.id}><i style={{ background: `var(--${x.color})` }} />{x.name}</span>)}</div>
-            <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
+            <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; Admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
           </section>
         ))}
         <section className="panel full">

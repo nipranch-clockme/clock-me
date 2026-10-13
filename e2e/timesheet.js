@@ -70,6 +70,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.fill('#e-dur','2.5');await p.click('dialog[open] button:has-text("Save changes")');await p.waitForFunction(()=>document.querySelector('button.chipbtn')?.textContent==='2.50');
   ok('edited time shows on the chip',true);
   await p.click('button.chipbtn >> nth=1');await p.waitForSelector('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:has-text("Delete entry")');
+  await p.waitForSelector('dialog[open] #e-del-q');ok('delete asks first, inside the dialog',(await p.textContent('dialog[open] #e-del-q'))==='Delete this entry?');await p.click('dialog[open] button:text-is("Delete")');
   await p.waitForFunction(()=>document.querySelectorAll('button.chipbtn').length===1);
   ok('deleted entry disappears',true);
   await p.waitForTimeout(600);
@@ -101,7 +102,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   const thu=addDays(ws,3);
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId",date,"startMin",minutes,description) values('${uid}f','${uid}','${pub[0][0]}',(select id from "Phase" where "projectId"='${pub[0][0]}' order by sort limit 1),'${thu}',540,60,'from calendar')`);
   await p.reload();await p.waitForLoadState('networkidle');
-  await p.click(`tr:has-text("${pub[0][1]}") button.chipbtn`);await p.waitForSelector('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:has-text("Delete entry")');
+  await p.click(`tr:has-text("${pub[0][1]}") button.chipbtn`);await p.waitForSelector('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:has-text("Delete entry")');await p.click('dialog[open] button:text-is("Delete")');
   await p.waitForSelector(`button[aria-label="Remove ${pub[0][1]} row"]`);
   ok('deleting the last entry keeps the row',await p.isVisible(`tr:has-text("${pub[0][1]}")`));
   await p.click(`button[aria-label="Remove ${pub[0][1]} row"]`);await p.waitForSelector(`button[aria-label="Remove ${pub[0][1]} row"]`,{state:'detached'});

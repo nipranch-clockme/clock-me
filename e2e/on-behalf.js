@@ -81,7 +81,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await rav.locator('.chipbtn').first().click();await rav.waitForSelector('dialog[open] #e-dur');
   ok('editing shows it is for them',/Edit time/.test(await rav.textContent('dialog[open]'))&&/On behalf of Klh Test/.test(await rav.textContent('dialog[open]')));
   await rav.fill('#e-dur','3');await rav.click('dialog[open] button:has-text("Save changes")');await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
-  ok('the entry is changed',count(`select minutes from "TimeEntry" where id='${eid}'`)===180&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Changed % h on % on behalf of Klh Test'`)===1);
+  ok('the entry is changed',count(`select minutes from "TimeEntry" where id='${eid}'`)===180&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Changed % h on % on behalf of Klh Test%'`)===1);
   // the person sees it on their own timesheet
   const kp=await signIn(K+'@example.com');await go(kp,'/timesheet');
   ok('the person sees the time on their own timesheet',(await kp.locator('.chipbtn').allInnerTexts()).map((x)=>x.trim()).includes(f(180)));
@@ -89,8 +89,8 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   // delete (this also makes the row removable)
   await go(rav,`/timesheet?u=${K}`);
   await rav.locator('.chipbtn').first().click();await rav.waitForSelector('dialog[open] #e-dur');
-  await cap('deleteEntry',()=>rav.click('dialog[open] button:has-text("Delete entry")'));await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');await rav.waitForTimeout(300);
-  ok('the entry is deleted and the change log says so',count(`select count(*) from "TimeEntry" where id='${eid}'`)===0&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Deleted % h on % on behalf of Klh Test'`)===1);
+  await cap('deleteEntry',async()=>{await rav.click('dialog[open] button:has-text("Delete entry")');await rav.click('dialog[open] button:text-is("Delete")');});await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');await rav.waitForTimeout(300);
+  ok('the entry is deleted and the change log says so',count(`select count(*) from "TimeEntry" where id='${eid}'`)===0&&count(`select count(*) from "AuditLog" where "userId"='${RAVI}' and "targetUserId"='${K}' and action like 'Deleted % h on % on behalf of Klh Test%'`)===1);
   // remove the row (capturing removeRow)
   await go(rav,`/timesheet?u=${K}`);
   await cap('removeRow',()=>rav.click('button.rowx'));await rav.waitForLoadState('networkidle');await rav.waitForTimeout(300);
@@ -101,7 +101,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const c1=await act(rav,'saveEntry',entryFields(M));
   ok("location manager: cannot add time for someone in another office",refused(c1,'Choose a person|own office')&&count(`select count(*) from "TimeEntry" where "userId"='${M}'`)===0,c1.text.slice(0,200));
   const c2=await act(rav,'saveEntry',entryFields(K2));
-  ok('location manager: cannot add time for another location manager',refused(c2,'Only admins')&&count(`select count(*) from "TimeEntry" where "userId"='${K2}'`)===0,c2.text.slice(0,200));
+  ok('location manager: cannot add time for another location manager',refused(c2,'Only Admins can change an Admin\'s or Location manager\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${K2}'`)===0,c2.text.slice(0,200));
   const c3=await act(rav,'saveEntry',entryFields(ADMIN));
   ok('location manager: cannot add time for an admin',refused(c3)&&count(`select count(*) from "TimeEntry" where "userId"='${ADMIN}' and description='crafted'`)===0,c3.text.slice(0,200));
   const c4=await act(rav,'saveEntry',entryFields(KI));
@@ -138,7 +138,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   sql(`delete from "Timesheet" where id='${t}s'`);
   sql(`update "Settings" set "lockBefore"='${addDays(ws,2)}'`);
   const l3=await act(rav,'saveEntry',entryFields(K,{description:'locked try',date:addDays(ws,1)}));
-  ok('the admin lock date still applies',refused(l3,'locked by an admin'),l3.text.slice(0,200));
+  ok('the admin lock date still applies',refused(l3,'locked by an Admin'),l3.text.slice(0,200));
   sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
 
   // ---- calendar: the same for a location manager
@@ -185,7 +185,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await go(pri,`/timesheet?u=${K}`);
   ok('member: no picker, no banner, and ?u= gives their own week',(await pri.locator('#caluser').count())===0&&(await pri.locator('.alert.info:has-text("You are adding")').count())===0);
   const p1=await act(pri,'saveEntry',entryFields(K));
-  ok('member: cannot add time for someone else (crafted call)',refused(p1,'Only location managers and admins')&&count(`select count(*) from "TimeEntry" where "userId"='${K}' and description='crafted' and id<>'${kid}'`)===0,p1.text.slice(0,200));
+  ok('member: cannot add time for someone else (crafted call)',refused(p1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${K}' and description='crafted' and id<>'${kid}'`)===0,p1.text.slice(0,200));
   const p2=await act(pri,'deleteEntry',{id:kid},false);
   ok("member: cannot delete someone else's entry (crafted call)",count(`select count(*) from "TimeEntry" where id='${kid}'`)===1,p2.text.slice(0,100));
   const p3=await act(pri,'addRow',{userId:K,week:ws,projectId:pa},false);
@@ -194,7 +194,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await go(lead,`/timesheet?u=${PRIYA}`);
   ok('Team/Project Manager: no picker on the Timesheet and ?u= gives their own week',(await lead.locator('#caluser').count())===0&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
   const t1=await act(lead,'saveEntry',entryFields(PRIYA));
-  ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only location managers and admins')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
+  ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${t}rd','${PRIYA}','${pa}','${xa}','{}','${addDays(ws,2)}',600,60,'ob-read','{}',now())`);
   await go(lead,`/timesheet?view=cal&u=${PRIYA}`);
   ok('Team/Project Manager: a team member\'s calendar is still read only',/Read only/.test(await lead.textContent('main'))&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);

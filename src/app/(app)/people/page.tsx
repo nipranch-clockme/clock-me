@@ -60,12 +60,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       />
       <section className="panel">
         <h3>Offices</h3>
-        <div className="list">{myLocations.map((l) => <div className="item" key={l.id}><div>{l.name}</div><span className="note">{l._count.users} people</span></div>)}</div>
+        <div className="list">{myLocations.map((l) => <div className="item" key={l.id}><div>{l.name}</div><span className="note">{l._count.users === 1 ? "1 person" : `${l._count.users} people`}</span></div>)}</div>
         {admin && <OfficeForm />}
       </section>
       <section className="panel">
         <h3>Teams</h3>
-        <div className="list">{teams.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.location.name}</div></div><span className="note">{t._count.users} people</span></div>)}</div>
+        <div className="list">{teams.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.location.name}</div></div><span className="note">{t._count.users === 1 ? "1 person" : `${t._count.users} people`}</span></div>)}</div>
         <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
       </section>
     </div>

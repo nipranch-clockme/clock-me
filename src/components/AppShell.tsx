@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ICONS } from "./icons";
 
 type Tab = { href: string; label: string; icon: string };
@@ -17,6 +17,9 @@ const Svg = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" fill="none" strok
 export default function AppShell({ allowed, who, children }: { allowed: string[]; who: React.ReactNode; children: React.ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const sideRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
   useEffect(() => setOpen(false), [path]);
   useEffect(() => {
     document.body.classList.toggle("navopen", open);
@@ -24,32 +27,61 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("keydown", esc); document.body.classList.remove("navopen"); };
   }, [open]);
+  // The open drawer takes focus (the page behind it is inert), and closing it puts focus back on the menu button.
+  useEffect(() => {
+    if (open) sideRef.current?.querySelector<HTMLElement>("nav a")?.focus();
+    else if (wasOpen.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || sideRef.current?.contains(a)) menuRef.current?.focus();
+    }
+    wasOpen.current = open;
+  }, [open]);
+  // The drawer is only a drawer on narrow screens; widening the window closes it so the page doesn't stay inert.
+  useEffect(() => {
+    // The same query as the stylesheet's drawer rule, so a fractional width (browser zoom) can't fall between the two.
+    const narrow = window.matchMedia("(max-width: 899px)");
+    const close = () => { if (!narrow.matches) setOpen(false); };
+    narrow.addEventListener("change", close);
+    return () => narrow.removeEventListener("change", close);
+  }, []);
   const labels: Record<string, string> = { dashboard: "Dashboard", timesheet: "Timesheet", "time-off": "Time off", approvals: "Approvals", reports: "Reports", clients: "Clients", projects: "Projects", people: "People", "import-export": "Import & export", settings: "Settings" };
   const link = (k: string, cls?: string) => {
     const t: Tab = { href: "/" + k, label: labels[k], icon: ICONS[ICON_FOR[k]] };
     const here = path.startsWith(t.href) || (k === "timesheet" && path.startsWith("/calendar"));
     return <Link key={k} href={t.href} className={cls} aria-current={here ? "page" : undefined}><Svg d={t.icon} /><span>{t.label}</span></Link>;
   };
+  // The skip link moves focus to the page itself (made focusable only for that moment), not just the Tab starting point.
+  const skip = (e: React.MouseEvent) => {
+    const m = document.getElementById("view");
+    if (!m) return;
+    e.preventDefault();
+    m.tabIndex = -1;
+    m.focus();
+    m.addEventListener("blur", () => m.removeAttribute("tabindex"), { once: true });
+  };
   const groups = GROUPS.map((g) => g.filter((k) => allowed.includes(k))).filter((g) => g.length);
   return (
-    <div className="app">
-      <aside className="side" id="side" aria-label="Menu"><div className="sidein">
-        <div className="sbrand"><Mark /><span>The Time Sink</span>
-          <button className="iconbtn sclose" aria-label="Close menu" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
-        <nav className="snav" id="tabs" aria-label="Main">
-          {groups.map((g, i) => <span key={i} style={{ display: "contents" }}>{i > 0 && <hr />}{g.map((k) => link(k))}</span>)}
-          {allowed.includes("settings") && link("settings", "navend")}
-        </nav>
-      </div></aside>
-      <div className="scrim" onClick={() => setOpen(false)} />
-      <div className="main" id="mainc">
-        <header className="top">
-          <button className="menubtn" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="side" onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
-          <div className="tbrand"><Mark /><span>The Time Sink</span></div>
-          <div className="who">{who}</div>
-        </header>
-        <main id="view">{children}</main>
+    <>
+      <a href="#view" className="skiplink" inert={open} onClick={skip}>Skip to main content</a>
+      <div className="app">
+        <aside ref={sideRef} className="side" id="side" aria-label="Menu"><div className="sidein">
+          <div className="sbrand"><Mark /><span>The Time Sink</span>
+            <button className="iconbtn sclose" aria-label="Close menu" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+          <nav className="snav" id="tabs" aria-label="Main">
+            {groups.map((g, i) => <span key={i} style={{ display: "contents" }}>{i > 0 && <hr />}{g.map((k) => link(k))}</span>)}
+            {allowed.includes("settings") && link("settings", "navend")}
+          </nav>
+        </div></aside>
+        <div className="scrim" onClick={() => setOpen(false)} />
+        <div className="main" id="mainc" inert={open}>
+          <header className="top">
+            <button ref={menuRef} className="menubtn" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="side" onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
+            <div className="tbrand"><Mark /><span>The Time Sink</span></div>
+            <div className="who">{who}</div>
+          </header>
+          <main id="view" style={{ outline: "none" }}>{children}</main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

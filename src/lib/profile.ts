@@ -3,7 +3,7 @@ import { db } from "./db";
 import type { Me } from "./auth";
 import { visibleUsersWhere } from "./scope";
 import { getSettings } from "./settings";
-import { endOfMonth, isDateStr, today, toDate, toStr } from "./dates";
+import { dateWithYear, endOfMonth, isDateStr, today, toDate, toStr } from "./dates";
 
 /** Someone whose profile this person may open: anyone whose time they can already see, or null. */
 export const findVisiblePerson = (me: Me, id: string) =>
@@ -53,11 +53,7 @@ export function profileChanges(before: { employeeId: string | null; joiningDate:
   ].filter((x): x is string => !!x);
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** "12 Mar 2021" */
-export const dayMonthYear = (s: string) => `${+s.slice(8, 10)} ${MONTHS[+s.slice(5, 7) - 1]} ${s.slice(0, 4)}`;
-
-/** "Joined 12 Mar 2021 · 4 years 6 months", "Joined this month" when it's been under a month, or "Joining date not set". */
+/** "Joined Mar 12, 2021 · 4 years 6 months", "Joined this month" when it's been under a month, or "Joining date not set". */
 export function joinedText(joiningDate: Date | null) {
   if (!joiningDate) return "Joining date not set";
   const j = toStr(joiningDate), t = today();
@@ -66,7 +62,7 @@ export function joinedText(joiningDate: Date | null) {
   const months = (ty - jy) * 12 + (tm - jm) - (td < Math.min(jd, +endOfMonth(t.slice(0, 7)).slice(8)) ? 1 : 0);
   if (months < 1) return "Joined this month";
   const part = (n: number, w: string) => (n ? `${n} ${w}${n === 1 ? "" : "s"}` : "");
-  return `Joined ${dayMonthYear(j)} · ${[part(Math.floor(months / 12), "year"), part(months % 12, "month")].filter(Boolean).join(" ")}`;
+  return `Joined ${dateWithYear(j)} · ${[part(Math.floor(months / 12), "year"), part(months % 12, "month")].filter(Boolean).join(" ")}`;
 }
 
 // Profile pictures arrive as a small JPEG made in the browser (a 256x256 square). The server still checks what it gets.

@@ -65,7 +65,7 @@ export async function checkProjects(me: Me, text: string) {
       : clientName.length > 120 ? "Client name is too long"
       : dup ? "Already exists"
       : first ? `Same project as row ${first}`
-      : !client && me.role !== "ADMIN" ? (given ? "Unknown client (only admins add clients)" : `No client given, and there is no ${NO_CLIENT} client yet (only admins add clients)`)
+      : !client && me.role !== "ADMIN" ? (given ? "Unknown client (only Admins add clients)" : `No client given, and there is no ${NO_CLIENT} client yet (only Admins add clients)`)
       : budget !== null && isNaN(budget) ? "Budget must be a number of hours (up to 100000)"
       : access === null ? "Access must be Everyone or Restricted"
       : usedPhases.length > MAX_PHASES ? `A project can have up to ${MAX_PHASES} tasks`
@@ -74,14 +74,14 @@ export async function checkProjects(me: Me, text: string) {
       : managers.some((e) => !EMAIL_RE.test(e)) ? "Managers must be email addresses"
       : userIds.includes(undefined) ? "Unknown email in People"
       : locIds.includes(undefined) ? "Unknown office"
-      : mgrIds.includes(undefined) ? "Managers must be existing people who aren't team members"
+      : mgrIds.includes(undefined) ? "Managers must be existing people who aren't Team members"
       : restricted && !userIds.length && !locIds.length && me.role === "ADMIN" ? "Restricted projects need People or Offices"
       : "";
     if (!error) {
       seen.set(key, line);
       if (!client && !newClients.has(nameKey(clientName))) newClients.set(nameKey(clientName), clientName);
       if (missingTags.length && me.role === "ADMIN") for (const t of missingTags) { if (!newTags.has(nameKey(t))) newTags.set(nameKey(t), t); }
-      else if (missingTags.length) notes.push(`Tag ${missingTags.join(", ")} doesn't exist; only admins add tags`);
+      else if (missingTags.length) notes.push(`Tag ${missingTags.join(", ")} doesn't exist; only Admins add tags`);
     }
     const row: PreviewRow = { line, error, notes, cells: [clientName, projectName, usedPhases.join(", "), budget ? String(budget) : "", restricted ? "Restricted" : "Everyone"] };
     const data: ProjectDraft | undefined = error ? undefined : {
@@ -109,7 +109,7 @@ export async function checkProjects(me: Me, text: string) {
 export async function saveProjects(me: Me, drafts: ProjectDraft[], newTags: string[]) {
   return db.$transaction(async (tx) => {
     for (const name of newTags) {
-      if (me.role !== "ADMIN") throw new Error("Only admins add tags");
+      if (me.role !== "ADMIN") throw new Error("Only Admins add tags");
       if (!(await tx.tag.findFirst({ where: { name: { equals: name, mode: "insensitive" } } }))) await tx.tag.create({ data: { name } });
     }
     let n = 0;
@@ -117,7 +117,7 @@ export async function saveProjects(me: Me, drafts: ProjectDraft[], newTags: stri
       let clientId = d.clientId;
       if (!clientId) {
         const existing = await tx.client.findFirst({ where: { name: { equals: d.clientName, mode: "insensitive" } } });
-        if (!existing && me.role !== "ADMIN") throw new Error("Only admins add clients");
+        if (!existing && me.role !== "ADMIN") throw new Error("Only Admins add clients");
         clientId = existing?.id ?? (await tx.client.create({ data: { name: d.clientName, color: CLIENT_COLORS[(await tx.client.count()) % CLIENT_COLORS.length] } })).id;
       }
       const mgr = new Set(d.mgrIds);

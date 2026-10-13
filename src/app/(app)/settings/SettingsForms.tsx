@@ -17,7 +17,7 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
             {!zones.includes(s.timeZone) && <option value={s.timeZone}>{s.timeZone}</option>}
             {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
           </select>
-          <p className="note" style={{ margin: "4px 0 0" }}>Decides when a new day and a new week start, for &ldquo;today&rdquo;, &ldquo;this week&rdquo; and reminders.</p>
+          <p className="note" style={{ margin: "4px 0 0" }}>Decides when a new day and a new week start, for "today", "this week" and reminders.</p>
           <h3 style={{ marginTop: 18 }}>Time format</h3>
           <label className="check"><input type="radio" name="timeFormat" value="decimal" defaultChecked={s.timeFormat !== "hhmm"} /> Decimal (7.50)</label>
           <label className="check"><input type="radio" name="timeFormat" value="hhmm" defaultChecked={s.timeFormat === "hhmm"} /> Hours and minutes (7:30)</label>
@@ -27,10 +27,10 @@ export function GeneralForm({ s, emailOn, cronOn, zones }: { s: General; emailOn
           <label className="check"><input type="checkbox" name="requireDescription" defaultChecked={s.requireDescription} /> Description</label>
           <h3 style={{ marginTop: 18 }}>Lock timesheets</h3>
           <div className="row">
-            <div><label htmlFor="st-lock">Lock all time on or before</label><input id="st-lock" type="date" name="lockBefore" style={{ maxWidth: 220 }} value={lock} onChange={(e) => setLock(e.target.value)} /></div>
+            <div style={{ flex: "0 1 220px" }}><label htmlFor="st-lock">Lock all time on or before</label><input id="st-lock" type="date" name="lockBefore" value={lock} onChange={(e) => setLock(e.target.value)} /></div>
             {lock && <button type="button" className="btn sm" onClick={() => setLock("")}>No lock</button>}
           </div>
-          <p className="note" style={{ margin: "6px 0 0" }}>Nobody can add, change or delete locked time, admins included.</p>
+          <p className="note" style={{ margin: "6px 0 0" }}>Nobody can add, change or delete locked time, Admins included.</p>
         </div>
         <div>
           <h3>Targets and reminders</h3>

@@ -13,7 +13,7 @@ export default async function SetupPage() {
       <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
       <section className="panel">
         <h2>Set up The Time Sink</h2>
-        <p className="sub">Create your admin account. You can add more offices, teams and people once you&apos;re in.</p>
+        <p className="sub">Create your Admin account. You can add more offices, teams and people once you&apos;re in.</p>
         <SetupForm needsProof={!!databasePassword()} />
       </section>
     </div>

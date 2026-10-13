@@ -156,11 +156,11 @@ const GENERIC="isn't in your list|can't change the hours";
 
   // ---- status, drawing standard and the location filter
   await go(adm,'/clients?view=contracts'); // the steps before left the admin on Settings
-  // a status is a choice (Contracted, Project Based, Lost); rows run Contracted first, then Project Based, then Lost, each alphabetical
+  // a status is a choice (Contracted, Project-based, Lost); rows run Contracted first, then Project-based, then Lost, each alphabetical
   const RANK={CONTRACTED:0,PROJECT_BASED:1,LOST:2};
   const orderRows=await adm.$$eval('table.mgrid tbody tr',(trs)=>trs.map((tr)=>({s:tr.querySelector('select[aria-label$=" status"]')?.value,n:tr.querySelector('td.cl a')?.textContent})));
-  ok('status: rows run Contracted, then Project Based, then Lost, and alphabetical within each',orderRows.length>=2&&orderRows.every((x,i)=>i===0||RANK[orderRows[i-1].s]<RANK[x.s]||(RANK[orderRows[i-1].s]===RANK[x.s]&&orderRows[i-1].n.localeCompare(x.n)<=0)),orderRows.map((x)=>x.s).join(','));
-  ok('status: the choices are Contracted, Project Based and Lost',(await adm.locator(`select[aria-label="${N2} status"] option`).allInnerTexts()).join()==='Contracted,Project Based,Lost');
+  ok('status: rows run Contracted, then Project-based, then Lost, and alphabetical within each',orderRows.length>=2&&orderRows.every((x,i)=>i===0||RANK[orderRows[i-1].s]<RANK[x.s]||(RANK[orderRows[i-1].s]===RANK[x.s]&&orderRows[i-1].n.localeCompare(x.n)<=0)),orderRows.map((x)=>x.s).join(','));
+  ok('status: the choices are Contracted, Project-based and Lost',(await adm.locator(`select[aria-label="${N2} status"] option`).allInnerTexts()).join()==='Contracted,Project-based,Lost');
   ok('drawing standard: the choices are Not set, AVDL, Modified AVDL and Proprietary',(await adm.locator(`select[aria-label="${N1} drawing standard"] option`).allInnerTexts()).join()==='Not set,AVDL,Modified AVDL,Proprietary');
   await rowOf(N1).locator('select[aria-label$=" drawing standard"]').selectOption('MODIFIED_AVDL');
   await rowOf(N2).locator('select[aria-label$=" status"]').selectOption('LOST');
@@ -175,8 +175,8 @@ const GENERIC="isn't in your list|can't change the hours";
   const visibleMonth=(i)=>adm.evaluate((k)=>[...document.querySelectorAll('table.mgrid tbody tr:not(.out)')].reduce((a,tr)=>{const c=tr.querySelectorAll('td.mc')[k];const el=c&&c.querySelector('input');return a+(Number(el?el.value:(c?c.textContent:''))||0);},0),i);
   const footerMonth=(i)=>adm.evaluate((k)=>Number(document.querySelectorAll('table.mgrid tfoot td')[1+k].textContent.replace(/,/g,'')),i);
   ok('location filter: the total says the location and adds up its clients only',(await adm.locator('tfoot td.tl').innerText())===`${placeName} total`&&Math.abs((await footerMonth(mi))-(await visibleMonth(mi)))<0.01,`${await footerMonth(mi)} vs ${await visibleMonth(mi)}`);
-  await adm.click('.seg button:text-is("All locations")');
-  ok('location filter: All locations shows everyone again, with the company total',(await adm.locator('table.mgrid tbody tr:not(.out)').count())===(await adm.locator('table.mgrid tbody tr').count())&&(await adm.locator('tfoot td.tl').innerText())==='All clients');
+  await adm.click('.seg button:text-is("All offices")');
+  ok('location filter: All offices shows everyone again, with the company total',(await adm.locator('table.mgrid tbody tr:not(.out)').count())===(await adm.locator('table.mgrid tbody tr').count())&&(await adm.locator('tfoot td.tl').innerText())==='All clients');
   let r=await act(adm,'/clients','saveContracts',{year:String(y),[`st|${C2}`]:'BOGUS'});
   ok('status: a status that is not on the list is refused',refused(r,'choose a status'));
   r=await act(adm,'/clients','saveContracts',{year:String(y),[`dr|${C2}`]:'NOPE'});
@@ -208,7 +208,7 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('location manager: is told admins change them',/Admins change these figures/.test(await rav.locator('.panel .note').last().innerText()));
   ok('location manager: has no Add client button',await rav.locator('button:has-text("Add client")').count()===0);
   r=await act(rav,'/clients','saveContracts',{year:String(y),[`m|${C2}|${ymAt(other)}`]:'7'});
-  ok('location manager: a crafted save is refused',refused(r,'Only admins')&&snap()===before,r.text.slice(-120));
+  ok('location manager: a crafted save is refused',refused(r,'Only Admins can change contracts')&&snap()===before,r.text.slice(-120));
   const mem=await signIn('priya@example.com');
   r=await act(mem,'/dashboard','saveContracts',{year:String(y),[`m|${C2}|${ymAt(other)}`]:'7'});
   ok('team member: a crafted save changes nothing',snap()===before);
@@ -293,7 +293,7 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('top 5: only Productivity and Hours for a location manager',(await heads(rav)).join()==='#,Person,Productivity,Hours',(await heads(rav)).join());
   await go(adm,'/dashboard');
   ok('top 5: only Productivity and Hours (and Office) for an admin, in every table',(await adm.locator('section.panel:has(h3:has-text("Top 5")) thead').evaluateAll((ts)=>ts.map((t)=>t.innerText.replace(/\s+/g,' ').trim()))).every((x)=>!/target/i.test(x)&&/Productivity/.test(x)&&/Hours/.test(x)));
-  ok('top 5: the same rule on the sentence under the title says admins are left out',/admins \(who are not a resource\)/.test(await adm.locator('.phd .sub').innerText()));
+  ok('top 5: the same rule on the sentence under the title says admins are left out',/[Aa]dmins \(who are not a resource\)/.test(await adm.locator('.phd .sub').innerText()));
   // bottom 5: for a location manager and for each office, under the top five, never repeating a name from it; never for the whole company
   // the # column holds the place; a row's Productivity and Hours cells are not places, so take the first cell only
   const names=async(p,title,k)=>p.locator(`section.panel:has(h3:has-text("${title}")) .tablebox`).nth(k).locator('tbody tr td:nth-child(2) a').allInnerTexts();
@@ -303,7 +303,7 @@ const GENERIC="isn't in your list|can't change the hours";
   // a location with five people or fewer has nobody left for the bottom five, and says so
   const everyone=await saysEveryone(rav,'Top 5 performers',1);
   const lmOk=everyone ? lmTop.length<=5 : lmTop.length===5&&lmBot.length>0&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5);
-  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmOk&&(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours',`top ${lmTop.length} | bottom ${lmBot.length}`);
+  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmOk&&(everyone||(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours'),`top ${lmTop.length} | bottom ${lmBot.length}`);
   ok('bottom 5: the whole company has none',(await adm.locator('section.panel:has(h3:has-text("Top 5 performers"))').locator('.tablebox').count())===1);
   const officeSecs=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
   const offCheck=[];

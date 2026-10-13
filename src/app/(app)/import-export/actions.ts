@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { logAction } from "@/lib/settings";
 import { roleName } from "@/lib/roles";
+import { dateWithYear } from "@/lib/dates";
 import { emailConfigured, sendEmail } from "@/lib/email";
 import { checkPeople, savePeople, type PersonDraft } from "@/lib/importPeople";
 import { checkProjects, saveProjects, type ProjectDraft } from "@/lib/importProjects";
@@ -23,7 +24,7 @@ const failed = (kind: ImportKind, error: string): NonNullable<ImportResult> =>
 const shown = (kind: ImportKind, c: { headers: string[]; columnNotes: string[]; adds: string[]; out: { row: PreviewRow }[] }, text: string): NonNullable<ImportResult> => {
   const rows = c.out.map((o) => o.row);
   const later = rows.slice(PREVIEW_ROWS).filter((r) => r.error || r.notes.length).slice(0, PREVIEW_ROWS);
-  const notes = text.includes("�") ? ["Some characters couldn't be read (they show as �). Save the file as CSV UTF-8 and add it again if names look wrong", ...c.columnNotes] : c.columnNotes;
+  const notes = text.includes("�") ? ["Some characters couldn't be read (they show as �). Save the file as CSV UTF-8 and add it again if names look wrong.", ...c.columnNotes] : c.columnNotes;
   const sample = sampleRows(kind, text);
   return { kind, headers: c.headers, rows: [...rows.slice(0, PREVIEW_ROWS), ...later], total: rows.length, summary: summarise(rows), adds: c.adds, columnNotes: notes, ...(sample ? { sample } : {}) };
 };
@@ -60,12 +61,12 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
     for (const d of drafts) roles.set(roleName(d.role), (roles.get(roleName(d.role)) ?? 0) + 1);
     await db.auditLog.createMany({
       data: [
-        { userId: me.id, action: `Imported ${saved.length} people from CSV (${[...roles].map(([r, n]) => `${n} ${r}`).join(", ")})` },
+        { userId: me.id, action: `Imported ${saved.length === 1 ? "1 person" : `${saved.length} people`} from CSV (${[...roles].map(([r, n]) => `${r}: ${n}`).join(", ")})` },
         ...saved.map((l) => ({ userId: me.id, action: `Imported ${l.name} (${l.email}) as ${roleName(l.role)} from CSV`, targetUserId: l.id })),
       ],
     });
     const links = saved.map(({ name, email, link }) => ({ name, email, link }));
-    const done = [`${links.length} ${links.length === 1 ? "person" : "people"} added, each with an invite link that works for 7 days.`];
+    const done = [links.length === 1 ? "1 person added, with an invite link that works for 7 days." : `${links.length} people added, each with an invite link that works for 7 days.`];
     if (form.get("email") === "1") {
       if (!emailConfigured()) done.push("Email isn't switched on yet, so no invites were emailed. Send people their links yourself.");
       else if (links.length > MAX_EMAILS) done.push(`That's more than ${MAX_EMAILS} people, so no invites were emailed. Send people their links yourself.`);
@@ -77,7 +78,10 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
             sendEmail(l.email, "You're invited to The Time Sink", `Hi ${l.name.split(" ")[0]},\n\n${me.name} invited you to The Time Sink, where you'll log your time.\nSet your password here within 7 days: ${l.link}`)));
           sent += results.filter((r) => r.sent).length;
         }
-        done.push(sent === links.length ? `Invite emailed to all ${sent}.` : `${sent} of ${links.length} invites were emailed. Send the others their links yourself.`);
+        done.push(
+          sent === links.length ? (sent === 1 ? "Invite emailed." : `Invites emailed to all ${sent} people.`)
+          : !sent ? "No invites could be emailed. Send people their links yourself."
+          : `${sent} of ${links.length} invites ${sent === 1 ? "was" : "were"} emailed. Send the others their links yourself.`);
       }
     }
     revalidatePath("/people");
@@ -94,7 +98,7 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
     let imported: number;
     try { imported = await saveProjects(me, drafts, c.newTags); }
     catch (e) { console.error("Project import failed", e); return { ...view, error: SAVE_FAILED }; }
-    await logAction(me.id, `Imported ${imported} projects from CSV${c.newClients.length ? ` (new clients: ${c.newClients.join(", ")})`.slice(0, 400) : ""}${c.newTags.length ? ` (new tags: ${c.newTags.join(", ")})`.slice(0, 300) : ""}`);
+    await logAction(me.id, `Imported ${imported} ${imported === 1 ? "project" : "projects"} from CSV${c.newClients.length ? ` (new clients: ${c.newClients.join(", ")})`.slice(0, 400) : ""}${c.newTags.length ? ` (new tags: ${c.newTags.join(", ")})`.slice(0, 300) : ""}`);
     revalidatePath("/", "layout");
     return { ...view, imported, done: [`${imported} project${imported === 1 ? "" : "s"} added.`, ...c.adds] };
   }
@@ -119,10 +123,10 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
   }
   await db.auditLog.createMany({
     data: [
-      { userId: me.id, action: `Imported ${imported} time entries from CSV${c.adds.length ? ` (${c.adds.join("; ")})`.slice(0, 500) : ""}` },
+      { userId: me.id, action: `Imported ${imported} time ${imported === 1 ? "entry" : "entries"} from CSV${c.adds.length ? ` (${c.adds.join("; ")})`.slice(0, 500) : ""}` },
       ...[...perPerson].map(([userId, p]) => ({
         userId: me.id, targetUserId: userId,
-        action: `Imported ${p.n} time ${p.n === 1 ? "entry" : "entries"} (${Math.round(p.minutes / 6) / 10} h, ${p.from === p.to ? p.from : `${p.from} to ${p.to}`}) from CSV`,
+        action: `Imported ${p.n} time ${p.n === 1 ? "entry" : "entries"} (${Math.round(p.minutes / 6) / 10} h, ${p.from === p.to ? dateWithYear(p.from) : `${dateWithYear(p.from)} to ${dateWithYear(p.to)}`}) from CSV`,
       })),
     ],
   });

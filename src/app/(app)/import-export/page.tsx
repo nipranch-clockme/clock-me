@@ -5,6 +5,7 @@ import { scopeLabel } from "@/lib/scope";
 import { emailConfigured } from "@/lib/email";
 import { ICONS } from "@/components/icons";
 import { TEMPLATES, type ImportKind } from "@/lib/importTemplates";
+import { DESCRIPTION_MAX } from "@/lib/format";
 import ImportDesk, { type DeskInfo } from "./ImportDesk";
 import Link from "next/link";
 
@@ -18,9 +19,9 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
       noun: ["person", "people"], required: "Name and Email",
       columns: [
         ["Name", "Their name."], ["Email", "The email they sign in with. One account per email."],
-        ["Role", "Admin, Team Manager or Project Manager. Blank means Team Member. If several are listed, the highest one counts."],
+        ["Role", "Admin, Location manager, Team/Project Manager, Human Resource or Guest. Clockify's Team Manager and Project Manager both become Team/Project Manager. Blank means Team member. If several are listed, the highest one counts."],
         ["Projects Managed", "Projects they manage, by name (write Project:Client when two clients share a name). Only projects that already exist are linked."],
-        ["Groups Managed", "For a manager with no Group: the first group listed becomes their team."],
+        ["Groups Managed", "For a Team/Project Manager with no Group: the first group listed becomes their team."],
         ["Employees Managed", "Not used: a Team/Project Manager looks after their whole team.", true],
         ["Assigned team manager", "Not used: approvals go to the team's Team/Project Manager.", true],
         ["Group", "Their team in the office. A team that doesn't exist yet is created."],
@@ -35,12 +36,12 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
   projects: {
     title: "Clients and projects", icon: "projects", blurb: "Set up projects with their phases and tags.",
     info: {
-      noun: ["project", "projects"], required: "Project (Client is usual)",
+      noun: ["project", "projects"], required: "Project (and usually Client)",
       columns: [
         ["Project", "The project's name."],
         ["Client", "The client it belongs to. Blank files it under Internal. Admins add clients that don't exist yet."],
         ["Tasks", "Become the project's phases. Blank gives the five Submission phases."],
-        ["Tags", "Added to the tag list if they aren't there yet (admins only)."],
+        ["Tags", "Added to the tag list if they aren't there yet (Admins only)."],
       ],
       extras: "Budget hours, Access (Everyone or Restricted), People (emails), Offices, Managers (emails). Phases works as another name for Tasks",
     },
@@ -52,14 +53,14 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
       columns: [
         ["Project", "The project the time was spent on."],
         ["Client", "Needed only when two clients have a project with the same name."],
-        ["Description", "What was done. Required unless Settings turn that off."],
+        ["Description", `What was done, up to ${DESCRIPTION_MAX} characters. Required unless Settings turn that off.`],
         ["Task", "The project's phase. Required."],
         ["Email", "Whose time it is. Must be someone you manage."],
         ["Tags", "One or more, separated by commas, like CAD, Revit. Required unless Settings turn that off."],
         ["Billable", NOT_USED, true],
-        ["Start Date", "The day, like 03/31/2026 (month first) or 2026-03-31."],
-        ["Start Time", "Like 9:00 AM or 14:30. Blank means 09:00."],
-        ["Duration (h)", "Like 8:00, 1:30 or 1.5."],
+        ["Start Date", "The day, like 03/31/2026 (month first) or 2026-03-31. Time can be added up to the end of this week."],
+        ["Start Time", "Like 9:00 AM or 14:30. Blank means 09:00, or earlier when a long entry would otherwise end after midnight."],
+        ["Duration (h)", "Like 8:00, 1:30 or 1.5. An entry must end by midnight, and one person's day can hold at most 24 hours."],
       ],
       extras: "any custom field you have set up, by its name. Date, Phase, Tag, Start and Hours also work as column names",
     },
@@ -106,8 +107,8 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
           <h3>Export</h3>
           <p className="note" style={{ margin: "0 0 12px" }}>Files cover {scopeLabel(me).toLowerCase() === "whole company" ? "the whole company" : scopeLabel(me)}. For time with filters (client, project, tag and more), use Export on the <Link href="/reports">Reports</Link> page.</p>
           <ul className="iexports">
-            <li><div><b>Time entries, this year</b><span>Every entry from 1 January, one row each.</span></div><a className="btn" href="/reports/export?range=thisyear" download>Download CSV</a></li>
-            <li><div><b>Time entries, all time</b><span>Every entry there is, including time planned ahead.</span></div><a className="btn" href="/reports/export?range=all" download>Download CSV</a></li>
+            <li><div><b>Time entries, this year</b><span>Every entry from January 1, one row each.</span></div><a className="btn" href="/reports/export?range=thisyear" download>Download CSV</a></li>
+            <li><div><b>Time entries, all time</b><span>Every entry there is, one row each.</span></div><a className="btn" href="/reports/export?range=all" download>Download CSV</a></li>
             <li><div><b>Projects</b><span>Clients, phases, budgets, access and managers. You can import this file again.</span></div><a className="btn" href="/import-export/export/projects" download>Download CSV</a></li>
             {canPeople && <li><div><b>People</b><span>Names, roles, offices, teams and expected hours. You can import this file again to add people.</span></div><a className="btn" href="/import-export/export/people" download>Download CSV</a></li>}
           </ul>

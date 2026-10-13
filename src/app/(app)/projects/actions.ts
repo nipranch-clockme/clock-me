@@ -102,7 +102,7 @@ const contractText = (c: { type: ClientType; monthlyHours: number | null }) => (
 
 export async function addClient(_: FormResult, form: FormData): Promise<FormResult> {
   const me = await requireUser();
-  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can add clients." };
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can add clients." };
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Name the client." };
   const contract = readContract(form);
@@ -122,7 +122,7 @@ export async function addClient(_: FormResult, form: FormData): Promise<FormResu
 
 export async function updateClient(_: FormResult, form: FormData): Promise<FormResult> {
   const me = await requireUser();
-  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can change clients." };
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can change clients." };
   const client = await db.client.findUnique({ where: { id: String(form.get("id") ?? "") } });
   if (!client) return { ok: false, error: "That client no longer exists." };
   const contract = readContract(form);

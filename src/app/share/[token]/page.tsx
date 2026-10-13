@@ -80,18 +80,19 @@ export default async function SharedReport({ params, searchParams }: { params: P
   const slices = [...sorted.slice(0, PALETTE.length).map(([k, n]) => ({ key: k, label: labelOf(p.by, k), value: n.m, color: colorOf(k) })),
     ...(sorted.length > PALETTE.length ? [{ key: "other", label: `${sorted.length - PALETTE.length} others`, value: sorted.slice(PALETTE.length).reduce((a, [, n]) => a + n.m, 0), color: OTHER }] : [])];
 
-  // Hours over time, in days, weeks or months depending on how long the period is ("All time" runs from the first entry).
+  // Hours over time, in days, weeks or months depending on how long the period is ("All time" runs from the first entry, and stops a year ahead).
   const dates = rows.map((r) => r.date);
   const firstDate = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : today();
   const lastDate = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : today();
   const shownFrom = p.range === "all" ? firstDate : from;
-  const shownTo = p.range === "all" ? (lastDate > today() ? lastDate : today()) : to;
+  const cap = addDays(monday(today()), 6 + 7 * 52); // an old entry dated far ahead would otherwise give years of empty bars
+  const shownTo = p.range === "all" ? (lastDate > cap ? cap : lastDate > today() ? lastDate : today()) : to;
   const span = (toDate(shownTo).getTime() - toDate(shownFrom).getTime()) / 864e5 + 1;
   const unit = span <= 35 ? "day" : span <= 200 ? "week" : "month";
   const kOf = (d: string) => (unit === "day" ? d : unit === "week" ? monday(d) : d.slice(0, 7));
   const keys: string[] = [];
   const end = p.range === "all" ? shownTo : to < addDays(today(), 6) ? to : addDays(today(), 6);
-  for (let d = shownFrom; d <= end; d = addDays(d, 1)) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); }
+  for (let d = shownFrom; d <= end; ) { const k = kOf(d); if (keys[keys.length - 1] !== k) keys.push(k); const n = addDays(d, 1); if (n === d) break; d = n; }
   const lbl = (k: string) => (unit === "month" ? toDate(k + "-01").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }) : unit === "day" ? `${DAYS[dow(k)]}, ${shortDate(k)}` : shortDate(k));
   const B: Record<string, Record<string, number>> = {};
   const BT: Record<string, number> = {}; // each bar's true hours: an entry with several tags is in several stacks but counted once here
@@ -142,7 +143,7 @@ export default async function SharedReport({ params, searchParams }: { params: P
         </div>
 
         <section className="panel rfilters" aria-label="Filters">
-          <span className="rflabel">FILTER</span>
+          <span className="rflabel">Filter</span>
           <FilterMenu name="project" label="Project" options={opts(choices.projects)} selected={p.project} />
           <FilterMenu name="tag" label="Tag" options={opts(choices.tags)} selected={p.tag} />
           <span className="sp" />

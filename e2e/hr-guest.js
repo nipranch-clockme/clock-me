@@ -50,7 +50,7 @@ const pathOf = (p) => new URL(p.url()).pathname;
     ok(!["Clients", "People", "Approvals", "Import & export", "Settings"].some((t) => hrTabs.includes(t)), "Human Resource: no Clients, People, Approvals, Import & export or Settings");
     await hr.goto(`${BASE}/dashboard`); await hr.waitForLoadState("networkidle");
     const hrDash = (await hr.locator(".dtabs a").allInnerTexts()).map((t) => t.trim());
-    ok(hrDash.join() === "Team Overview,Detailed Utilization", "Human Resource: Team Overview and Detailed Utilization only: " + hrDash.join(","));
+    ok(hrDash.join() === "Team overview,Detailed utilisation", "Human Resource: Team overview and Detailed utilisation only: " + hrDash.join(","));
     await hr.goto(`${BASE}/dashboard?tab=detailed`); await hr.waitForLoadState("networkidle");
     const offs = (await hr.locator("#mr-office option").allInnerTexts()).map((t) => t.trim());
     ok(offs[0] === "All offices" && offs.length > 2, "Human Resource: every office and All offices: " + offs.join(","));

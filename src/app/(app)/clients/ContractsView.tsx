@@ -22,7 +22,7 @@ export default async function ContractsView({ admin, yearParam }: { admin: boole
     db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
-  // Contracted first, then Project Based, then Lost; alphabetical within each.
+  // Contracted first, then Project-based, then Lost; alphabetical within each.
   const ordered = [...clients].sort((a, b) => statusRank(a.status) - statusRank(b.status) || a.name.localeCompare(b.name));
   const rows: GridRow[] = ordered.map((c) => ({
     id: c.id, name: c.name, usual: contractOf(c) ?? 0, values: months.map((m) => contractFor(c, m, cm) ?? 0), editable: admin,

@@ -26,7 +26,7 @@ export default function TagPicker({ id, tags, selected, required, invalid, readO
           </div>
           <p className="note" id={id + "-h"} style={{ margin: "4px 0 0" }}>{required ? "Tick one or more." : "Tick any that apply."}</p>
         </>
-      ) : <p className="note" style={{ margin: 0 }}>There are no tags yet. An admin adds them in Settings.</p>}
+      ) : <p className="note" style={{ margin: 0 }}>There are no tags yet. An Admin adds them in Settings.</p>}
     </fieldset>
   );
 }

@@ -11,7 +11,7 @@ export type ShareResult = { ok: boolean; error?: string };
 /** Admins manage a client's view-only report link: create it, turn it off, make a new one (the old one stops working), and choose whether it counts only approved time. */
 export async function changeShareLink(clientId: string, op: ShareOp): Promise<ShareResult> {
   const me = await requireUser();
-  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can change a client's link." };
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can change a client's link." };
   const client = await db.client.findUnique({ where: { id: clientId }, select: { name: true, shareToken: true } });
   if (!client) return { ok: false, error: "That client no longer exists." };
   if (op === "on") {

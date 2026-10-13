@@ -1,4 +1,4 @@
-// Overtime (OT) is time tagged "OT". It is highlighted while a timesheet is reviewed (Approvals, and Review Time from there)
+// Overtime (OT) is time tagged "OT". It is highlighted while a timesheet is reviewed (Approvals, and Review time from there)
 // and nowhere else: the reports, the CSV and every other screen treat the tag like any other tag.
 // Sets up its own test people, submitted weeks and tags directly in the local database, and removes them again.
 //   BASE=http://localhost:3500 PSQL="psql -h /var/run/postgresql tags_t" node e2e/overtime.js
@@ -51,8 +51,8 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const pill=await lead.locator('.item',{hasText:'Overtime Alpha'}).locator('.pill.p-ot');
   ok('approvals: the OT pill has its own look, not "Under target"',(await pill.count())===1&&(await lead.locator('.item',{hasText:'Overtime Alpha'}).locator('.p-warn').count())===0,`pills ${await pill.count()}, warn ${await lead.locator('.item',{hasText:'Overtime Alpha'}).locator('.p-warn').count()}`);
 
-  // Review Time from the card
-  const href=await lead.locator('.item',{hasText:'Overtime Alpha'}).locator('a:has-text("Review Time")').getAttribute('href');
+  // Review time from the card
+  const href=await lead.locator('.item',{hasText:'Overtime Alpha'}).locator('a:has-text("Review time")').getAttribute('href');
   ok('review link carries the way back',/ref=approvals/.test(href),href);
   await lead.goto(BASE+href);await lead.waitForLoadState('networkidle');
   let banner=(await lead.locator('.alert.ot').allInnerTexts()).join(' ').replace(/\s+/g,' ');

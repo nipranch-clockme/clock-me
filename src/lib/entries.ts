@@ -1,16 +1,55 @@
 import { db } from "./db";
-import { monday, toDate } from "./dates";
+import { addDays, monday, shortDate, toDate, today } from "./dates";
+import { fmtHours, type TimeFormat } from "./format";
 import type { AppSettings } from "./settings";
 import type { Me } from "./auth";
 import { timeEditError, visibleProjectsWhere, visibleUsersWhere } from "./scope";
 
 /** A day is locked when an admin has locked it, or the person's week is submitted or approved. */
 export async function isDayLocked(userId: string, date: string, settings: AppSettings, onBehalf = false) {
-  if (settings.lockBeforeStr && date <= settings.lockBeforeStr) return "This date is locked by an admin.";
+  if (settings.lockBeforeStr && date <= settings.lockBeforeStr) return "This date is locked by an Admin.";
   const ts = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(monday(date)) } } });
   if (ts?.status === "SUBMITTED") return onBehalf ? "That week is waiting for approval. Send it back from Approvals to change it." : "That week is waiting for approval. Cancel the submission on the Timesheet to change it.";
   if (ts?.status === "APPROVED") return "That week is already approved.";
   return null;
+}
+
+/** The longest description a time entry or a running timer may have. Browser code imports it from format.ts, since this file reads the database. */
+export { DESCRIPTION_MAX } from "./format";
+
+// Direction overrides and isolates (they make text read backwards) and zero-width spaces, word joiners and byte-order marks (they make a
+// blank description look filled in). Zero-width joiners stay: emoji and several Indian scripts need them.
+const STRIP = /[\u200B\u2060-\u2064\uFEFF\u202A-\u202E\u2066-\u2069]/g;
+const INVISIBLE = /[\s\u200B-\u200F\u2060-\u2064\uFEFF\u202A-\u202E\u2066-\u2069]/g;
+/** Free text as it's saved: without the characters above, trimmed. */
+export const cleanText = (s: string) => s.replace(STRIP, "").trim();
+/** True when the text has nothing visible in it. */
+export const isBlankText = (s: string) => !s.replace(INVISIBLE, "");
+
+/** A start time typed as HH:MM, from 00:00 to 23:59, in minutes after midnight; null when it isn't one. */
+export function parseStart(v: string): number | null {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(v.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** Why time can't be added on this date, or null when it can: from 2000 up to the end of the company's current week. */
+export function entryDateError(date: string): string | null {
+  const last = addDays(monday(today()), 6);
+  if (date > last) return `Time can be added up to the end of this week (${shortDate(last)}).`;
+  if (date < "2000-01-01") return "Choose a date from 2000 onwards.";
+  return null;
+}
+
+/** The most time one person can log on one day. */
+export const DAY_MAX_MINUTES = 1440;
+
+/** Why adding `minutes` on `date` would give this person more than 24 hours that day, or null when it fits. `excludeIds` are entries being
+ *  replaced (the one being edited), so they don't count twice. */
+export async function dayTotalError(userId: string, date: string, minutes: number, timeFormat: TimeFormat, excludeIds: string[] = []) {
+  const agg = await db.timeEntry.aggregate({ where: { userId, date: toDate(date), ...(excludeIds.length ? { id: { notIn: excludeIds } } : {}) }, _sum: { minutes: true } });
+  const logged = agg._sum.minutes ?? 0;
+  if (logged + minutes <= DAY_MAX_MINUTES) return null;
+  return `A day can't hold more than 24 hours. ${shortDate(date)} already has ${fmtHours(logged, timeFormat)} h, so at most ${fmtHours(Math.max(0, DAY_MAX_MINUTES - logged), timeFormat)} h more fits.`;
 }
 
 export type EntryLike = { phaseId: string | null; tagIds: string[]; description: string; custom: unknown };
@@ -19,14 +58,14 @@ export async function missingFields(e: EntryLike, settings: AppSettings) {
   const out: string[] = [];
   if (!e.phaseId) out.push("Phase");
   if (settings.requireTag && !e.tagIds.length) out.push("Tags");
-  if (settings.requireDescription && !e.description.trim()) out.push("Description");
+  if (settings.requireDescription && isBlankText(e.description)) out.push("Description");
   const fields = await db.customField.findMany({ where: { required: true } });
   const vals = (e.custom ?? {}) as Record<string, string>;
   for (const f of fields) if (!String(vals[f.id] ?? "").trim()) out.push(f.name);
   return out;
 }
 
-const ONLY_MANAGERS = "Only location managers and admins can add or change someone else's time.";
+const ONLY_MANAGERS = "Only Location managers and Admins can add or change someone else's time.";
 
 /**
  * Whose time a request is about: the signed-in person, or (location managers and admins only) someone they may change,

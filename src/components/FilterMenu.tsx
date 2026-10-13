@@ -6,14 +6,16 @@ export type FilterOption = { value: string; label: string };
 /**
  * One report filter: a button that opens a short list of tick boxes (with a search box when the list is long).
  * The ticks are ordinary form fields, so the surrounding form sends them when "Apply filter" is pressed.
+ * `plural` names the things in the list for the search box ("Search people…"); by default it is the label with an s.
  */
-export default function FilterMenu({ name, label, options, selected }: { name: string; label: string; options: FilterOption[]; selected: string[] }) {
+export default function FilterMenu({ name, label, plural, options, selected }: { name: string; label: string; plural?: string; options: FilterOption[]; selected: string[] }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(() => new Set(selected));
   const [q, setQ] = useState("");
   const box = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const needle = q.trim().toLowerCase();
+  const many = plural ?? `${label.toLowerCase()}s`;
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function FilterMenu({ name, label, options, selected }: { name: s
       </button>
       <div className="fm-p" ref={panel} hidden={!open} role="group" aria-label={`${label} filter`}>
         {options.length > 7 && (
-          <input type="search" className="fm-q" placeholder={`Search ${label.toLowerCase()}…`} aria-label={`Search ${label.toLowerCase()}`} value={q} autoComplete="off"
+          <input type="search" className="fm-q" placeholder={`Search ${many}…`} aria-label={`Search ${many}`} value={q} autoComplete="off"
             onChange={(e) => { e.stopPropagation(); setQ(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
         )}
         <div className="fm-act">
@@ -58,7 +60,7 @@ export default function FilterMenu({ name, label, options, selected }: { name: s
             </li>
           ))}
         </ul>
-        {!shown.length && <p className="note fm-none">{options.length ? `Nothing matches “${q.trim()}”.` : "Nothing to choose from yet."}</p>}
+        {!shown.length && <p className="note fm-none">{options.length ? `Nothing matches "${q.trim()}".` : "Nothing to choose from yet."}</p>}
       </div>
     </div>
   );

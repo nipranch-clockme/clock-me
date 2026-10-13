@@ -18,7 +18,9 @@ const ok = S.ok;
       const r = await p.request.get(`${BASE}/import-export/template/${kind}`);
       ok(r.status() === 200, `${kind} template downloads`);
       ok(/attachment/.test(r.headers()['content-disposition'] || '') && (r.headers()['content-disposition'] || '').includes(name), `${kind} template is named ${name}`);
-      ok(Buffer.compare(await r.body(), fs.readFileSync(path.join(FX, orig))) === 0, `${kind} template is byte-for-byte the uploaded file`);
+      const body = await r.body();
+      const bare = body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf ? body.subarray(3) : body; // the byte-order mark is there so Excel reads the accents
+      ok(Buffer.compare(bare, fs.readFileSync(path.join(FX, orig))) === 0, `${kind} template is the uploaded file, apart from its byte-order mark`);
     }
     await p.goto(`${BASE}/import-export?import=people`);
     const [dl] = await Promise.all([p.waitForEvent('download'), p.click('a:has-text("Download template")')]);

@@ -136,7 +136,7 @@ async function withOverlays(p, path) {
   sql(`insert into "Holiday"(id,"locationId",date,name,fraction) values('ctrh1','${priya[1]}','${dt(2)}','Contrast Day',1),('ctrh2','${priya[1]}','${dt(4)}','Contrast Half',0.5)`);
   sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,"updatedAt") values('ctro1','${priya[0]}','${dt(3)}','${dt(3)}',1,'PTO',now())`);
   sql(`insert into "TimeOff"(id,"userId","startDate","endDate",fraction,label,source,"externalId","updatedAt") values('ctro2','${priya[0]}','${dt(21)}','${dt(22)}',0.5,'Sick leave','keka','ctr-1',now())`);
-  // Overtime marks (Approvals card, Review Time banner and entry rows) and the "on behalf of" banner: a member of Daniel's team with a submitted week that has time tagged OT.
+  // Overtime marks (Approvals card, Review time banner and entry rows) and the "on behalf of" banner: a member of Daniel's team with a submitted week that has time tagged OT.
   const dan = sql(`select "locationId"||'|'||"teamId"||'|'||"passwordHash" from "User" where email='daniel@example.com'`).split('|');
   const ow = dt(-14);
   const ot = 'ctrot';

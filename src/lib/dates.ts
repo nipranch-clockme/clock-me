@@ -2,11 +2,17 @@
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export const toDate = (s: string) => new Date(s + "T00:00:00Z");
-export const toStr = (d: Date) => d.toISOString().slice(0, 10);
+const FIRST_MS = Date.parse("0000-01-01T00:00:00Z"), LAST_MS = Date.parse("9999-12-31T23:59:59.999Z");
+/** A moment's UTC date as YYYY-MM-DD. A date outside the years 0000 to 9999 is held at the nearest end, never written as "+010000-01". */
+export function toStr(d: Date) {
+  const t = d.getTime();
+  return (t < FIRST_MS ? new Date(FIRST_MS) : t > LAST_MS ? new Date(LAST_MS) : d).toISOString().slice(0, 10);
+}
 
+/** The date n days after s (before it when n is negative), held within the years 0000 to 9999 like toStr. */
 export function addDays(s: string, n: number) {
   const d = toDate(s);
-  d.setUTCDate(d.getUTCDate() + n);
+  d.setUTCDate(d.getUTCDate() + Math.max(-4e6, Math.min(4e6, n))); // about 11,000 years either way, so the Date can't overflow
   return toStr(d);
 }
 
@@ -43,7 +49,13 @@ export const isDateStr = (s: unknown): s is string =>
 export const shortDate = (s: string) => toDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 export const longDate = (s: string) =>
   toDate(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-export const weekLabel = (ws: string) => `${shortDate(ws)} to ${shortDate(addDays(ws, 6))}`;
+/** "Nov 5, 2018" */
+export const dateWithYear = (s: string) => toDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+/** "Oct 12 to Oct 18, 2026", or "Dec 28, 2026 to Jan 3, 2027" when the week runs into the next year. */
+export function weekLabel(ws: string) {
+  const we = addDays(ws, 6);
+  return `${ws.slice(0, 4) === we.slice(0, 4) ? shortDate(ws) : dateWithYear(ws)} to ${dateWithYear(we)}`;
+}
 
 export function endOfMonth(ym: string) {
   const d = toDate(ym + "-01");

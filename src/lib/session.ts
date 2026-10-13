@@ -47,6 +47,15 @@ export async function readSession(): Promise<{ uid: string; sv: number } | null>
   }
 }
 
+/** True when the browser sent a sign-in cookie, working or not. One that no longer works means their session has ended. */
+export async function hasSessionCookie() {
+  return (await cookies()).has(COOKIE);
+}
+
+/** Signs the person out on every device: bumps their sessionVersion, so this cookie and any copy of it stop working, then deletes it here. */
 export async function destroySession() {
+  const s = await readSession();
+  // Only a sign-in that still works can do this, so an old copied cookie can't sign the person out of their current devices.
+  if (s) await db.user.updateMany({ where: { id: s.uid, sessionVersion: s.sv }, data: { sessionVersion: { increment: 1 } } });
   (await cookies()).delete(COOKIE);
 }

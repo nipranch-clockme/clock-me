@@ -113,7 +113,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
           <div className="cols2">
             <div><div className="note">Team</div><div>{client.team ? teamLabelOf(client.team) : <span className="note">No team assigned</span>}</div></div>
             <div><div className="note">Points of contact</div>
-              {client.contacts.length ? client.contacts.map((c) => <div key={c.id} style={{ marginBottom: 6 }}><b>{c.name}</b>{c.email && <> <a href={`mailto:${c.email}`}>{c.email}</a></>}{c.phone && <> <span className="note">{c.phone}</span></>}</div>) : <span className="note">No contacts added</span>}
+              {client.contacts.length ? client.contacts.map((c) => <div key={c.id} style={{ marginBottom: 6 }}><b>{c.name}</b>{c.email && <> <a href={`mailto:${c.email}`}>{c.email}</a></>}{c.phone && <> <span className="note nowrap">{c.phone}</span></>}</div>) : <span className="note">No contacts added</span>}
             </div>
           </div>
         </section>
@@ -126,10 +126,10 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
         )}
         <section className="panel full">
           <h3>Hours by month, last 12 full months</h3>
-          <TrendChart months={months} series={series} unit="hours" fmt={(v) => `${f(v * 60)} h`} label={`Hours on ${client.name} by month`} level={level} />
+          <TrendChart months={months} series={series} unit="hours" timeFormat={settings.timeFormat} label={`Hours on ${client.name} by month`} level={level} />
           <div className="legend">
             <span><i style={{ background: `var(--${client.color})` }} />Hours logged</span>
-            {series.length > 1 && <span><i className="dash" />Contracted hours for the month</span>}
+            {(series.length > 1 || level) && <span><i className="dash" />Contracted hours for the month</span>}
           </div>
         </section>
         <section className="panel"><h3>Hours by project</h3><ShareTable head="Project" rows={projectRows} total={total} f={f} empty="No time in this period." /></section>

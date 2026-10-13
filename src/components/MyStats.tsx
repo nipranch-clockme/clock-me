@@ -4,9 +4,11 @@ import type { Me } from "@/lib/auth";
 import { addDays, addMonths, daysBetween, endOfMonth, monday, shortDate, today, toDate, toStr } from "@/lib/dates";
 import { fmtHours, pct, type TimeFormat } from "@/lib/format";
 import { loadExpected } from "@/lib/timeoff";
+import { sheetStatusLabel } from "@/lib/sheetStatus";
 import CollapseButton from "./CollapseButton";
 
-const STATUS: Record<string, string> = { DRAFT: "not submitted yet", SUBMITTED: "waiting for approval", APPROVED: "approved", REJECTED: "sent back to you" };
+/** A week's status in a sentence, in the same words as the Timesheet pill ("not submitted yet", "sent back to you"). */
+const statusText = (status?: string | null) => sheetStatusLabel(status).toLowerCase() + (!status || status === "DRAFT" ? " yet" : status === "REJECTED" ? " to you" : "");
 
 /** One person's own numbers: how much of their expected hours they logged last week and last month, how this month compares with last month,
  *  and whether they are on pace. Hours over expected hours is the same utilisation figure the manager Dashboard and profiles use. */
@@ -94,12 +96,12 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
             </div>
           ))}
         </div></div>
-        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. Green: reached that week's expected hours (a week with a public holiday or time off expects less than the dashed line). Blue: below it. Striped: this week so far.</p>
+        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. The dashed line is your {f(target * 60)} inventory hours a week. Green: reached that week's expected hours (a week with a public holiday or time off expects less than the dashed line). Blue: below it. Striped: this week so far.</p>
       </div>
 
       <p className="mynext">
-        <b>Your timesheet:</b> this week is <strong>{STATUS[sheet?.status ?? "DRAFT"]}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
-        {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE || lwM) ? <>Last week is <strong>{STATUS[lastSheet?.status ?? "DRAFT"]}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
+        <b>Your timesheet:</b> this week is <strong>{statusText(sheet?.status)}</strong>. <Link href="/timesheet">Open your timesheet</Link>.{" "}
+        {lastSheet?.status !== "SUBMITTED" && lastSheet?.status !== "APPROVED" && lastE(lwE || lwM) ? <>Last week is <strong>{statusText(lastSheet?.status)}</strong>, so <Link href="/timesheet?w=-1">submit it</Link>.</> : null}
       </p>
       </div>
     </section>

@@ -30,7 +30,7 @@ export type NewTeam = { name: string; locationId: string };
 
 /** Reads a People file (the Users template, or our own People export) and says what would happen to each row. Nothing is saved here. */
 export async function checkPeople(me: Me, text: string, officeId: string) {
-  if (me.role !== "ADMIN" && me.role !== "LOCATION") return { error: "Only admins and location managers can import people." };
+  if (me.role !== "ADMIN" && me.role !== "LOCATION") return { error: "Only Admins and Location managers can import people." };
   await getSettings(); // sets the company time zone, which decides what "today" is for the joining date
   const { keys, rows, total, error: unreadable } = csvObjects(text, MAX_PEOPLE);
   if (unreadable) return { error: unreadable };
@@ -89,7 +89,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
       : name.length > 100 ? "Name can be up to 100 characters"
       : !email ? "No email"
       : !EMAIL_RE.test(email) ? "That isn't a valid email address"
-      : roleP.unknown.length ? `Unknown role: ${roleP.unknown.join(", ")}. Use Admin, Location Manager, Team Manager, Project Manager, or leave it blank`
+      : roleP.unknown.length ? `Unknown role: ${roleP.unknown.join(", ")}. Use one of our roles (Admin, Location manager, Team/Project Manager, Human Resource, Guest), or leave it blank for Team member.`
       : !loc ? (officeName ? `Unknown office: ${officeName}` : "Choose an office")
       : manageError(me, loc.id, roleP.role) ?? (
         roleP.role === "LEADER" && !teamName ? "Team/Project Managers need a team: add their Group"
@@ -101,7 +101,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
         : firstEmp ? `Same employee ID as row ${firstEmp}`
         : joinText && !joined ? "Joining date should look like 2021-03-12 or 03/12/2021"
         : joined && joined > today() ? "Joining date can't be in the future"
-        : joined && joined < "1950-01-01" ? "Check the joining date. It's before 1950"
+        : joined && joined < "1950-01-01" ? "Check the joining date. It's before 1950."
         : weekly === null ? weeklyError
         : weekly !== undefined && (weekly < 0 || weekly > 80) ? "Expected hours per week should be between 0 and 80"
         : "") ?? "";
@@ -113,7 +113,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     const projectIds: string[] = [];
     const managed = splitList(r["projects managed"]);
     if (managed.length > MAX_MANAGED) notes.push(`Only the first ${MAX_MANAGED} projects in Projects Managed are used`);
-    if (managed.length && roleP.role === "MEMBER") notes.push("Projects Managed ignored: Team Members can't manage projects");
+    if (managed.length && roleP.role === "MEMBER") notes.push("Projects Managed ignored: Team members can't manage projects");
     else if (managed.length) {
       for (const entry of managed.slice(0, MAX_MANAGED)) {
         let hit: typeof projects = [];
@@ -121,8 +121,8 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
           hit = (projectsByName.get(nameKey(c.name)) ?? []).filter((p) => !c.client || nameKey(p.client.name) === nameKey(c.client));
           if (hit.length) break;
         }
-        if (!hit.length) notes.push(`Project "${entry}" doesn't exist yet. Add them as a manager on the project later`);
-        else if (hit.length > 1) notes.push(`"${entry}" matches projects of several clients. Write it as Project:Client`);
+        if (!hit.length) notes.push(`Project "${entry}" doesn't exist yet. Add them as a manager on the project later.`);
+        else if (hit.length > 1) notes.push(`"${entry}" matches projects of several clients. Write it as Project:Client.`);
         else if (me.role !== "ADMIN" && !hit[0].managers.some((m) => m.userId === me.id)) notes.push(`You can't make someone a manager of ${hit[0].name}`);
         else if (!projectIds.includes(hit[0].id)) projectIds.push(hit[0].id);
       }
@@ -149,7 +149,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
     ? [`New teams: ${[...newTeams.values()].map((t) => `${t.name} (${locName(t.locationId)})`).join(", ")}`]
     : [];
   return {
-    headers: ["Name", "Email", "Role", "Office", "Team", "Hours a week"],
+    headers: ["Name", "Email", "Role", "Office", "Team", "Expected hours per week"],
     columnNotes: columnNotes(keys, USED, IGNORED, [], rows.map((r) => r.v)), adds, out, newTeams,
   };
 }

@@ -12,7 +12,7 @@ import { parseDateFlexible, cleanText } from "@/lib/importParse";
 export type TimeOffResult = { ok: boolean; error?: string; message?: string } | null;
 const done = (message?: string) => { revalidatePath("/", "layout"); return { ok: true, message }; };
 const fail = (error: string) => ({ ok: false, error });
-const LOCKED = "This date is locked by an admin.";
+const LOCKED = "This date is locked by an Admin.";
 const TYPES = ["PTO", "Sick leave", "Other"];
 const MAX_DAYS = 366;
 
@@ -50,7 +50,7 @@ export async function addTimeOff(_: TimeOffResult, form: FormData): Promise<Time
   if (clash) {
     const what = `${clash.status === "PENDING" ? "a request for " : ""}time off on ${range(toStr(clash.startDate), toStr(clash.endDate))}`;
     const fix = clash.status === "PENDING" ? "Withdraw it first to send a different one."
-      : own ? "Ask your location manager or an admin to change it."
+      : own ? "Ask your Location manager or an Admin to change it."
       : "Remove it first to change it.";
     return fail(`${own ? "You" : person.name} already ${own ? "have" : "has"} ${what}. ${fix}`);
   }
@@ -62,7 +62,7 @@ export async function addTimeOff(_: TimeOffResult, form: FormData): Promise<Time
   } });
   if (pending) {
     await logAction(me.id, `Asked for ${label}: ${range(from, to)}${half ? " (half days)" : ""}`, me.id);
-    return done("Request sent. A location manager or admin will approve it.");
+    return done("Request sent. A Location manager or an Admin will approve it.");
   }
   await logAction(me.id, `Added ${label} for ${person.name}: ${range(from, to)}${half ? " (half days)" : ""}`, person.id);
   return done();
@@ -161,7 +161,7 @@ export async function addHoliday(_: TimeOffResult, form: FormData): Promise<Time
   let list: Parsed[];
   if (bulk) {
     const { rows, bad } = parseLines(bulk);
-    if (bad.length) return fail(`I couldn't read ${bad.length === 1 ? "this line" : "these lines"}: ${bad.slice(0, 3).join(" | ")}${bad.length > 3 ? " …" : ""}. Write one holiday per line, like: 2026-12-25, Christmas Day`);
+    if (bad.length) return fail(`We couldn't read ${bad.length === 1 ? "this line" : "these lines"}: ${bad.slice(0, 3).join(" | ")}${bad.length > 3 ? " …" : ""}. Write one holiday per line, like: 2026-12-25, Christmas Day`);
     if (!rows.length) return fail("Type the holidays, one per line, like: 2026-12-25, Christmas Day");
     if (rows.length > 100) return fail("That is more than 100 holidays at once. Add them in smaller groups.");
     list = rows;

@@ -13,7 +13,7 @@ import { DUP_EMPLOYEE_ID, isDupEmployeeId, profileChanges, readProfileFields } f
 export type PeopleResult = { ok: boolean; error?: string; link?: string; message?: string } | null;
 const ROLE_VALUES: Role[] = ["MEMBER", "LEADER", "LOCATION", "HUMAN_RESOURCE", "GUEST", "ADMIN"];
 
-/** Location managers manage their own office and can't hand out admin or location manager roles. */
+/** Location managers manage their own office and can't hand out the Admin or Location manager roles. */
 const checkScope = (me: Me, locationId: string, role: Role) => manageError(me, locationId, role);
 
 /** `personId` is who's being edited (none for an invite), so their own employee ID doesn't count as taken. */
@@ -68,7 +68,7 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
   const scopeErr = checkScope(me, p.data.locationId, p.data.role);
   if (scopeErr) return { ok: false, error: scopeErr };
   const active = form.get("active") === "on";
-  if (id === me.id && (!active || p.data.role !== me.role)) return { ok: false, error: "You can't change your own role or deactivate yourself. Ask another admin." };
+  if (id === me.id && (!active || p.data.role !== me.role)) return { ok: false, error: "You can't change your own role or deactivate yourself. Ask another Admin." };
   const name = String(form.get("name") ?? "").trim() || person.name;
   // A role, office or status change cancels any open invite or reset link (a new one can be made),
   // and deactivating someone signs them out everywhere.
@@ -105,7 +105,7 @@ export async function resetLink(_: PeopleResult, form: FormData): Promise<People
   // Always a fresh link: any older one stops working.
   const hours = person.passwordHash ? RESET_HOURS : INVITE_HOURS;
   const link = `${appUrl()}/invite/${await issueLinkToken(person.id, hours)}`;
-  const r = await sendEmail(person.email, person.passwordHash ? "Reset your The Time Sink password" : "You're invited to The Time Sink", `Set your password here within ${person.passwordHash ? "3 days" : "7 days"}: ${link}`);
+  const r = await sendEmail(person.email, person.passwordHash ? "Reset your password for The Time Sink" : "You're invited to The Time Sink", `Set your password here within ${person.passwordHash ? "3 days" : "7 days"}: ${link}`);
   await logAction(me.id, `${person.passwordHash ? "Made a password reset link for" : "Made a new invite link for"} ${person.name}`, person.id);
   revalidatePath("/people");
   return { ok: true, link, message: r.sent ? `Link emailed to ${person.email}. It works for ${person.passwordHash ? "3 days" : "7 days"}.` : `Email isn't switched on yet, so send them this link. It works for ${person.passwordHash ? "3 days" : "7 days"}, and any older link has stopped working:` };
@@ -113,7 +113,7 @@ export async function resetLink(_: PeopleResult, form: FormData): Promise<People
 
 export async function addOffice(_: PeopleResult, form: FormData): Promise<PeopleResult> {
   const me = await requireTab("people");
-  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can add offices." };
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can add offices." };
   const name = String(form.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Name the office." };
   if (await db.location.findFirst({ where: { name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "That office already exists." };

@@ -14,7 +14,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
 const addMonths=(ym,n)=>{const x=toD(ym+'-01');x.setUTCMonth(x.getUTCMonth()+n);return x.toISOString().slice(0,7);};
 const endOfMonth=(ym)=>{const x=toD(ym+'-01');x.setUTCMonth(x.getUTCMonth()+1);x.setUTCDate(0);return x.toISOString().slice(0,10);};
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const dmy=(s)=>`${+s.slice(8)} ${MON[+s.slice(5,7)-1]} ${s.slice(0,4)}`;
+const mdy=(s)=>`${MON[+s.slice(5,7)-1]} ${+s.slice(8)}, ${s.slice(0,4)}`;
 const longMonth=(ym)=>toD(ym+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
 const pct=(v)=>`${Math.round(v*100)}%`;
 
@@ -81,7 +81,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok('top bar name links to My profile',(await m.getAttribute('a.plink','href'))==='/profile'&&(await m.textContent('a.plink')).includes('Profile Test'));
   await m.click('a.plink');await m.waitForURL(/\/profile$/);await m.waitForLoadState('networkidle');
   let h=await head(m);
-  ok('own profile is titled My profile',h.includes('My profile'));
+  ok('own profile is titled My profile',(await m.textContent('h1')).includes('My profile'));
   ok('header shows name, job title, role, team, office and email',['Profile Test','Test designer','Team member','Hulk','AMD',M+'@example.com'].every((x)=>h.includes(x)),h.slice(0,200));
   ok('initials circle when there is no photo',(await m.textContent('.profile-head .av'))==='PT'&&!(await m.$('.profile-head .av img')));
   ok('employee ID and joining date show as not set',h.includes('Employee IDNot set')&&h.includes('Joining date not set'));
@@ -182,7 +182,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   await a.click('dialog[open] button:has-text("Save changes")');await a.waitForSelector('dialog[open]',{state:'detached'});await a.waitForLoadState('networkidle');
   h=await head(a);
   ok('saved: employee ID (trimmed), joining date and expected hours',db(M,'employeeId')===`PF-${process.pid}`&&db(M,'joiningDate')===j&&db(M,'weeklyTarget')==='30',[db(M,'employeeId'),db(M,'joiningDate'),db(M,'weeklyTarget')].join(' '));
-  ok('header shows joining date with years of experience',h.includes(`Joined ${dmy(j)} · 4 years 6 months`),h.slice(0,240));
+  ok('header shows joining date with years of experience',h.includes(`Joined ${mdy(j)} · 4 years 6 months`),h.slice(0,240));
   ok('header shows employee ID and new expected hours',h.includes(`Employee IDPF-${process.pid}`)&&h.includes('Expected hours per week30 h'));
   ok('change log records the details',sql(`select count(*) from "AuditLog" where "userId"='${ADMIN}' and "targetUserId"='${M}' and action like 'Updated Profile Test: employee ID to PF-${process.pid}, joining date to ${j}, expected hours per week to 30 h'`)==='1');
   await go(a,`/profile/${M}?range=lastmonth`);s=await stats(a);
@@ -193,7 +193,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok('under a month: Joined this month',(await head(a)).includes('Joined this month'));
   sql(`update "User" set "joiningDate"='${addDays(today,-400)}' where id='${M}'`);await go(a,`/profile/${M}`);
   { const jj=addDays(today,-400),dim=+endOfMonth(today.slice(0,7)).slice(8);const mo=(+today.slice(0,4)-+jj.slice(0,4))*12+(+today.slice(5,7)-+jj.slice(5,7))-(+today.slice(8)<Math.min(+jj.slice(8),dim)?1:0);
-    const want=`Joined ${dmy(jj)} · ${Math.floor(mo/12)} year${Math.floor(mo/12)===1?'':'s'}${mo%12?` ${mo%12} month${mo%12===1?'':'s'}`:''}`;ok('years and months of experience read naturally',(await head(a)).includes(want),want); }
+    const want=`Joined ${mdy(jj)} · ${Math.floor(mo/12)} year${Math.floor(mo/12)===1?'':'s'}${mo%12?` ${mo%12} month${mo%12===1?'':'s'}`:''}`;ok('years and months of experience read naturally',(await head(a)).includes(want),want); }
   // validation in the details form (browser limits taken off, so the server's checks are what's tested)
   sql(`update "User" set "employeeId"='PFX-${process.pid}' where id='${L}'`);
   const tryDetails=async(fill)=>{await a.click('button:has-text("Edit details")');await a.waitForSelector('dialog[open] #pd-emp');await a.evaluate(()=>document.querySelectorAll('dialog[open] input').forEach((i)=>{i.removeAttribute('max');i.removeAttribute('min');i.removeAttribute('maxlength');}));await fill();await a.click('dialog[open] button:has-text("Save changes")');await a.waitForSelector('dialog[open] .err-text');const e=await a.textContent('dialog[open] .err-text');await a.click('dialog[open] button:has-text("Close")');return e;};
@@ -293,7 +293,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok('location manager can edit people in their office',(await o.locator('button:has-text("Edit details")').count())===1&&(await o.locator('button:has-text("Change photo")').count())===1);
   await o.click('button:has-text("Edit details")');await o.waitForSelector('dialog[open] #pd-emp');await o.fill('#pd-emp',`PFL-${process.pid}`);await o.fill('#pd-join','2021-03-12');await o.fill('#pd-target','32');
   await o.click('dialog[open] button:has-text("Save changes")');await o.waitForSelector('dialog[open]',{state:'detached'});await o.waitForLoadState('networkidle');
-  ok('location manager saved details for their office',db(L,'employeeId')===`PFL-${process.pid}`&&db(L,'joiningDate')==='2021-03-12'&&db(L,'weeklyTarget')==='32'&&(await head(o)).includes('Joined 12 Mar 2021 · '));
+  ok('location manager saved details for their office',db(L,'employeeId')===`PFL-${process.pid}`&&db(L,'joiningDate')==='2021-03-12'&&db(L,'weeklyTarget')==='32'&&(await head(o)).includes('Joined Mar 12, 2021 · '));
   const lsrc=await o.getAttribute('.profile-head .av img','src');
   await o.setInputFiles('.photoform input[type=file]',{name:'l.png',mimeType:'image/png',buffer:wide});await o.waitForFunction((old)=>{const i=document.querySelector('.profile-head .av img');return i&&i.getAttribute('src')!==old;},lsrc,{timeout:15000});
   ok("location manager changed a picture in their office",sql(`select count(*) from "AuditLog" where "userId"='${oliver[0]}' and "targetUserId"='${L}' and action='Changed the profile picture of London Test'`)==='1');

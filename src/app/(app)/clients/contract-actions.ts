@@ -19,7 +19,7 @@ const byPrefix = (form: FormData, prefix: string) =>
  *  Admins only, as for any change to a contract. Months before this one are locked unless the browser sends pastOk, after the admin has confirmed twice. */
 export async function saveContractMonths(_: GridResult, form: FormData): Promise<GridResult> {
   const me = await requireTab("clients");
-  if (me.role !== "ADMIN") return { ok: false, error: "Only admins can change contracts." };
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can change contracts." };
   await getSettings(); // sets the company time zone, which decides which years the table offers and which months are past
   const year = gridYear(String(form.get("year") ?? ""));
   const months = yearMonths(year);

@@ -15,7 +15,7 @@ const SHOW: [string, string][] = [["upcoming", "Upcoming"], ["thisyear", "This y
 const span = (a: string, b: string) => (a === b ? longDate(a) : `${DAYS[dow(a)]} ${shortDate(a)} to ${DAYS[dow(b)]} ${shortDate(b)}`);
 const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 /** Who approves a request from this person, in the words the dialog uses. */
-const APPROVER: Record<string, string> = { MEMBER: "your location manager or an admin", LEADER: "your location manager or an admin", LOCATION: "an admin", ADMIN: "another admin" };
+const APPROVER: Record<string, string> = { MEMBER: "your Location manager or an Admin", LEADER: "your Location manager or an Admin", LOCATION: "an Admin", ADMIN: "another Admin" };
 
 export default async function TimeOffPage({ searchParams }: { searchParams: Promise<{ view?: string; show?: string; office?: string; year?: string }> }) {
   const sp = await searchParams;
@@ -33,8 +33,8 @@ export default async function TimeOffPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHead title="Time off" beside={toggle} sub={view === "time"
-        ? `${scopeLabel(me)}. Time off is taken out of expected hours, so productivity stays fair, and only once it is approved. Time can still be logged on those days.`
-        : "Public holidays are set for each office and taken out of everyone's expected hours in that office. Only admins can add or change them. Time can still be logged on those days."} />
+        ? `${scopeLabel(me)}. Approved time off is taken out of expected hours, so productivity stays fair. Time can still be logged on those days.`
+        : "Public holidays are set for each office and taken out of everyone's expected hours in that office. Only Admins can add or change them. Time can still be logged on those days."} />
       {view === "time" ? <TimeOffList me={me} show={sp.show} today={t} lock={settings.lockBeforeStr} /> : <Holidays me={me} office={sp.office} year={sp.year} today={t} lock={settings.lockBeforeStr} />}
     </>
   );
@@ -65,8 +65,8 @@ async function TimeOffList({ me, show: showParam, today: t, lock }: { me: Me; sh
           <Ifld id="to-show" label="Show" name="show" defaultValue={show}>{SHOW.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
         </AutoForm>
         <div className="row" style={{ flex: "0 1 auto" }}>
-          {many && rows.length > 0 && <TableFilter label="Search time off" placeholder="Search people" />}
-          <AddTimeOff people={options} meId={me.id} today={t} others={options.length > 1} approver={APPROVER[me.role] ?? "an admin"} />
+          {many && rows.length > 0 && <TableFilter label="Search time off" placeholder="Search people…" />}
+          <AddTimeOff people={options} meId={me.id} today={t} others={options.length > 1} approver={APPROVER[me.role] ?? "an Admin"} />
         </div>
       </div>
       <div className="tablebox"><table className="ctable">
@@ -151,7 +151,7 @@ async function Holidays({ me, office: officeParam, year: yearParam, today: t, lo
       {/* The form sits above the list, so adding one doesn't mean scrolling past every holiday. */}
       {edit
         ? <HolidayForm offices={offices} today={t < `${year}-01-01` || t > `${year}-12-31` ? `${year}-01-01` : t} />
-        : <p className="note" style={{ margin: "0 0 12px" }}>Only admins can add or change public holidays.</p>}
+        : <p className="note" style={{ margin: "0 0 12px" }}>Only Admins can add or change public holidays.</p>}
       <div className="tablebox"><table className="ctable">
         <thead><tr><th>Date</th><th>Holiday</th><th>Offices</th>{edit && <th />}</tr></thead>
         <tbody>

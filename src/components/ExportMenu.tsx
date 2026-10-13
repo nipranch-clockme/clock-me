@@ -20,7 +20,7 @@ export default function ExportMenu({ csvHref }: { csvHref: string }) {
         <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       <div className="xm-p" hidden={!open}>
-        <a href={csvHref} onClick={() => setOpen(false)}>Save as CSV<small>Opens in Excel or Google Sheets</small></a>
+        <a href={csvHref} onClick={() => setOpen(false)}>Download CSV<small>Opens in Excel or Google Sheets</small></a>
         <button type="button" onClick={() => { setOpen(false); setTimeout(() => window.print(), 50); }}>Print or save as PDF<small>Prints this page as you see it</small></button>
       </div>
     </div>

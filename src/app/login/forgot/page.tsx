@@ -18,7 +18,7 @@ export default function ForgotPage() {
             <ForgotForm />
           </>
         ) : (
-          <p className="sub" role="status">Ask your admin or location manager for a reset link. They can make one on the People page.</p>
+          <p className="sub" role="status">Ask your Admin or Location manager for a reset link. They can make one on the People page.</p>
         )}
         <p className="note" style={{ margin: "14px 0 0" }}><Link href="/login">Back to sign in</Link></p>
       </section>

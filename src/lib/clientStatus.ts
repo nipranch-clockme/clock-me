@@ -1,9 +1,9 @@
 // The choices for a client in the Monthly contracts table. Plain values with no database import, so the table can use them in the browser too.
 
-/** A client's status, in the order the table lists them: Contracted, then Project Based, then Lost. */
+/** A client's status, in the order the table lists them: Contracted, then Project-based, then Lost. */
 export const CLIENT_STATUS = [
   { value: "CONTRACTED", label: "Contracted" },
-  { value: "PROJECT_BASED", label: "Project Based" },
+  { value: "PROJECT_BASED", label: "Project-based" },
   { value: "LOST", label: "Lost" },
 ];
 

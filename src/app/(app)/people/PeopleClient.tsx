@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { invitePerson, resetLink, updatePerson, type PeopleResult } from "./actions";
+import { roleName } from "@/lib/roles";
 
 type Person = { id: string; name: string; email: string; title: string; role: Role; locationId: string; locationName: string; teamId: string | null; teamName: string; weeklyTarget: number; employeeId: string; joiningDate: string; active: boolean; pending: boolean };
 type Opt = { id: string; name: string };
 type Props = { meId: string; admin: boolean; people: Person[]; locations: Opt[]; teams: (Opt & { locationId: string })[]; roles: { value: Role; label: string }[]; defaultLocation: string; today: string };
-const roleLabel = (roles: Props["roles"], r: Role) => roles.find((x) => x.value === r)?.label ?? { ADMIN: "Admin", LOCATION: "Location manager", HUMAN_RESOURCE: "Human Resource", GUEST: "Guest" }[r as string] ?? r;
 
 export default function PeopleClient(props: Props) {
-  const { people, roles } = props;
+  const { people } = props;
   const [editing, setEditing] = useState<Person | null>(null);
   const [inviting, setInviting] = useState(false);
   const [q, setQ] = useState("");
@@ -25,7 +25,7 @@ export default function PeopleClient(props: Props) {
       <div className="row between" style={{ marginBottom: 10 }}>
         <div><h3 style={{ margin: 0 }}>People</h3><p className="note" style={{ margin: "2px 0 0" }}>{people.filter((p) => p.active).length} active{props.admin ? "" : `, ${props.locations[0]?.name} office`}</p></div>
         <div className="row" style={{ flex: "0 1 auto" }}>
-          <div><label htmlFor="pp-q" className="sr-only">Search people</label><input id="pp-q" placeholder="Search people" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          <div><label htmlFor="pp-q" className="sr-only">Search people</label><input id="pp-q" placeholder="Search people…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <button type="button" className="btn primary" onClick={() => setInviting(true)}>Invite person</button>
         </div>
       </div>
@@ -36,7 +36,7 @@ export default function PeopleClient(props: Props) {
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
               <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
               <td data-l="Employee ID">{p.employeeId || <span className="note">Not set</span>}</td>
-              <td data-l="Role">{roleLabel(roles, p.role)}</td>
+              <td data-l="Role">{roleName(p.role)}</td>
               <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
               <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION" && p.role !== "HUMAN_RESOURCE" && p.role !== "GUEST")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
@@ -60,7 +60,7 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, to
   const self = person?.id === meId;
   useEffect(() => { if (state?.ok && person) { onDone(); router.refresh(); } if (state?.ok && !person) router.refresh(); }, [state, person, onDone, router]);
   const link = state?.link ?? resetState?.link;
-  const roleOpts = person && !roles.some((r) => r.value === person.role) ? [...roles, { value: person.role, label: roleLabel(roles, person.role) }] : roles;
+  const roleOpts = person && !roles.some((r) => r.value === person.role) ? [...roles, { value: person.role, label: roleName(person.role) }] : roles;
 
   if (!person && state?.ok) {
     return (
@@ -101,7 +101,7 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, to
           <div><label htmlFor="pf-join">Joining date</label><input id="pf-join" name="joiningDate" type="date" min="1950-01-01" max={today} defaultValue={person?.joiningDate} /></div>
           <div><label htmlFor="pf-target">Expected hours per week</label><input id="pf-target" name="weeklyTarget" type="number" min="0" max="80" step="0.5" defaultValue={person?.weeklyTarget ?? 40} /></div>
         </div>
-        <p className="note">Set expected hours to 0 to leave someone out of productivity on the dashboard. The joining date shows years of experience on their profile.</p>
+        <p className="note">Set expected hours to 0 to leave someone out of productivity on the Dashboard. The joining date shows years of experience on their profile.</p>
         {person && <label className="check"><input type="checkbox" name="active" defaultChecked={person.active} disabled={self} /> Active (inactive people can&apos;t sign in)</label>}
         {person && self && <input type="hidden" name="active" value="on" />}
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}

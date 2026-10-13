@@ -2,7 +2,7 @@ export type CsvRow = { line: number; cells: string[] };
 
 /** A header wider than this isn't one of our templates, and reading every row against it would only waste the server's time. */
 export const MAX_COLUMNS = 200;
-export const EXTRA_CELLS = "This row has more values than the header has columns. Put quotes around any text that contains commas";
+export const EXTRA_CELLS = "This row has more values than the header has columns. Put quotes around any text that contains commas.";
 
 /**
  * Parses CSV text (commas, quoted fields, doubled quotes, CRLF or LF). Blank lines are skipped.

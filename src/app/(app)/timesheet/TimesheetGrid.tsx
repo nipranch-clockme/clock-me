@@ -16,6 +16,8 @@ export type SheetRow = { projectId: string; projectName: string; clientName: str
 type Tip = { id: string; el: HTMLElement };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+/** The start of a description for a chip's spoken label: the first 80 characters. */
+const shortText = (s: string) => (s.length > 80 ? Array.from(s.slice(0, 81)).slice(0, 80).join("").trimEnd() + "…" : s);
 
 export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight, ownerId, ownerName }: {
   opts: EntryOptions; entries: SheetEntry[]; rows: SheetRow[]; dates: string[]; locked: (string | null)[]; weekStart: string; rowsLocked: boolean;
@@ -38,6 +40,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   const [addError, setAddError] = useState("");
   const [busy, setBusy] = useState(false);
   const addRef = useRef<HTMLDialogElement>(null);
+  const addRowBtn = useRef<HTMLButtonElement>(null);
   const f = (m: number) => opts.timeFormat === "hhmm" ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, "0")}` : (m / 60).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const lockFor = (d: string) => locked[dates.indexOf(d)];
   const inCell = (projectId: string, d: string) => entries.filter((e) => e.projectId === projectId && e.date === d).sort((a, b) => a.startMin - b.startMin);
@@ -100,6 +103,13 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
       router.refresh();
     });
   };
+  // The remove button goes with its row (and is disabled while it's removed), so focus moves first: to the next row's first cell button,
+  // else the previous row's, else Add project row.
+  const focusNeighbour = (btn: HTMLElement) => {
+    const tr = btn.closest("tr");
+    const pick = (row: Element | null | undefined) => row?.querySelector<HTMLElement>("button.chipbtn, button.addcell");
+    (pick(tr?.nextElementSibling) ?? pick(tr?.previousElementSibling) ?? addRowBtn.current)?.focus();
+  };
   const rowForm = (projectId: string) => { const fd = new FormData(); fd.set("week", weekStart); fd.set("projectId", projectId); if (ownerId) fd.set("userId", ownerId); return fd; };
 
   return (
@@ -116,7 +126,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
                     <div className="row between" style={{ gap: 6, flexWrap: "nowrap" }}>
                       <div><span className="dot" style={{ background: `var(--${r.clientColor})` }} />{r.projectName}<div className="note">{r.clientName}{!canLog(r.projectId) && " · closed for new time"}</div></div>
                       {!rowTotal && !rowsLocked && (
-                        <button type="button" className="rowx" aria-label={`Remove ${r.projectName} row`} title="Remove this row" disabled={busy} onClick={() => changeRow(removeRow, rowForm(r.projectId), setRowError)}>×</button>
+                        <button type="button" className="rowx" aria-label={`Remove ${r.projectName} row`} title="Remove this row" disabled={busy} onClick={(ev) => { focusNeighbour(ev.currentTarget); changeRow(removeRow, rowForm(r.projectId), setRowError); }}>×</button>
                       )}
                     </div>
                   </td>
@@ -131,7 +141,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
                             <button type="button" key={e.id} className="chipbtn" style={{ borderLeftColor: `var(--${r.clientColor})` }}
                               onClick={() => openEntry(e)} onMouseEnter={(ev) => showTip(e.id, ev.currentTarget)} onMouseLeave={() => setTip(null)}
                               onFocus={(ev) => { if (ev.currentTarget.matches(":focus-visible")) showTip(e.id, ev.currentTarget); }} onBlur={() => setTip(null)}
-                              aria-label={`${f(e.minutes)} hours. Phase: ${e.phaseName}. Tags: ${e.tagName || "none"}. ${e.description ? `Description: ${e.description}` : "No description"}.`}>
+                              aria-label={`${f(e.minutes)} hours. Phase: ${e.phaseName}. Tags: ${e.tagName || "none"}. ${e.description ? `Description: ${shortText(e.description)}` : "No description"}.`}>
                               {f(e.minutes)}
                             </button>
                           ))}
@@ -145,7 +155,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
                   <td className="num">{f(rowTotal)}</td>
                 </tr>
               );
-            }) : <tr><td colSpan={9} className="empty">No projects this week yet. Click “Add project row”, then click a day to add time.</td></tr>}
+            }) : <tr><td colSpan={9} className="empty">No projects this week yet. Click "Add project row", then click a day to add time.</td></tr>}
           </tbody>
           <tfoot><tr><td>Total</td>{dates.map((d) => <td key={d} className="num">{f(sum(null, d))}</td>)}<td className="num">{f(sum(null, null))}</td></tr></tfoot>
         </table>
@@ -153,7 +163,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
       {rowError && <p className="err-text" role="alert">{rowError}</p>}
       <div className="row between" style={{ marginTop: 14 }}>
         <div className="row" style={{ flex: "1 1 400px" }}>
-          {!rowsLocked && <button type="button" className="btn primary" onClick={() => { setAddError(""); addFormRef.current?.reset(); addRef.current?.showModal(); }}>Add project row</button>}
+          {!rowsLocked && <button type="button" ref={addRowBtn} className="btn primary" onClick={() => { setAddError(""); addFormRef.current?.reset(); addRef.current?.showModal(); }}>Add project row</button>}
           {footerLeft}
         </div>
         {footerRight}
@@ -163,7 +173,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
         <div ref={tipRef} className="sheettip" role="tooltip" style={tipPos ?? { left: 0, top: 0, visibility: "hidden" }}>
           <div><span>Phase</span>{tipEntry.phaseName}</div>
           <div><span>Tags</span>{tipEntry.tagName || "No tags"}</div>
-          <div><span>Description</span>{tipEntry.description || "No description"}</div>
+          <div><span>Description</span>{tipEntry.description ? <bdi>{tipEntry.description}</bdi> : "No description"}</div>
         </div>
       )}
 
@@ -184,7 +194,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
         </div>
       </dialog>
       {/* Closing the dialog puts focus back on the chip; don't let that pop the tooltip up. */}
-      <EntryDialog opts={opts} value={edit} onClose={() => { setEdit(null); setTip(null); }} />
+      <EntryDialog opts={opts} value={edit} today={today} onClose={() => { setEdit(null); setTip(null); }} />
     </>
   );
 }

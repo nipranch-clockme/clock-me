@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       // A half day off halves the minimum; a whole day off (holiday or time off) skips the person. A day with no expected hours at all (a month set to 0) is owed nothing.
       const owed = (p: (typeof people)[number]) => (ex(p, prev, prev, { whole: true }) > 0 ? s.dailyMinimum * 60 * ex.days(p, prev, prev, { whole: true }) : 0);
       for (const u of people.filter((p) => owed(p) > 0 && (totals.get(p.id) ?? 0) < owed(p) && starts.get(p.id)! <= prev)) {
-        await sendEmail(u.email, `Time missing for ${longDate(prev)}`, `Hi ${u.name.split(" ")[0]},\n\nYou logged less than ${s.dailyMinimum} hours on ${longDate(prev)}. Please add the rest: ${link}`);
+        await sendEmail(u.email, `Time missing for ${longDate(prev)}`, `Hi ${u.name.split(" ")[0]},\n\nYou logged less than ${s.dailyMinimum} ${s.dailyMinimum === 1 ? "hour" : "hours"} on ${longDate(prev)}. Please add the rest: ${link}`);
         sent.daily++;
       }
     }

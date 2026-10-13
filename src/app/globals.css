@@ -11,7 +11,7 @@
   --ok:#276B3C; --ok-soft:#DFF3E4; --warn:#964A0B; --warn-soft:#FDE7D3; --bad:#B42335; --bad-soft:#FBE3E6; --bad-hi:#F7D2D7;
   --s1:#0168DA; --s2:#D4730F; --s3:#0B3B75; --s4:#76808C; --nb:#C9CDD2; --on-s1:#FFFFFF; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
   --t1:#DCE8FB; --t1i:#1F5FB8; --t2:#EEE3FC; --t2i:#6A3DAE; --t3:#FBE1EC; --t3i:#A3376B; --t4:#DFF3E4; --t4i:#276B3C; --t5:#FDE7D3; --t5i:#964A0B;
-  --shadow:0 1px 2px rgba(16,24,40,.06); --pop:0 16px 40px rgba(16,24,40,.18),0 2px 6px rgba(16,24,40,.08); --scrim:rgba(15,20,28,.42);
+  --shadow:0 1px 2px rgba(16,24,40,.06); --pop:0 16px 40px rgba(16,24,40,.18),0 2px 6px rgba(16,24,40,.08); --scrim:rgba(15,20,28,.42); --edge:rgba(16,24,40,.16);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%235B6470' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --display:var(--body);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
@@ -110,12 +110,12 @@ nav.snav hr+.navend{margin-top:auto}
 .tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}.tmtags[open] .tagpick{left:0;right:auto;width:auto;max-width:calc(100vw - 64px)}}
-@media (max-width:560px){.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}}
+@media (max-width:560px){.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}.tmcard .tmclock{flex:1 1 50%}.tmcard>.btn{flex:1 1 40%}} /* phones: Tags and the clock share a row, then Start and Manual entry side by side, full size */
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
 .wkwho{display:inline-flex;align-items:center;gap:6px;margin:0 4px}.wkwho b{font-weight:600} /* whose week, when showing someone else's calendar */
-.seg.vt button,.seg.vt a{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:6px 12px}
+.seg.vt button,.seg.vt a,.seg.rtabs a{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:6px 12px} /* the Reports and Dashboard tabs (rtabs) are the same control */
 .seg.vt svg{width:15px;height:15px;flex:none}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 h2{font:700 18px/1.25 var(--body);letter-spacing:-.015em;margin:0 0 4px;text-wrap:balance}
@@ -181,13 +181,14 @@ dialog .row>div{flex-basis:210px}
 .row>.seg{flex:0 1 auto} /* shrinks and wraps its buttons rather than running off a narrow screen */
 .between{justify-content:space-between;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 13px/1.25 var(--body);border-radius:6px;padding:7px 13px;min-height:34px;cursor:pointer;border:1px solid transparent;background:var(--btn2);color:var(--ink);text-align:center}
-.btn:hover:not(:disabled){background:var(--btn2-hi)}
+.btn:hover:not(:disabled):not([aria-disabled="true"]){background:var(--btn2-hi)}
 .btn.primary,.btn.ok{background:var(--accent);color:var(--on-accent,#fff)}
-.btn.primary:hover:not(:disabled),.btn.ok:hover:not(:disabled){background:var(--accent-hi)}
+.btn.primary:hover:not(:disabled):not([aria-disabled="true"]),.btn.ok:hover:not(:disabled):not([aria-disabled="true"]){background:var(--accent-hi)}
 .btn.bad{background:var(--bad-soft);color:var(--bad)}
-.btn.bad:hover:not(:disabled){background:var(--bad-hi)}
+.btn.bad:hover:not(:disabled):not([aria-disabled="true"]){background:var(--bad-hi)}
 .btn.sm{padding:4px 10px;min-height:28px;font-size:12px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed} /* busy or unavailable, but unlike disabled it keeps keyboard focus */
 a{color:var(--link)}
 .linkbtn{background:none;border:0;color:var(--link);font:600 13px var(--body);cursor:pointer;padding:0;border-radius:3px}
 .linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
@@ -283,8 +284,8 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .weeknav strong{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;margin:0 2px}
 .weeknav>.btn.sm{background:transparent;font-size:19px;font-weight:500;line-height:1;width:30px;padding:0}
-.weeknav>.btn.sm:hover:not(:disabled){background:var(--hover)}
-.weeknav>.btn.sm:disabled{opacity:.3}
+.weeknav>.btn.sm:hover:not(:disabled):not([aria-disabled="true"]){background:var(--hover)}
+.weeknav>.btn.sm:disabled,.weeknav>.btn.sm[aria-disabled="true"]{opacity:.3}
 .weeknav .linkbtn{background:var(--btn2);color:var(--ink);font-size:12px;padding:6px 10px;border-radius:6px;margin-right:4px}
 .weeknav .linkbtn:hover{background:var(--btn2-hi);text-decoration:none}
 .note{font-size:12.5px;color:var(--muted)}
@@ -327,9 +328,9 @@ body.calpen .cal .col.can{touch-action:none} /* see the pen note next to the dra
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;line-height:1.45;padding:7px 10px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-100%);z-index:5;box-shadow:var(--pop)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-.matrix td,.matrix th{text-align:center} .matrix td:first-child,.matrix th:first-child{text-align:left}
-/* the roles table on a phone: each permission over its five roles, each with the role's name (data-l), so nothing hides off to the side */
-@container (width<620px){
+.matrix td,.matrix th{text-align:center} .matrix td:first-child,.matrix th:first-child{text-align:left} .matrix td:first-child{min-width:200px}
+/* the roles table on a phone or tablet: each permission over its roles, each with the role's name (data-l), so nothing hides off to the side */
+@container (width<820px){
   .matrix thead{display:none}
   .matrix,.matrix tbody{display:block}
   .matrix tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -349,14 +350,14 @@ a.chip:hover{background:var(--hover);border-color:var(--muted)}
 a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .chip .linkbtn{margin-left:4px;color:var(--muted);font-size:14px;line-height:1}
 .chip .linkbtn:hover{color:var(--bad);text-decoration:none}
-.cols2{columns:2 200px;column-gap:20px}
+.cols2{columns:2 200px;column-gap:20px} .cols2>div{break-inside:avoid;margin-bottom:14px} .cols2>div:last-child{margin-bottom:0} /* stacked on a phone, the groups keep a gap */
 .ptable td:first-child{min-width:190px} .ptable td:nth-child(5){min-width:130px} .ptable td:nth-child(5) .note{white-space:nowrap}
 /* People: the role and office dropdowns are just wide enough for their longest option */
 .pptable .pname{min-width:0} .pptable select[data-urole]{min-width:150px} .pptable select[data-uloc]{min-width:104px} .pptable th.eh{white-space:normal;min-width:108px}
 /* Tables that turn into cards when their box is too narrow for every column (People, Projects): the header row hides and each row
-   becomes a card. The first cell (who or what) sits on the left with the row's button (td.act) under it, and the other cells become
-   small labelled fields (data-l) in an even grid beside it: 3 across for People, 2 for Projects. In a narrower box the first cell
-   goes across the top with the button at its right, and on a phone People's fields go 2 across */
+   becomes a card. The first cell (who or what) sits on the left, and the other cells become
+   small labelled fields (data-l) in an even grid beside it: 3 across for People, 2 for Projects, with the row's button at the top right.
+   In a narrower box the first cell goes across the top with the button at its right, and on a phone People's fields go 2 across */
 @container (width<940px){
   .ctable thead{display:none}
   .ctable,.ctable tbody,.ctable td{display:block}
@@ -365,8 +366,9 @@ a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);co
   .ctable tr:first-child{padding-top:2px}
   .ctable td{padding:0;border:0;min-width:0!important;text-align:left}
   .ctable td:first-child{grid-column:1;grid-row:1/-1}
-  .ctable tr:has(>.act:not(:empty))>td:first-child{padding-bottom:38px}
-  .ctable td.act{position:absolute;left:0;bottom:14px}
+  .ctable tr:has(>.act:not(:empty)){padding-right:84px}
+  .ctable td.act{position:absolute;right:0;top:14px}
+  .ctable tr:first-child>td.act{top:2px}
   .ctable td.act:empty{display:none}
   .ctable td[data-l]::before{content:attr(data-l);display:block;font:500 12px/1.3 var(--body);color:var(--muted);margin:0 0 5px}
   .ctable td select{min-width:0!important;max-width:240px;padding-right:26px;background-position:right 8px center}
@@ -375,9 +377,8 @@ a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);co
 @container (width<648px){
   .ctable tr{grid-template-columns:repeat(var(--cc),minmax(0,1fr));grid-template-rows:none}
   .ctable td:first-child{grid-column:1/-1;grid-row:auto}
+  .ctable tr:has(>.act:not(:empty)){padding-right:0}
   .ctable tr:has(>.act:not(:empty))>td:first-child{padding:0 70px 0 0}
-  .ctable td.act{left:auto;right:0;bottom:auto;top:14px}
-  .ctable tr:first-child>td.act{top:2px}
 }
 @container (width<482px){.pptable tr{--cc:2}}
 /* Clients: utilisation is a bar with the percentage under it. As cards the fields go 3 across (2 on a phone), and the ones that don't
@@ -489,7 +490,8 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
   .phd{margin-bottom:16px}
   .phd h1{font-size:23px}
   .phd-a{justify-content:flex-start}
-  .phd-tt{flex-wrap:wrap}.phd-tt .seg.vt{flex:1 1 100%} .seg.vt button,.seg.vt a{flex:1 1 0;min-height:40px;padding:8px 12px} /* phones: the view toggle goes full width under the title, with taller buttons that are easy to tap */
+  .phd-tt{flex-wrap:wrap}.phd-tt .seg.vt,.seg.rtabs{flex:1 1 100%} .seg.rtabs{display:flex} .seg.vt button,.seg.vt a,.seg.rtabs a{flex:1 1 0;min-width:0;min-height:40px;padding:8px 10px;white-space:normal;text-align:center} /* phones: the view toggle goes full width under the title, with equal, taller buttons that are easy to tap; a long name wraps inside its button */
+  dialog .seg{display:flex} dialog .seg button{flex:1 1 0;min-width:0;min-height:40px;white-space:normal;text-align:center} /* a choice in a dialog: two equal halves, each name wrapping inside its own half */
   .ifld{flex:1 1 auto}
   .ifld select,.ifld input{max-width:none;flex:1 1 auto}
   .panel{padding:14px}
@@ -523,7 +525,7 @@ nav.snav a{text-decoration:none}
 .cellbtn.empty0{color:transparent}
 .cellbtn.lk{background:transparent;border-style:dashed;cursor:default}
 /* Timesheet: one chip per entry in each day cell; the rest of the cell is a button that adds time. */
-table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
+table.sheet td.sheetcell{padding:4px;vertical-align:top;min-width:78px}
 .cellstack{display:flex;flex-direction:column;gap:3px;min-height:34px;height:100%}
 .chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
 .chipbtn:hover{background:var(--accent-soft);border-color:var(--accent)}
@@ -536,7 +538,7 @@ table.sheet td.sheetcell{padding:4px;vertical-align:middle;min-width:78px}
 .rowx:hover,.rowx:focus-visible{background:var(--bg);color:var(--ink)}
 .sheettip{position:fixed;z-index:50;max-width:min(280px,calc(100vw - 16px));max-height:45vh;overflow:hidden;overflow-wrap:anywhere;background:var(--ink);color:var(--surface);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:none}
 .sheettip div+div{margin-top:3px}
-.sheettip span{display:block;font:600 10px/1.3 var(--body);text-transform:uppercase;letter-spacing:.07em;opacity:.7}
+.sheettip span{display:block;font:600 11px/1.3 var(--body);opacity:.75}
 .banner{font-size:13px;color:var(--muted);border:1px dashed var(--line2);border-radius:8px;padding:8px 12px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
 .dragsel{position:absolute;left:3px;right:3px;z-index:3;border-radius:5px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);pointer-events:none}
 .draglabel{position:absolute;z-index:4;white-space:nowrap;background:var(--accent);color:var(--surface);font:600 12px/1.2 var(--body);padding:3px 7px;border-radius:5px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.15)}
@@ -603,7 +605,7 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
   --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
   --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
   --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
-  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
+  --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); --edge:rgba(0,0,0,.7);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
@@ -620,7 +622,7 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 .insight.warn{border-color:var(--warn);background:var(--warn-soft)}
 .insight.warn b{color:var(--warn)}
 .mybars{margin-top:8px}
-.mybars-in{padding:20px 0 26px}
+.mybars-in{padding:20px 96px 26px 0} /* the right gutter holds the dashed line's label, clear of the bars and their values */
 .mybars-plot{position:relative;display:flex;align-items:flex-end;gap:10px;height:96px;border-bottom:1px solid var(--line)}
 .mybar{position:relative;flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
 .mybar i{display:block;flex:none;width:100%;max-width:56px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
@@ -629,7 +631,7 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 .mybar i.wip.ok{background:repeating-linear-gradient(135deg,var(--ok) 0 4px,transparent 4px 8px)}
 .mybar em{position:relative;flex:none;z-index:2;font-style:normal;font-size:11px;color:var(--muted);margin-bottom:3px;padding:0 3px;border-radius:3px;background:var(--card);font-variant-numeric:tabular-nums}
 .mybar span{position:absolute;bottom:-22px;font-size:11px;color:var(--muted);white-space:nowrap}
-.mybars-target{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;z-index:1}
+.mybars-target{position:absolute;left:0;right:-96px;border-top:2px dashed var(--muted);pointer-events:none;z-index:1}
 .mybars-target span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--muted);background:var(--card);padding:0 4px}
 .mynext{margin:6px 0 0;padding-top:8px;border-top:1px solid var(--line);font-size:13.5px}
 
@@ -637,7 +639,6 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 .rform{display:flex;flex-direction:column;gap:14px}
 .rtools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 .rtools-r{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-.rtabs a{font-size:13.5px;padding:8px 16px}
 .rdate{display:flex;align-items:center;background:var(--tile);border:1px solid var(--field);border-radius:6px;min-height:38px;padding-left:11px;color:var(--muted)}
 .rdate svg{flex:none}
 .rdate select{width:auto;border:0;background-color:transparent;min-height:36px;font-weight:500;font-size:13.5px;padding-left:8px}
@@ -655,7 +656,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .xm-p a:hover,.xm-p button:hover{background:var(--hover)}
 .xm-p small{font-weight:400;font-size:12px;color:var(--muted)}
 .rfilters{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:8px 12px;background:var(--tile)}
-.rflabel{font:600 12px var(--body);letter-spacing:.05em;color:var(--muted);padding:0 14px 0 6px}
+.rflabel{font:600 12px var(--body);color:var(--muted);padding:0 14px 0 6px}
 .fm{position:relative}
 .fm+.fm::before{content:"";position:absolute;left:-2px;top:9px;bottom:9px;border-left:1px solid var(--line)}
 .fm-b{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--ink);font:500 14px/1 var(--body);padding:11px 13px;border-radius:6px;cursor:pointer}
@@ -677,14 +678,20 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .fm-none{margin:6px}
 .fm-desc{width:210px;min-height:36px;margin-left:10px}
 .sp{flex:1 1 auto}
-.rfilters .btn.primary{min-height:38px;padding-inline:18px;text-transform:uppercase;letter-spacing:.03em;font-size:12.5px}
+.rfilters .btn.primary{min-height:38px;padding-inline:18px}
 .rwarn{margin:0}
 .rcard{background:var(--tile);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:0}
 .rhead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;background:var(--card);padding:6px 12px 6px 18px;min-height:46px;border-bottom:1px solid var(--border)}
 .rtotal{color:var(--muted);font-size:13px}
 .rtotal b{color:var(--ink);font:600 20px/1 var(--body);letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-left:4px}
 .rcounts{font-size:12.5px;color:var(--muted)}
-.rchart{padding:14px 18px 6px}
+.rchart{padding:14px 18px 6px;overflow-x:auto;container-type:inline-size}
+/* The report chart is drawn 900 wide and scaled to its box, so its text gets bigger in the drawing as the box narrows (about 11px or more on
+   screen), and under 640px the chart keeps that width and scrolls sideways */
+.rchart .chart svg{overflow:visible}
+@container (width<900px){.rchart .chart text{font-size:13px}}
+@container (width<760px){.rchart .chart text{font-size:15.5px}}
+@container (width<640px){.rchart .chart{min-width:640px}}
 .chart .ctot{fill:var(--ink)}
 .chart-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding-bottom:30px;pointer-events:none}
 .chart-empty b{font:600 16px var(--body);color:var(--muted)}
@@ -711,7 +718,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rtable{min-width:0}
 @container (width<560px){.rtable .c-people{display:none}.rtable th,.rtable td{padding-inline:10px}.rtable td:first-child,.rtable th:first-child{white-space:normal}}
 .rtable th,.rtable td{padding-inline:18px}
-.rtable th{background:var(--tile);font-size:11.5px;letter-spacing:.05em}
+.rtable th{background:var(--tile)}
 .rtable th .sorter{border:0;background:none;padding:0;font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer;white-space:nowrap}
 .rtable th .sorter:hover{color:var(--ink)}
 .rtable th .sorter span{font-size:10px;opacity:.9}
@@ -728,8 +735,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rtable th .rg-chev{vertical-align:middle}
 .rcap{padding:10px 18px;margin:0}
 @media (max-width:980px){.rsplit{grid-template-columns:minmax(0,1fr)}.rdonut{border-left:0;border-top:1px solid var(--border);position:static}.rdonut svg{max-width:200px}}
-@media (max-width:700px){.rchart{overflow-x:auto}.rchart .chart{min-width:640px}}
-@media (max-width:560px){.rtools-r{width:100%}.rdate{flex:1 1 auto}.fm-desc{width:100%;margin:6px 0 0}.rfilters .sp{display:none}.rfilters .btn.primary{width:100%}.rtable th,.rtable td{padding-inline:12px}.rchart{padding-inline:10px}.rhead,.rgroup{padding-inline:12px}.rg-kid td:first-child{padding-left:44px}}
+@media (max-width:560px){.rtools-r{width:100%}.rdate{flex:1 1 auto}.fm-desc{width:100%;margin:6px 0 0}.rfilters .sp{display:none}.rfilters .btn.primary{width:100%}.rhead .rtotal{order:1;flex:1 1 auto}.rhead .iconbtn{order:2}.rhead .rcounts{order:3;flex:1 1 100%}.rhead .sp{display:none}.rtable th,.rtable td{padding-inline:12px}.rchart{padding-inline:10px}.rhead,.rgroup{padding-inline:12px}.rg-kid td:first-child{padding-left:44px}}
 @media print{
   .side,.top,.rtools,.rfilters,.rgroup .tog,.iconbtn,.rg-chev,.menubtn,.phd-a{display:none!important}
   .app{display:block}
@@ -817,7 +823,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .shpg{max-width:1100px;margin:0 auto;padding:28px 24px 56px;display:flex;flex-direction:column;gap:16px}
 .shhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .shtitle{min-width:0}
-.shkicker{margin:0 0 4px;font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.shkicker{margin:0 0 4px;font:600 13px var(--body);color:var(--muted)}
 .shhead h1{font:700 28px/1.2 var(--body);letter-spacing:-.025em;margin:0;overflow-wrap:anywhere}
 .shhead h1 .dot{width:12px;height:12px;margin-right:10px;vertical-align:3px}
 .shhead .sub{margin:6px 0 0;color:var(--muted);max-width:80ch}
@@ -836,6 +842,8 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 /* Monthly tables: contracted hours per client, expected hours per person. One box per month; a blue box has its own figure for that month. */
 .mgrid{min-width:960px}
 .mgrid td{white-space:nowrap}
+.mgrid th{vertical-align:bottom} .mgrid th.eh{white-space:normal;min-width:96px}
+.mgrid td select{width:auto;min-width:120px} /* as wide as the longest choice, so the chosen status always shows */
 .mgrid th.now{color:var(--accent-ink);box-shadow:inset 0 -2px 0 var(--accent)}
 .mgrid td.mc{padding:4px 2px}
 .mgrid input.cell{width:58px;min-height:30px;padding:5px 6px}
@@ -864,3 +872,36 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .mreport-head{margin-bottom:16px}
 .mreport-note{margin:16px 0 0;max-width:110ch;line-height:1.55}
 .dtabs{margin:4px 0 20px}
+
+/* Shared helpers: a skip link, a field's error line, two-line text, text that never wraps, and the Calendar's add button in each day's header */
+.skiplink{position:fixed;left:12px;top:12px;z-index:200;display:inline-flex;align-items:center;min-height:34px;padding:7px 13px;border-radius:6px;background:var(--accent);color:var(--on-accent,#fff);font:600 13px/1.25 var(--body);text-decoration:none;transform:translateY(calc(-100% - 24px))}
+.skiplink:focus{transform:none;box-shadow:var(--pop);outline:2px solid var(--accent);outline-offset:2px}
+.fielderr{display:block;color:var(--bad);font-size:12.5px;line-height:1.35;margin:4px 0 0}
+.fielderr:empty{display:none}
+.clamp2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;min-width:0}
+.rtable td[data-l="Description"]{min-width:14em} /* the clamped description keeps a readable width when the table scrolls sideways */
+.rg-t .clamp2{max-width:60ch} /* a long group name (Group by Description) wraps to two lines instead of widening the first column */
+.nowrap{white-space:nowrap}
+.cal-add{display:inline-grid;place-items:center;width:24px;height:24px;min-width:24px;padding:0;border:1px solid var(--line2);border-radius:6px;background:var(--tile);color:var(--muted);font:600 15px/1 var(--body);cursor:pointer}
+.cal-add:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.cal-add:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* A table wider than its box shows a soft shadow at the side that has more to scroll to. The covers (in the box's own colour) scroll with the
+   table and hide each shadow once that end is reached; a table that fits shows none */
+.tablebox{--boxbg:var(--card);background:linear-gradient(to right,var(--boxbg) 50%,transparent) left/32px 100% no-repeat local,linear-gradient(to left,var(--boxbg) 50%,transparent) right/32px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,var(--edge),transparent) left/14px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,var(--edge),transparent) right/14px 100% no-repeat scroll}
+.rcard .tablebox,dialog .tablebox,.modal .tablebox{--boxbg:var(--tile)}
+
+/* Dashboard top and bottom five: fixed columns, so the two tables in a card line up */
+.toptable{table-layout:fixed}
+.toptable .c-rank{width:48px} .toptable .c-prod{width:116px} .toptable .c-hrs{width:96px}
+@container (width<430px){.toptable .c-rank{width:36px} .toptable .c-prod{width:96px} .toptable .c-hrs{width:76px}}
+
+@media (max-width:560px){.mybars-in{padding-right:0}.mybars-target{right:0}.mybars-target span{display:none}} /* phones: no room for the gutter; the note under the chart gives the dashed line's figure */
+
+/* Touch screens and phones: small links and the report's sort buttons are at least 24px tall to tap (padding on a link in a line of text
+   doesn't move the text around it) */
+@media (pointer:coarse),(max-width:560px){
+  a.plink,a.linkbtn,:where(td,.item,.pfacts) a:not(.btn):not(.chip){padding-block:5px}
+  button.linkbtn,button.plink,.rtable th .sorter{min-height:24px}
+  summary.linkbtn{padding-block:5px}
+}

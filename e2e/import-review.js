@@ -10,6 +10,10 @@ const ok = S.ok;
 const check = (row) => row[row.length - 1];
 const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) || [];
 const run = 'rv' + process.pid;
+// Time is only accepted up to the end of the current week, so the time rows use the first two days of this week.
+const weekDay = (n) => sql(`select to_char(date_trunc('week', now()) + interval '${n} day', 'YYYY-MM-DD')`);
+const longDay = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const d1 = weekDay(0), d2 = weekDay(1);
 const hiddenId = 'hidden' + process.pid;
 
 (async () => {
@@ -161,8 +165,8 @@ const hiddenId = 'hidden' + process.pid;
     // ---------- Importing time: odd characters, per-person change log, the Tag column, who can see which project ----------
     const timeFile = (rows) => ['Project,Client,Description,Task,Email,Tags,Start Date,Start Time,Duration (h)', ...rows].join('\n');
     await d.paste('time', timeFile([
-      `${pubProject},${pubClient},nul\u0000byte ${run},${pubPhase},admin@example.com,,2026-12-07,9:00 AM,1:00`,
-      `${pubProject},${pubClient},plain ${run},${pubPhase},admin@example.com,,2026-12-08,9:00 AM,2:00`,
+      `${pubProject},${pubClient},nul\u0000byte ${run},${pubPhase},admin@example.com,,${d1},9:00 AM,1:00`,
+      `${pubProject},${pubClient},plain ${run},${pubPhase},admin@example.com,,${d2},9:00 AM,2:00`,
     ]));
     c = await d.check();
     ok(c.ready === 2, 'time: a row with a NUL character in the description is ready (it used to fail the whole import): ' + JSON.stringify(c.rows.map(check)));
@@ -172,20 +176,19 @@ const hiddenId = 'hidden' + process.pid;
     ok(/2 time entries added/.test(msg), 'time: both are saved: ' + msg);
     ok(sql(`select count(*) from "TimeEntry" where description = 'nulbyte ${run}'`) === '1', 'time: the NUL is dropped from the description');
     const adminId = sql(`select id from "User" where email='admin@example.com'`);
-    ok(sql(`select count(*) from "AuditLog" where "targetUserId"='${adminId}' and action like 'Imported 2 time entries (3 h, 2026-12-07 to 2026-12-08) from CSV' and at > now() - interval '10 minutes'`) === '1', 'time: the change log has a line for the person whose time was added');
+    ok(sql(`select count(*) from "AuditLog" where "targetUserId"='${adminId}' and action like 'Imported 2 time entries (3 h, ${longDay(d1)} to ${longDay(d2)}) from CSV' and at > now() - interval '10 minutes'`) === '1', 'time: the change log has a line for the person whose time was added');
     sql(`delete from "AuditLog" where action like 'Imported 2 time entries (3 h%'`);
 
-    const hiddenRow = (email) => timeFile([`Review Hidden ${run},,x ${run},Work,${email},,2026-12-09,9:00 AM,1:00`]);
+    const hiddenRow = (email) => timeFile([`Review Hidden ${run},,x ${run},Work,${email},,${d1},9:00 AM,1:00`]);
     await d.paste('time', hiddenRow(teamMate));
     c = await d.check();
     ok(/doesn't have access/.test(check(c.rows[0])), 'time: an admin sees a restricted project and that the person lacks access: ' + check(c.rows[0]));
     await p.context().close();
 
+    // Import & export is admin only, so a team/project manager is sent to the Timesheet instead
     const a = await login(b, 'aisha@example.com');
-    const ad = makeDesk(a, BASE);
-    await ad.paste('time', hiddenRow(teamMate));
-    c = await ad.check();
-    ok(/^Unknown project/.test(check(c.rows[0])), 'time: a manager who cannot see a project is told it is unknown, not that it exists: ' + check(c.rows[0]));
+    await a.goto(`${BASE}/import-export`); await a.waitForLoadState('networkidle');
+    ok(new URL(a.url()).pathname === '/timesheet', 'import: a team/project manager is sent to the Timesheet from Import & export: ' + new URL(a.url()).pathname);
     await a.context().close();
 
     // ---------- Admin: the office to start with is their own ----------

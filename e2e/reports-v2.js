@@ -11,7 +11,7 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  ok('two tabs, no Weekly',(await a.locator('.rtabs a').allInnerTexts()).join()==='Summary,Detailed');
  ok('Summary is the open tab',await a.locator('.rtabs a[aria-pressed="true"]').innerText()==='Summary');
  const filters=await a.locator('.rfilters .fm-b').allInnerTexts();
- ok('admin has all filters',['Person','Team','Client','Project','Phase','Tag','Status','Location'].every((f,i)=>filters[i]&&filters[i].startsWith(f)),filters.join('|'));
+ ok('admin has all filters',['Person','Team','Client','Project','Phase','Tag','Status','Office'].every((f,i)=>filters[i]&&filters[i].startsWith(f)),filters.join('|'));
  ok('description search box',await a.locator('input[name=desc]').count()===1);
  const all=await total(a);ok('there is time in last month',all>0,String(all));
  ok('table rows and doughnut show',(await a.locator('.rtable tbody tr').count())>=3&&await a.locator('.rdonut svg').count()===1);
@@ -81,15 +81,15 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  const kidsHrs=await a.locator('.rg-row').first().evaluate((tr)=>{let s=0;for(let n=tr.nextElementSibling;n&&n.classList.contains('rg-kid');n=n.nextElementSibling)s+=parseFloat(n.cells[n.cells.length-2].textContent.replace(/,/g,''));return s;});
  ok('what is inside adds up to its group',Math.abs(parentHrs-kidsHrs)<0.01,parentHrs+' vs '+kidsHrs);
  const hrsNow=async()=>(await a.locator('.rg-row td[data-l=Hours]').allInnerTexts()).map(num);
- await a.click('button.sorter:has-text("HOURS")');let hrs=await hrsNow();
+ await a.click('button.sorter:has-text("Hours")');let hrs=await hrsNow();
  ok('click HOURS: biggest first',hrs.every((v,i)=>i===0||hrs[i-1]>=v),hrs.join());
- await a.click('button.sorter:has-text("HOURS")');hrs=await hrsNow();
+ await a.click('button.sorter:has-text("Hours")');hrs=await hrsNow();
  ok('click HOURS again: smallest first',hrs.every((v,i)=>i===0||hrs[i-1]<=v),hrs.join());
- await a.click('button.sorter:has-text("HOURS")');await a.click('button.sorter:has-text("PROJECT")');
+ await a.click('button.sorter:has-text("Hours")');await a.click('button.sorter:has-text("Project")');
  const names=await a.locator('.rg-row td[data-l=Project]').allInnerTexts();
  ok('click PROJECT: A to Z',names.every((v,i)=>i===0||names[i-1].localeCompare(v)<=0),names.join());
  await go(a,'/reports?range=lastmonth&est=1');
- ok('Show budget adds budget and used columns',(await a.locator('.rtable th').allInnerTexts()).some((t)=>/BUDGET/.test(t))&&await a.locator('.rtable .meter').count()>0);
+ ok('Show budget adds budget and used columns',(await a.locator('.rtable th').allInnerTexts()).some((t)=>/budget/i.test(t))&&await a.locator('.rtable .meter').count()>0);
  await go(a,'/reports?range=lastmonth&group=person&est=1');ok('budget switch only for Project grouping',await a.locator('input[name=est]').count()===0);
  await go(a,'/reports?range=lastmonth&group=month');
  ok('Month grouping runs in date order with no doughnut',await a.locator('.rdonut').count()===0&&(await a.locator('.rg-row td[data-l=Month]').count())>=1);
@@ -109,7 +109,7 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  await go(a,`/reports?range=lastmonth&client=${ids[0]}&client=${ids[1]}&status=APPROVED`);
  const eShown=await entries(a);
  await a.click('button:has-text("Export")');
- const [dl]=await Promise.all([a.waitForEvent('download'),a.click('a:has-text("Save as CSV")')]);
+ const [dl]=await Promise.all([a.waitForEvent('download'),a.click('a:has-text("Download CSV")')]);
  const txt=require('fs').readFileSync(await dl.path(),'utf8').trim().split(/\r?\n/);
  ok('CSV has one row per entry shown',txt.length-1===eShown,(txt.length-1)+' vs '+eShown+' '+dl.suggestedFilename());
 
@@ -121,11 +121,11 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
  // other roles
  const l=await login(b,'daniel@example.com');await go(l,'/reports?range=lastmonth');
  const lf=await l.locator('.rfilters .fm-b').allInnerTexts();
- ok('team manager: no Location filter, sees own team only',!lf.some((x)=>x.startsWith('Location'))&&lf.some((x)=>x.startsWith('Person')),lf.join('|'));
+ ok('team manager: no Office filter, sees own team only',!lf.some((x)=>x.startsWith('Office'))&&lf.some((x)=>x.startsWith('Person')),lf.join('|'));
  await go(l,'/reports?range=lastmonth&location=nope');ok('location param ignored for non-admins',(await l.locator('.rtable tbody tr').count())>=1);
  const m=await login(b,'priya@example.com');await go(m,'/reports?range=lastmonth');
  const mf=await m.locator('.rfilters .fm-b').allInnerTexts();
- ok('member: no Person, Team or Location filters',!mf.some((x)=>/^(Person|Team|Location)/.test(x)),mf.join('|'));
+ ok('member: no Person, Team or Office filters',!mf.some((x)=>/^(Person|Team|Office)/.test(x)),mf.join('|'));
 
  // phone
  const ctx=await b.newContext({viewport:{width:390,height:844}});const ph=await ctx.newPage();ph.errs=[];ph.on('pageerror',(e)=>ph.errs.push(e.message));

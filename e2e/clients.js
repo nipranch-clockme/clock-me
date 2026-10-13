@@ -197,10 +197,10 @@ const pct=(v)=>`${Math.round(v*100)}%`;
    const before=()=>sql(`select type||':'||coalesce("monthlyHours"::text,'-') from "Client" where id='${newId}'`);
    for(const [who,p] of [['location manager',o],['team leader',d]]){
     const [st,txt]=await replay(p,editCall,editCall.body);
-    ok(`${who}: crafted edit call is refused`,before()==='FLOATING:-'&&txt.includes('Only admins can change clients'),`${st} ${before()}`);
+    ok(`${who}: crafted edit call is refused`,before()==='FLOATING:-'&&txt.includes('Only Admins can change clients'),`${st} ${before()}`);
     const body=Buffer.from(addCall.body.toString('latin1').split(NEW).join(`Sneaky ${t}`),'latin1');
     const [, txt2]=await replay(p,addCall,body);
-    ok(`${who}: crafted add call is refused`,sql(`select count(*) from "Client" where name='Sneaky ${t}'`)==='0'&&txt2.includes('Only admins can add clients'));
+    ok(`${who}: crafted add call is refused`,sql(`select count(*) from "Client" where name='Sneaky ${t}'`)==='0'&&txt2.includes('Only Admins can add clients'));
    }
    const neg=Buffer.from(editCall.body.toString('latin1').split('50.5').join('-5'),'latin1');
    const [, t3]=await replay(a,editCall,neg);ok('admin: crafted negative hours refused',before()==='FLOATING:-'&&t3.includes('more than 0'));
@@ -233,7 +233,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   sql(`delete from "TimeEntry" where "projectId" in (select p.id from "Project" p join "Client" c on c.id=p."clientId" where c.name like '%${t}')`);
   sql(`delete from "Project" where "clientId" in (select id from "Client" where name like '%${t}')`);
   sql(`delete from "Client" where name like '%${t}'`);
-  sql(`delete from "AuditLog" where action like '%${t}%' or "userId" like '${t}%' or (at>='${t0}' and action='Imported 1 projects from CSV' and "userId"=(select id from "User" where email='admin@example.com'))`);
+  sql(`delete from "AuditLog" where action like '%${t}%' or "userId" like '${t}%' or (at>='${t0}' and action='Imported 1 project from CSV' and "userId"=(select id from "User" where email='admin@example.com'))`);
   sql(`delete from "User" where id like '${t}%'`);
   await b.close();
  }

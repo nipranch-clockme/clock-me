@@ -44,7 +44,7 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
         </div>
         {creator && <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>}
       </div>
-      {creator && !form.clients.length && <p className="alert info">{admin ? "Add a client below before creating a project." : "An admin needs to add a client before projects can be created."}</p>}
+      {creator && !form.clients.length && <p className="alert info">{admin ? "Add a client below before creating a project." : "An Admin needs to add a client before projects can be created."}</p>}
       <dialog ref={ref} className="wide" onClose={close} aria-labelledby="proj-title">
         {open && <ProjectEditor key={open} form={form} project={open === "new" ? null : editable.find((p) => p.id === open)!} admin={admin} onDone={() => ref.current?.close()} />}
       </dialog>
@@ -116,7 +116,7 @@ function ProjectEditor({ form, project, admin, onDone }: { form: ProjectForm; pr
           </div>
         )}
 
-        <h3 style={{ marginTop: 16 }}>Project managers</h3>
+        <h3 style={{ marginTop: 16 }}>Managers</h3>
         <p className="note" style={{ margin: "0 0 6px" }}>{admin ? "Managers can edit this project." : "You'll be a manager of this project. Managers can edit it."}</p>
         <div style={box}>
           {form.managers.map((m) => (

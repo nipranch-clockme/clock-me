@@ -6,6 +6,7 @@ import { PERMISSIONS, ROLES } from "@/lib/roles";
 import { GeneralForm, TagForm, TemplateForm, FieldForm, Confirm } from "./SettingsForms";
 import { removeField, removeTag, removeTemplate, toggleFieldRequired } from "./actions";
 import DemoData from "./DemoData";
+import ChangeLog from "./ChangeLog";
 import { demoStatus } from "@/lib/demoData";
 
 // Adding the demo data works through the page in short steps; this lets each step run for up to a minute.
@@ -68,6 +69,7 @@ export default async function SettingsPage() {
         </table></div>
         <p className="note" style={{ margin: "8px 0 0" }}>Set each person&apos;s role on the People page.</p>
       </section>
+      <ChangeLog timeZone={settings.timeZone} />
     </div>
     </>
   );

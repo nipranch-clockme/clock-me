@@ -34,7 +34,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const used = Object.fromEntries(usage.map((u) => [u.projectId, (u._sum.minutes ?? 0) / 60]));
   // Client types and contracted hours show to the people who have the Clients tab; admins can change them.
   const contracts = canTab("clients", me.role);
-  const accessText = (p: (typeof projects)[number]) => [...p.locations.map((l) => `${l.location.name} office`), ...p.teams.map((t) => `${t.team.name} team, ${t.team.location.name}`), ...p.users.map((u) => u.user.name)].join(", ");
+  // Teams keep their usual label ("Hulk team, AMD"), so the list items are separated with semicolons.
+  const accessText = (p: (typeof projects)[number]) => [...p.locations.map((l) => `${l.location.name} office`), ...p.teams.map((t) => `${t.team.name} team, ${t.team.location.name}`), ...p.users.map((u) => u.user.name)].join("; ");
   const formData = {
     clients: clients.map((c) => ({ id: c.id, name: c.name })),
     templates: templates.map((t) => ({ id: t.id, name: t.name, phases: t.phases })),

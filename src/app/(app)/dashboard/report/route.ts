@@ -8,7 +8,7 @@ import { ALL_OFFICES, monthlyReport, reportLines, reportYears } from "@/lib/mont
 export async function GET(req: Request) {
   const me = await currentUser();
   if (!me) return new Response("Sign in first", { status: 401 });
-  if (me.role !== "LOCATION" && me.role !== "ADMIN" && me.role !== "HUMAN_RESOURCE") return new Response("Only location managers, admins and Human Resource can download this report", { status: 403 });
+  if (me.role !== "LOCATION" && me.role !== "ADMIN" && me.role !== "HUMAN_RESOURCE") return new Response("Only Location managers, Admins and Human Resource can download this report", { status: 403 });
   const sp = new URL(req.url).searchParams;
   const company = me.role === "ADMIN" || me.role === "HUMAN_RESOURCE";
   const officeId = company ? sp.get("office") ?? "" : me.locationId;

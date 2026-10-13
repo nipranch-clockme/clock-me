@@ -24,7 +24,7 @@ export default function ShareLink({ clientId, path, approvedOnly, opened }: { cl
   if (!path) {
     return (
       <div className="shadmin">
-        <p className="note">Give this client a private link to a view-only report: hours per project and tag, with filters. They don&rsquo;t need to log in. It never shows people, descriptions or phases.</p>
+        <p className="note">Give this client a private link to a view-only report: hours per project and tag, with filters. They don&apos;t need to sign in. It never shows people, descriptions or phases.</p>
         <button type="button" className="btn primary" disabled={pending} onClick={() => run("on")}>{pending ? "Creating…" : "Create link"}</button>
         {error && <p className="err-text" role="alert">{error}</p>}
       </div>

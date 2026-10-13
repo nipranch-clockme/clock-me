@@ -42,7 +42,7 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
             {offices && <Ifld id="mr-office" label="Office" name="roffice" defaultValue={office.id}>{offices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Ifld>}
             <Ifld id="mr-year" label="Year" name="ryear" defaultValue={String(report.year)}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</Ifld>
           </AutoForm>
-          <a className="btn" href={`/dashboard/report?${q}`} download>Download for Excel</a>
+          <a className="btn" href={`/dashboard/report?${q}`} download>Download CSV</a>
         </div>
       </div>
       <div className="tablebox"><table className="mgrid mreport">
@@ -51,7 +51,7 @@ export default function MonthlyReportTable({ report, office, offices, years, kee
         {tagRows && <><tbody>{head("Hours by tag")}</tbody><tbody>{body("tags")}</tbody></>}
       </table></div>
       <p className="note mreport-note">
-        Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; admins are not counted.
+        Inventory is each person&apos;s expected hours for the month (less public holidays and time off), added up; Admins are not counted.
         Utilisation is hours logged divided by inventory{contracts && <>, and fulfilment is hours logged divided by the contract hours of the clients looked after
         by teams in {office.id === ALL_OFFICES ? "any office" : "this office"} (for a client with no fixed hours, the hours clocked for it)</>}. The current month counts up to yesterday{contracts && <>, and fixed
         contracts are scaled to its working days so far</>}. The year column adds

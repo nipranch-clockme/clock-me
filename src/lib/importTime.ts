@@ -4,7 +4,9 @@ import type { Me } from "./auth";
 import { getSettings } from "./settings";
 import { visibleProjectsWhere, visibleUsersWhere } from "./scope";
 import { EXTRA_CELLS, csvObjects } from "./csv";
-import { monday, toDate, toStr } from "./dates";
+import { dateWithYear, monday, toDate, toStr } from "./dates";
+import { DAY_MAX_MINUTES, cleanText as cleanEntryText, entryDateError, isBlankText } from "./entries";
+import { DESCRIPTION_MAX, fmtHours } from "./format";
 import { sortTagIds } from "./tags";
 import { CLIENT_COLORS, clean, cleanText, hasColumn, nameKey, parseDateFlexible, parseDurationFlexible, parseTimeFlexible, pick, splitList } from "./importParse";
 import { MAX_TAG_LENGTH, NO_CLIENT } from "./importProjects";
@@ -72,7 +74,8 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
   const out: { row: PreviewRow; data?: EntryDraft; key?: string }[] = rows.map(({ line, extra, v: r }) => {
     const notes: string[] = [];
     const dateText = pick(r, "date", "start date");
-    const date = parseDateFlexible(dateText);
+    const date = parseDateFlexible(dateText, 1000, 9999); // any real date; entryDateError says which ones can take time
+    const dateError = date ? entryDateError(date) : null;
     const emailText = pick(r, "email").toLowerCase();
     const u = byEmail.get(emailText);
     const projectName = clean(pick(r, "project")), clientGiven = clean(pick(r, "client"));
@@ -87,8 +90,9 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const unknownTags = wantedTags.filter((t) => !tagByName.has(nameKey(t)));
     const minutes = parseDurationFlexible(pick(r, "hours", "duration (h)", "duration"));
     const startText = pick(r, "start", "start time");
-    const startMin = startText ? parseTimeFlexible(startText) : 9 * 60;
-    const description = cleanText(pick(r, "description"));
+    // No start time: 09:00, or earlier when a long entry would otherwise run past midnight.
+    const startMin = startText ? parseTimeFlexible(startText) : Number.isFinite(minutes) ? Math.max(0, Math.min(9 * 60, DAY_MAX_MINUTES - minutes)) : 9 * 60;
+    const description = cleanEntryText(cleanText(pick(r, "description"))); // the same cleaning as the entry form, after taking out control characters
     const custom = Object.fromEntries(fields.map((f) => [f.id, cleanText(r[f.name.toLowerCase()] ?? "")]));
     const missingCustom = fields.filter((f) => f.required && !custom[f.id]).map((f) => f.name);
     const optionBad = fields.find((f) => f.type === "select" && custom[f.id] && !f.options.includes(custom[f.id]));
@@ -102,7 +106,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       : !date ? "Date must look like 03/31/2026 or 2026-03-31"
       : !u ? (emailText ? "Unknown person, or not someone you manage" : "No email")
       : !projectName ? "No project"
-      : !p && !newProject ? (matches.length > 1 ? "Two clients have a project with this name; add a Client column" : me.role === "ADMIN" ? "Unknown project (tick \"Add what's missing\" to create it)" : "Unknown project. Ask an admin to add it")
+      : !p && !newProject ? (matches.length > 1 ? "Two clients have a project with this name; add a Client column" : me.role === "ADMIN" ? "Unknown project (tick \"Add what's missing\" to create it)" : "Unknown project. Ask an Admin to add it.")
       : p?.archived ? "That project is archived"
       : p && !canTrack(p, u) ? "That person doesn't have access to this project"
       : newProject && (projectName.length > 120 || newClientName.length > 120) ? "Project and client names can be up to 120 characters"
@@ -112,12 +116,14 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       : unknownTags.length && !create ? `Unknown tag: ${unknownTags.join(", ")}`
       : newTags.some((t) => t.length > MAX_TAG_LENGTH) ? `A tag name can be up to ${MAX_TAG_LENGTH} characters`
       : settings.requireTag && !wantedTags.length ? "A tag is required (see Settings)"
-      : settings.requireDescription && !description ? "A description is required (see Settings)"
-      : description.length > 3000 ? "Description can be up to 3000 characters"
+      : settings.requireDescription && isBlankText(description) ? "A description is required (see Settings)"
+      : description.length > DESCRIPTION_MAX ? `Description can be up to ${DESCRIPTION_MAX} characters`
       : missingCustom.length ? `${missingCustom.join(", ")} required`
       : optionBad ? `${optionBad.name} must be one of: ${optionBad.options.join(", ")}`
       : !(minutes > 0) || minutes > 1440 ? "Duration must be like 1.5 or 1:30"
       : startMin === null ? "Start must be a time like 09:30 or 9:30 AM"
+      : startMin + minutes > DAY_MAX_MINUTES ? "This entry would end after midnight. Make it end by 24:00 and add the rest on the next day as another row."
+      : dateError ? dateError
       : settings.lockBeforeStr && date <= settings.lockBeforeStr ? "That date is locked (on or before the lock date in Settings)"
       : closedSet.has(`${u.id}|${monday(date)}`) ? "That week is already submitted or approved"
       : "";
@@ -151,7 +157,7 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
 
   // Rows that exactly match an entry already saved (same person, day, project, phase, tag, start, hours and description)
   // were most likely imported before, so they're left out rather than doubled.
-  const ok = out.filter((o) => o.data && o.key);
+  const ok = out.filter((o) => o.data);
   if (ok.length) {
     const dates = ok.map((o) => o.data!.date).sort();
     const existing = await db.timeEntry.findMany({
@@ -159,7 +165,26 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
       select: { userId: true, date: true, projectId: true, phaseId: true, tagIds: true, startMin: true, minutes: true, description: true },
     });
     const have = new Set(existing.map((e) => entryKey({ ...e, date: toStr(e.date) })));
-    for (const o of ok) if (have.has(o.key!)) { o.row.error = "Already imported"; o.data = undefined; }
+    for (const o of ok) if (o.key && have.has(o.key)) { o.row.error = "Already imported"; o.data = undefined; }
+
+    // A person's day can't hold more than 24 hours: the time already saved that day plus every row of this file for it. The import adds
+    // to what is saved and never replaces it, so all of the saved time counts. When the day would be too full, all its rows are held back.
+    const dayKey = (userId: string, date: string) => `${userId}|${date}`;
+    const saved = new Map<string, number>(), inFile = new Map<string, number>();
+    for (const e of existing) { const k = dayKey(e.userId, toStr(e.date)); saved.set(k, (saved.get(k) ?? 0) + e.minutes); }
+    for (const o of ok) if (o.data) { const k = dayKey(o.data.userId, o.data.date); inFile.set(k, (inFile.get(k) ?? 0) + o.data.minutes); }
+    const nameOf = new Map(users.map((u) => [u.id, u.name]));
+    const h = (m: number) => `${fmtHours(m, settings.timeFormat)} h`;
+    for (const o of ok) {
+      if (!o.data) continue;
+      const k = dayKey(o.data.userId, o.data.date), had = saved.get(k) ?? 0, adding = inFile.get(k) ?? 0;
+      if (had + adding <= DAY_MAX_MINUTES) continue;
+      const who = nameOf.get(o.data.userId) ?? "This person", when = dateWithYear(o.data.date);
+      o.row.error = had
+        ? `A day can't hold more than 24 hours. ${who} would have ${h(had + adding)} on ${when}: ${h(had)} already saved and ${h(adding)} in this file.`
+        : `A day can't hold more than 24 hours. ${who} would have ${h(adding)} on ${when} in this file.`;
+      o.data = undefined;
+    }
   }
   // What gets created is only what the rows that will be imported need.
   const live = out.filter((o) => o.data).map((o) => o.data!);

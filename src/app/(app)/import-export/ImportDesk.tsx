@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "@/lib/csv";
-import { MAX_IMPORT_BYTES } from "@/lib/importTypes";
+import { MAX_IMPORT_BYTES, PREVIEW_ROWS } from "@/lib/importTypes";
 import { previewImport, type ImportResult } from "./actions";
 
 export type DeskInfo = {
@@ -28,7 +28,8 @@ const csvCell = (raw: string) => {
   const c = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw; // an apostrophe stops spreadsheets running text as a formula
   return /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c;
 };
-const plural = (n: number, [one, many]: [string, string]) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+const num = (n: number) => n.toLocaleString("en-US");
+const plural = (n: number, [one, many]: [string, string]) => `${num(n)} ${n === 1 ? one : many}`;
 const SOMETHING_WRONG = "Something went wrong and nothing was saved. Try again, or split the file into smaller ones.";
 
 export default function ImportDesk({ kind, info, templateHref, templateFile, offices, defaultOffice, canCreate, emailOn, viewHref }: Props) {
@@ -117,9 +118,20 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
   const rows = res?.rows ?? [];
   const shown = view === "bad" ? rows.filter((r) => r.error) : view === "notes" ? rows.filter((r) => !r.error && r.notes.length) : view === "ok" ? rows.filter((r) => !r.error) : rows;
   const s = res?.summary;
-  const tile = (v: "ok" | "notes" | "bad") => ({ "aria-pressed": view === v, onClick: () => setView(view === v ? "all" : v) });
-  const linksCsv = res?.links ? ["Name,Email,Invite link", ...res.links.map((l) => [l.name, l.email, l.link].map(csvCell).join(","))].join("\r\n") + "\r\n" : "";
-  const live = done ? "Import finished." : res?.error ? res.error : res && s ? `Checked ${res.total} rows: ${s.ok} ready, ${s.bad} will be skipped.` : "";
+  // A long file is listed only in part: its first PREVIEW_ROWS rows, then later rows with a problem or a heads-up (up to PREVIEW_ROWS of those).
+  const total = res?.total ?? 0;
+  const cut = total > rows.length;
+  const laterListed = Math.max(0, rows.length - PREVIEW_ROWS);
+  const laterFlagged = s ? s.bad + s.withNotes - rows.slice(0, PREVIEW_ROWS).filter((r) => r.error || r.notes.length).length : 0;
+  const which = `the first ${num(PREVIEW_ROWS)} and ${laterListed < laterFlagged ? `the next ${num(laterListed)} rows with a problem or a heads-up` : "every later row with a problem or a heads-up"}`;
+  const showing = view === "all"
+    ? (cut ? `Showing ${num(rows.length)} of ${num(total)} rows: ${which}. All ${num(total)} rows are checked.` : `Showing all ${num(rows.length)} rows. Pick a box above to show only some.`)
+    : cut ? `Showing ${num(shown.length)} of the ${num(rows.length)} rows listed out of ${num(total)} (${which}). Pick the same box again to show all ${num(rows.length)}.`
+    : `Showing ${num(shown.length)} of ${num(rows.length)} rows. Pick the same box again to show all.`;
+  const tile = (v:"ok" | "notes" | "bad") => ({ "aria-pressed": view === v, onClick: () => setView(view === v ? "all" : v) });
+  // The byte-order mark makes Excel read names with accents correctly.
+  const linksCsv = res?.links ? "\uFEFF" + ["Name,Email,Invite link", ...res.links.map((l) => [l.name, l.email, l.link].map(csvCell).join(","))].join("\r\n") + "\r\n" : "";
+  const live = done ? "Import finished." : res?.error ? res.error : res && s ? `Checked ${num(res.total)} rows: ${num(s.ok)} ready, ${num(s.bad)} will be skipped.` : "";
 
   return (
     <div className="idesk"
@@ -192,17 +204,17 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                   ) : offices[0] && <p className="note" style={{ margin: 0 }}>Everyone joins the <b>{offices[0].name}</b> office.</p>}
                   {offices.length > 1 && <p className="note" style={{ margin: 0 }}>Used for everyone, unless your file has an Office column.</p>}
                   <label className="icheck"><input type="checkbox" checked={emailInvites} disabled={!emailOn} onChange={(e) => setEmailInvites(e.target.checked)} />
-                    <span>Email everyone their invite link{!emailOn && <small> (email isn&rsquo;t switched on yet, so you&rsquo;ll share the links yourself)</small>}</span></label>
+                    <span>Email everyone their invite link{!emailOn && <small> (email isn&apos;t switched on yet, so you&apos;ll share the links yourself)</small>}</span></label>
                 </div>
               )}
               {kind === "time" && canCreate && (
                 <div className="iopts">
                   <label className="icheck"><input type="checkbox" checked={create} onChange={(e) => { setCreate(e.target.checked); touch(); }} />
-                    <span>Add what&rsquo;s missing<small> Projects, clients, phases (the Task column) and tags that the file names but we don&rsquo;t have yet will be created for you.</small></span></label>
+                    <span>Add what&apos;s missing<small> Projects, clients, phases (the Task column) and tags that the file names but we don&apos;t have yet will be created for you.</small></span></label>
                 </div>
               )}
 
-              <div className="row" style={{ marginTop: 12 }}>
+              <div className="row" style={{ marginTop: 12, alignItems: "center" }}>
                 <button type="button" className={res && !res.error ? "btn" : "btn primary"} disabled={pending || !text.trim()} onClick={() => void send(false)}>{pending ? "Checking…" : res && !res.error ? "Check again" : "Check file"}</button>
                 <span className="note">Nothing is saved yet.</span>
               </div>
@@ -242,14 +254,14 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                     )}
                     {res.sample ? (
                       <div className="alert warn">
-                        <b>{plural(res.sample, ["row", "rows"])} still the template&rsquo;s example {res.sample === 1 ? "row" : "rows"}</b>
-                        <p style={{ margin: "2px 0 8px" }}>The examples are made-up {kind === "people" ? "people (some are admins)" : kind === "projects" ? "projects and clients" : "time entries"}. Delete them from your file and check it again, unless you really want them.</p>
+                        <b>{plural(res.sample, ["row is", "rows are"])} still the template&apos;s example {res.sample === 1 ? "row" : "rows"}</b>
+                        <p style={{ margin: "2px 0 8px" }}>The examples are made-up {kind === "people" ? "people (some are Admins)" : kind === "projects" ? "projects and clients" : "time entries"}. Delete them from your file and check it again, unless you really want them.</p>
                         <label className="icheck"><input type="checkbox" checked={sampleOk} onChange={(e) => setSampleOk(e.target.checked)} /><span>Yes, import the example rows too</span></label>
                       </div>
                     ) : null}
                     {res.adds.length > 0 && <div className="alert info"><b>This import will also add</b>{res.adds.map((a, i) => <p key={i} style={{ margin: "2px 0 0" }}>{a}</p>)}</div>}
                     {res.columnNotes.length > 0 && <ul className="icolnotes">{res.columnNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
-                    <p className="note ishowing">{view === "all" ? `Showing all ${rows.length.toLocaleString("en-US")} rows. Pick a box above to show only some.` : `Showing ${shown.length.toLocaleString("en-US")} of ${rows.length.toLocaleString("en-US")} rows. Pick the same box again to show all.`}</p>
+                    <p className="note ishowing">{showing}</p>
                     <div className="tablebox ipreview"><table className="imptable">
                       <thead><tr><th className="num">Row</th>{res.headers.map((h) => <th key={h}>{h}</th>)}<th>Check</th></tr></thead>
                       <tbody>
@@ -263,8 +275,7 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                         {!shown.length && <tr><td colSpan={res.headers.length + 2} className="empty">Nothing to show here.</td></tr>}
                       </tbody>
                     </table></div>
-                    {res.total > rows.length && <p className="note">Showing {rows.length.toLocaleString("en-US")} of {res.total.toLocaleString("en-US")} rows: the first 1,000, and every later row with a problem or a heads-up. All of them are checked.</p>}
-                    <div className="row" style={{ marginTop: 12 }}>
+                    <div className="row" style={{ marginTop: 12, alignItems: "center" }}>
                       <button type="button" className="btn primary" disabled={pending || !s.ok || (!!res.sample && !sampleOk)} onClick={() => void send(true)}>{pending ? "Importing…" : `Import ${plural(s.ok, info.noun)}`}</button>
                       {s.bad > 0 && s.ok > 0 && <span className="note">The {plural(s.bad, ["row", "rows"])} with problems will be left out.</span>}
                     </div>
@@ -277,9 +288,9 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                     <p className="note"><b>These links are shown only once.</b> Copy them or download the file now. Each link lets one person set a password and sign in, and works for 7 days. Send every link only to its own person. You can always make a new link for anyone from the People page.</p>
                     <div className="row">
                       <button type="button" className="btn sm" onClick={() => void copy("all", res.links!.map((l) => `${l.name} <${l.email}>: ${l.link}`).join("\n"))}>{copied === "all" ? "Copied" : "Copy all"}</button>
-                      <a className="btn sm" download="the-time-sink-invite-links.csv" href={`data:text/csv;charset=utf-8,${encodeURIComponent(linksCsv)}`}>Download as CSV</a>
+                      <a className="btn sm" download="the-time-sink-invite-links.csv" href={`data:text/csv;charset=utf-8,${encodeURIComponent(linksCsv)}`}>Download CSV</a>
                     </div>
-                    {copied === "failed" && <p className="err-text" role="alert">Couldn&rsquo;t copy automatically. Download the CSV instead, or select a link and copy it by hand.</p>}
+                    {copied === "failed" && <p className="err-text" role="alert">Couldn&apos;t copy automatically. Download the CSV instead, or select a link and copy it by hand.</p>}
                     <div className="tablebox"><table>
                       <thead><tr><th>Name</th><th>Email</th><th>Link</th></tr></thead>
                       <tbody>{res.links.map((l) => (

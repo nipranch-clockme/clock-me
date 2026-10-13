@@ -14,6 +14,7 @@ import { weekdaysBetween } from "@/lib/expected";
 import { loadExpected } from "@/lib/timeoff";
 import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import { staleText } from "@/lib/approvalText";
+import { sheetStatusLabel } from "@/lib/sheetStatus";
 
 export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ stale?: string; skipped?: string }> }) {
   const sp = await searchParams;
@@ -22,7 +23,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const where = approverUsersWhere(me);
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   if (!where) {
-    return <section className="panel"><h2>Approvals</h2><p className="empty">Only Team/Project Managers, location managers and admins approve timesheets.</p></section>;
+    return <section className="panel"><h2>Approvals</h2><p className="empty">Only Team/Project Managers, Location managers and Admins approve timesheets.</p></section>;
   }
   // Time off requests: only location managers and admins decide them (see timeOffApproverWhere). Past requests are listed too, marked as past.
   const timeOffWhere = timeOffApproverWhere(me);
@@ -68,7 +69,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             const admin = NOT_A_RESOURCE.includes(s.user.role); // admins are not a resource: no target, so no under-target flag
             const want = admin ? 0 : ex(s.user, ws, we, { whole: true });
             const fullWeek = admin ? 0 : ex.plain(s.user, ws, we); // the week's expected hours before public holidays and time off, each month at its own hours
-            // Overtime: the time tagged OT, highlighted here and in Review Time (not in the reports).
+            // Overtime: the time tagged OT, highlighted here and in Review time (not in the reports).
             const ot = es.reduce((a, e) => a + (hasOtTag(e.tagIds, otIds) ? e.minutes : 0), 0);
             const byP = new Map<string, { m: number; color: string; name: string }>();
             es.forEach((e) => { const x = byP.get(e.projectId) ?? { m: 0, color: e.project.client.color, name: e.project.name }; x.m += e.minutes; byP.set(e.projectId, x); });
@@ -80,7 +81,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                   <div className="chips" style={{ marginTop: 6 }}>{[...byP].map(([id, x]) => <span className="chip" key={id}><span className="dot" style={{ background: `var(--${x.color})` }} />{x.name} {f(x.m)}</span>)}</div>
                 </div>
                 <div className="row" style={{ alignItems: "center" }}>
-                  <Link className="btn sm" href={`/reports?range=custom&from=${ws}&to=${we}&person=${s.userId}&group=project&ref=approvals`}>Review Time</Link>
+                  <Link className="btn sm" href={`/reports?range=custom&from=${ws}&to=${we}&person=${s.userId}&group=project&ref=approvals`}>Review time</Link>
                   <form action={approve}><input type="hidden" name="id" value={s.id} /><input type="hidden" name="v" value={s.updatedAt.toISOString()} /><button className="btn ok sm">Approve</button></form>
                   <SendBack id={s.id} v={s.updatedAt.toISOString()} />
                 </div>
@@ -113,8 +114,8 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         <section className="panel full">
           <div className="ch"><h2>Time off requests</h2><span className="cd">{requests.length} request{requests.length === 1 ? "" : "s"}</span></div>
           <p className="note" style={{ margin: "0 0 10px" }}>{me.role === "ADMIN"
-            ? "Requests from everyone except yourself. Requests from admins and location managers are for another admin to decide."
-            : `Requests from people in ${me.location.name} office. Requests from admins and location managers are for an admin to decide.`}</p>
+            ? "Requests from everyone except yourself. Your own requests are for another Admin to decide."
+            : `Requests from people in the ${me.location.name} office. Requests from Admins, Location managers and Human Resource are for an Admin to decide.`}</p>
           <div className="list">
             {requests.map((r) => {
               const a = toStr(r.startDate), b = toStr(r.endDate);
@@ -124,7 +125,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                   <div style={{ minWidth: 0, flex: "1 1 300px" }}>
                     <strong><Link className="plink" href={`/profile/${r.userId}`}>{r.user.name}</Link></strong> <span className="meta">· {r.user.team?.name ?? "No team"} · {r.user.location.name}</span>
                     <div className="meta">{span(a, b)} · {Number.isInteger(days) ? days : days.toFixed(1)} working day{days === 1 ? "" : "s"}{r.fraction < 1 && " (half days)"} · {r.label}{b < t && <> <Pill tone="warn">Past</Pill></>}</div>
-                    {r.note && <div className="meta">“{r.note}”</div>}
+                    {r.note && <div className="meta">"{r.note}"</div>}
                   </div>
                   <div className="row" style={{ alignItems: "center" }}>
                     <ApproveTimeOff id={r.id} />
@@ -137,9 +138,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           </div>
         </section>
       )}
-      <section className="panel">
-        <h3>Not submitted for {weekLabel(lastWeek)}</h3>
-        <div className="list">
+      <section className="panel full">
+        <div className="ch"><h2>{sheetStatusLabel("DRAFT")} for {weekLabel(lastWeek)}</h2><span className="cd">{late.length} {late.length === 1 ? "person" : "people"}</span></div>
+        <div className="list" style={late.length > 4 ? { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", columnGap: 32 } : undefined}>
           {late.map((u) => <div className="item" key={u.id}><div><Link className="plink" href={`/profile/${u.id}`}>{u.name}</Link><div className="meta">{u.title} · {u.location.name}</div></div><RemindButton userId={u.id} week={lastWeek} /></div>)}
           {!late.length && <div className="empty">Everyone submitted.</div>}
         </div>

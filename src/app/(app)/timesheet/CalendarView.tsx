@@ -18,7 +18,7 @@ export default async function CalendarView({ me, subject, subjectName = subject.
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
   const [rows, sheet, offs] = await Promise.all([
-    db.timeEntry.findMany({ where: { userId: subject.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true } }),
+    db.timeEntry.findMany({ where: { userId: subject.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: subject.id, weekStart: toDate(ws) } } }),
     dayMarks(subject, dates), // public holidays of that person's office and their time off
   ]);
@@ -27,13 +27,13 @@ export default async function CalendarView({ me, subject, subjectName = subject.
   const hidden = await hiddenProjectIds(me, subject.id, rows.map((e) => e.projectId)); // another person's projects the signed-in manager can't see
   const statusLocked = sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED";
   const waiting = others ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. To change it, cancel the submission.";
-  const locked = dates.map((d) => (settings.lockBeforeStr && d <= settings.lockBeforeStr ? "This date is locked by an admin." : statusLocked ? (sheet!.status === "SUBMITTED" ? waiting : "This week is approved.") : null));
+  const locked = dates.map((d) => (settings.lockBeforeStr && d <= settings.lockBeforeStr ? "This date is locked by an Admin." : statusLocked ? (sheet!.status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const clients = await db.client.findMany({ orderBy: { name: "asc" } });
   return (
     <>
       {people.length > 1 && <div className="row" style={{ marginBottom: 10 }}><PersonPicker people={people} current={subject.id} meId={me.id} offset={offset} label={me.role === "ADMIN" || me.role === "LOCATION" ? "Whose time" : "Showing"} /></div>}
-      {others && editable && <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is written to the change log. They still submit their own week.</p>}
-      <p className="note" style={{ margin: "0 0 10px" }}>{!others || editable ? "Click a time to add an hour, or drag down the day to add exactly the time spent. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
+      {others && editable && <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is recorded in the change log, which Admins can see in Settings. They still submit their own week.</p>}
+      <p className="note" style={{ margin: "0 0 10px" }}>{!others || editable ? "Click a time to add an hour, drag down the day to add exactly the time spent, or use the + button at the top of a day. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
       <CalendarWeek
         opts={opts} dates={dates} today={today()} editable={editable} locked={locked} marks={marks}
         ownerId={others && editable ? subject.id : undefined}

@@ -30,6 +30,7 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
 }
 
+/** Signs out on every device, so a copy of the sign-in cookie stops working too. */
 export async function logout() {
   await destroySession();
   redirect("/login");
@@ -41,24 +42,24 @@ export async function acceptInvite(_: string | null, form: FormData): Promise<st
   if (password.length < 8) return "Use at least 8 characters.";
   if (password !== String(form.get("confirm") ?? "")) return "The two passwords don't match.";
   const user = token ? await db.user.findFirst({ where: liveTokenWhere(token) }) : null;
-  if (!user) return "This link has expired or has already been used. Ask your admin for a new one.";
+  if (!user) return "This link has expired or has already been used. Ask your Admin for a new one.";
   const passwordHash = await bcrypt.hash(password, 10);
   // Use the link up in one step, so it can't be used twice, and sign out any other devices.
   const used = await db.user.updateMany({
     where: { id: user.id, ...liveTokenWhere(token) },
     data: { passwordHash, inviteToken: null, inviteExpires: null, sessionVersion: { increment: 1 } },
   });
-  if (used.count !== 1) return "This link has expired or has already been used. Ask your admin for a new one.";
+  if (used.count !== 1) return "This link has expired or has already been used. Ask your Admin for a new one.";
   await clearAttempts(`login:${user.email}`);
   await createSession(user.id, user.sessionVersion + 1);
   redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
 }
 
-const RESET_MESSAGE = "If that email has an account, we've sent it a link to choose a new password. No email after a few minutes? Ask your admin for a reset link.";
+const RESET_MESSAGE = "If that email has an account, we've sent it a link to choose a new password. No email after a few minutes? Ask your Admin for a reset link.";
 
 export async function requestReset(_: string | null, form: FormData): Promise<string | null> {
   // Without an email service nothing could deliver a link, so don't make one (it would also replace a link the admin handed over).
-  if (!emailConfigured()) return "This site doesn't send password reset emails yet. Ask your admin for a reset link.";
+  if (!emailConfigured()) return "This site doesn't send password reset emails yet. Ask your Admin for a reset link.";
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const ip = await clientIp();
   if (!(await takeAttempt([[`reset-ip:${ip}`, 20]])).allowed) return RESET_MESSAGE;
@@ -70,8 +71,8 @@ export async function requestReset(_: string | null, form: FormData): Promise<st
     const token = live?.token ?? (await issueLinkToken(user.id, SELF_RESET_HOURS));
     const hours = live ? Math.max(1, Math.floor((live.expires.getTime() - Date.now()) / 3600_000)) : SELF_RESET_HOURS;
     await db.user.update({ where: { id: user.id }, data: { resetSentAt: new Date() } });
-    const action = user.passwordHash ? "reset your The Time Sink password" : "set up your The Time Sink account";
-    await sendEmail(user.email, user.passwordHash ? "Reset your The Time Sink password" : "Set up your The Time Sink account", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to ${action}. If it was you, choose a password here within the next ${hours === 1 ? "hour" : `${hours} hours`}: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
+    const action = user.passwordHash ? "reset your password for The Time Sink" : "set up your account for The Time Sink";
+    await sendEmail(user.email, user.passwordHash ? "Reset your password for The Time Sink" : "Set up your account for The Time Sink", `Hi ${user.name.split(" ")[0]},\n\nSomeone asked to ${action}. If it was you, choose a password here within the next ${hours === 1 ? "hour" : `${hours} hours`}: ${appUrl()}/invite/${token}\n\nIf it wasn't you, you can ignore this email.`);
   }
   return RESET_MESSAGE;
 }

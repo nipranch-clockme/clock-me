@@ -1,5 +1,5 @@
 // Overtime (OT) is time tagged "OT". People tag the time they work as overtime, and it is highlighted while a timesheet is
-// reviewed (Approvals, and Review Time from there). The reports, exports and every other screen treat it like any other tag.
+// reviewed (Approvals, and Review time from there). The reports, exports and every other screen treat it like any other tag.
 import { db } from "./db";
 
 export const OT_TAG_NAME = "OT";

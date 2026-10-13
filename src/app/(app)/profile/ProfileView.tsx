@@ -6,20 +6,20 @@ import { canManagePerson } from "@/lib/scope";
 import { roleName } from "@/lib/roles";
 import { hidesClients } from "@/lib/scope";
 import Link from "next/link";
-import { addDays, dow, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
+import { addDays, dateWithYear, dow, longDate, monday, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { loadExpected } from "@/lib/timeoff";
 import { PERIODS, periodOf, periodDays, utilisation, last12Months, monthlyMinutes, monthlyUtilisation } from "@/lib/utilisation";
-import { dayMonthYear, joinedText } from "@/lib/profile";
+import { joinedText } from "@/lib/profile";
+import { sheetStatusLabel } from "@/lib/sheetStatus";
 import AutoForm from "@/components/AutoForm";
 import TrendChart from "@/components/TrendChart";
 import Avatar from "@/components/Avatar";
-import { Pill, statusTone } from "@/components/ui";
+import { PageHead, Pill, statusTone } from "@/components/ui";
 import { DetailsForm, PhotoForm } from "./ProfileForms";
 
 type Person = Prisma.UserGetPayload<{ include: { team: true; location: true } }>;
 type ShareRow = { key: string; label: string; sub?: string; m: number };
-const SHEET: Record<string, string> = { DRAFT: "Not submitted", SUBMITTED: "Waiting for approval", APPROVED: "Approved", REJECTED: "Sent back" };
 
 const dayText = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)} ${n === 1 ? "day" : "days"}`;
 
@@ -90,15 +90,16 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
   };
 
   return (
+    <>
+    <PageHead title={self ? "My profile" : "Profile"} />
     <div className="grid g2">
       <section className="panel full">
-        <h3>{self ? "My profile" : "Profile"}</h3>
         <div className="phead profile-head">
           <Avatar person={person} size={96} alt={person.photoAt ? `Profile picture of ${person.name}` : ""} />
           <div className="pinfo profile-name">
             <h2>{person.name}</h2>
             {person.title && <p className="profile-title">{person.title}</p>}
-            <p className="note" style={{ margin: 0 }} title={person.joiningDate ? `Joined ${dayMonthYear(toStr(person.joiningDate))}` : undefined}>{joinedText(person.joiningDate)}</p>
+            <p className="note" style={{ margin: 0 }} title={person.joiningDate ? `Joined ${dateWithYear(toStr(person.joiningDate))}` : undefined}>{joinedText(person.joiningDate)}</p>
             {(!person.active || !person.passwordHash) && <div style={{ marginTop: 6 }}>{!person.active ? <Pill tone="locked">Inactive</Pill> : <Pill tone="submitted">Invite pending</Pill>}</div>}
           </div>
           {(self || manage) && (
@@ -165,7 +166,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
                 <tr key={ws}>
                   <td>{weekLabel(ws)}{ws === weeks[0] && <span className="note"> · this week</span>}</td>
                   <td className="num">{f(weekMinutes(ws))}</td>
-                  <td>{!st && addDays(ws, 6) < start ? <Pill tone="locked">Not started</Pill> : <Pill tone={statusTone(st ?? "DRAFT")}>{SHEET[st ?? "DRAFT"]}</Pill>}</td>
+                  <td>{!st && addDays(ws, 6) < start ? <Pill tone="locked">Not started</Pill> : <Pill tone={statusTone(st ?? "DRAFT")}>{sheetStatusLabel(st)}</Pill>}</td>
                 </tr>
               );
             })}
@@ -173,5 +174,6 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
         </table></div>
       </section>
     </div>
+    </>
   );
 }

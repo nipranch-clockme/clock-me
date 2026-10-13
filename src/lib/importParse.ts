@@ -61,7 +61,7 @@ const ROLE_RANK: Record<RoleName, number> = { MEMBER: 0, LEADER: 1, LOCATION: 2,
 
 /**
  * Turns Clockify-style role text ("Admin, Project Manager", "Team Manager", blank) into the highest role named.
- * Blank means Team Member. `unknown` lists words that mean nothing to us, so the row can be refused instead of guessed.
+ * Blank means Team member. `unknown` lists words that mean nothing to us, so the row can be refused instead of guessed.
  */
 export function parseRole(s: string | undefined): { role: RoleName; unknown: string[] } {
   let role: RoleName = "MEMBER";

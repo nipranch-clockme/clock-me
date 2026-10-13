@@ -25,7 +25,7 @@ export default async function HoursView({ me, yearParam }: { me: Me; yearParam?:
       id: u.id, name: u.name, usual: u.weeklyTarget, values: months.map((m) => own.get(m) ?? u.weeklyTarget), editable: canManagePerson(me, u),
       lead: <>
         <td className="cl"><Link href={`/profile/${u.id}`}>{u.name}</Link><div className="note">{[u.title, u.team?.name ?? "No team", multi ? u.location.name : ""].filter(Boolean).join(" · ")}</div></td>
-        <td className="num" data-l="Usual a week">{u.weeklyTarget}</td>
+        <td className="num" data-l="Expected hours per week">{u.weeklyTarget}</td>
       </>,
     };
   });
@@ -37,12 +37,12 @@ export default async function HoursView({ me, yearParam }: { me: Me; yearParam?:
       </div>
       {!rows.length ? <p className="empty">Nobody to show yet.</p> : (
         <MonthGrid key={year} action={saveMonthlyHours} kind="hours" year={year} months={months} leadCols={2} noun="person" searchLabel="Search people"
-          heads={<><th scope="col">Person</th><th className="num" scope="col">Usual a week</th></>} rows={rows} now={now} refMonth={0} refDays={0} />
+          heads={<><th scope="col">Person</th><th className="num eh" scope="col">Expected hours per week</th></>} rows={rows} now={now} refMonth={0} refDays={0} />
       )}
       <p className="note" style={{ margin: "10px 0 0" }}>
-        Each box is the hours expected of the person per week in that month. A month the same as the person&apos;s usual weekly hours follows them (change the usual hours from Edit on the People tab); a blue box has its own figure.
+        Each box is the hours expected of the person per week in that month. A month the same as the person&apos;s expected hours per week follows them (change that figure from Edit on the People tab); a blue box has its own figure.
         Type 0 for a month with nothing expected, such as a long leave or a sabbatical. Productivity on the Dashboard and in profiles uses the figure for each month, less public holidays and time off. Admins are not a resource, so they are not listed.
-        {me.role === "LOCATION" ? " You can change people in your own office. Other location managers and your own hours are changed by an admin." : ""}
+        {me.role === "LOCATION" ? " You can change people in your own office. Other Location managers and your own hours are changed by an Admin." : ""}
       </p>
     </section>
   );

@@ -4,10 +4,11 @@ import type { Me } from "./auth";
 import { db } from "./db";
 import { visibleUsersWhere } from "./scope";
 import { RANGES, rangeDates, toDate, toStr, isDateStr, addDays, addMonths, endOfMonth, monday, dow, daysBetween } from "./dates";
+import { SHEET_STATUS } from "./sheetStatus";
 
 /** What a report can be grouped by (the first level, and optionally a second level inside it). */
 export const GROUPS: [string, string][] = [
-  ["project", "Project"], ["client", "Client"], ["person", "Person"], ["team", "Team"], ["location", "Location"],
+  ["project", "Project"], ["client", "Client"], ["person", "Person"], ["team", "Team"], ["location", "Office"],
   ["tag", "Tag"], ["phase", "Phase"], ["description", "Description"], ["day", "Day"], ["month", "Month"],
 ];
 /** Groupings that are periods of time: shown in date order, not biggest first, and without colours. */
@@ -15,14 +16,14 @@ export const TIME_GROUPS = ["day", "month"];
 
 export const FILTER_KEYS = ["person", "team", "client", "project", "phase", "tag", "status", "location"] as const;
 export type FilterKey = (typeof FILTER_KEYS)[number];
-/** The timesheet status of the week an entry belongs to. */
-export const STATUSES: [string, string][] = [["DRAFT", "Not submitted"], ["SUBMITTED", "Submitted"], ["APPROVED", "Approved"], ["REJECTED", "Sent back"]];
+/** The timesheet status of the week an entry belongs to, named as everywhere else in the app. */
+export const STATUSES: [string, string][] = Object.entries(SHEET_STATUS);
 export const TABS = [["summary", "Summary"], ["detailed", "Detailed"]] as const; // an old link with tab=weekly opens the Summary
 export type Tab = (typeof TABS)[number][0];
 
 export type ReportParams = {
   tab: Tab; range: string; from?: string; to?: string; group: string; group2?: string; est?: string; desc?: string;
-  /** "approvals" when the page was opened from Approvals (Review Time): it keeps the way back and shows overtime for that week. */
+  /** "approvals" when the page was opened from Approvals (Review time): it keeps the way back and shows overtime for that week. */
   ref?: string;
 } & Record<FilterKey, string[]>;
 
@@ -69,6 +70,9 @@ export function stepRange(from: string, to: string, dir: 1 | -1): [string, strin
   return [addDays(from, span * dir), addDays(to, span * dir)];
 }
 
+/** Text for a `contains` filter with LIKE's wildcards escaped, so % and _ match only themselves (Postgres escapes with a backslash). */
+export const likeText = (s: string) => s.replace(/[\\%_]/g, (c) => "\\" + c);
+
 /**
  * Entries matching the report filters, limited to the people this viewer can see.
  * The Status filter is about the timesheet of the week an entry sits in, so it first looks up those timesheets.
@@ -107,11 +111,14 @@ export async function reportWhere(me: Me, p: ReportParams): Promise<{ where: Pri
     ...(p.client.length ? { project: { clientId: { in: p.client } } } : {}),
     ...(p.tag.length ? { tagIds: { hasSome: p.tag } } : {}), // any of the ticked tags
     ...(p.phase.length ? { phase: { name: { in: p.phase } } } : {}),
-    ...(p.desc ? { description: { contains: p.desc, mode: "insensitive" } } : {}),
+    ...(p.desc ? { description: { contains: likeText(p.desc), mode: "insensitive" } } : {}),
     ...(and.length ? { AND: and } : {}),
   };
   return { where, from, to, statusTooWide };
 }
+
+/** Text cut to at most `max` characters (whole characters, so an emoji is never split), with an ellipsis when it was longer. */
+export const clipText = (s: string, max: number) => { const a = Array.from(s); return a.length > max ? a.slice(0, max).join("") + "…" : s; };
 
 export function reportQuery(p: ReportParams, extra: Record<string, string | string[] | undefined> = {}) {
   const q = new URLSearchParams();
@@ -126,4 +133,7 @@ export function csvCell(v: unknown) {
   const s = v == null ? "" : String(v);
   return /[",\n\r]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : "") + s.replace(/"/g, '""')}"` : s;
 }
-export const toCsv = (rows: unknown[][]) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+/** A byte order mark: a CSV file that starts with it opens in Excel as UTF-8, so accents, emoji and other scripts show as typed. */
+export const CSV_BOM = "\uFEFF";
+/** A whole CSV file, starting with the byte order mark. */
+export const toCsv = (rows: unknown[][]) => CSV_BOM + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";

@@ -134,15 +134,15 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   ok('admin: removing a holiday takes it out of every office it was listed for',sql(`select count(*) from "Holiday" where name='E2E Two Offices'`)==='0');
   // members, location managers and team managers see the list and cannot change it
   await go(mp,HOLIDAYS_URL);
-  ok("member: sees every office's holidays, with the offices for each, and can't add one",(await mp.locator('#ho-date').count())===0&&/Only admins can add or change public holidays/.test(await mp.textContent('main'))&&(await mp.locator('table.ctable tbody tr',{hasText:'E2E Exception Day'}).innerText()).includes(AMD_NAME));
+  ok("member: sees every office's holidays, with the offices for each, and can't add one",(await mp.locator('#ho-date').count())===0&&/Only Admins can add or change public holidays/.test(await mp.textContent('main'))&&(await mp.locator('table.ctable tbody tr',{hasText:'E2E Exception Day'}).innerText()).includes(AMD_NAME));
   const rav=await signIn('ravi@example.com');
   await go(rav,HOLIDAYS_URL);
   ok('location manager: no holiday form, the same list',(await rav.locator('#ho-date').count())===0);
   const r1=await act(rav,'/time-off','addHoliday',{locationId:KLH,date:addDays(today,205),name:'E2E Crafted'});
-  ok('location manager: adding a holiday is refused, even by a crafted call',refused(r1,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Crafted'`)==='0',r1.text.slice(0,160));
+  ok('location manager: adding a holiday is refused, even by a crafted call',refused(r1,'Only Admins can add or change public holidays')&&sql(`select count(*) from "Holiday" where name='E2E Crafted'`)==='0',r1.text.slice(0,160));
   const dan=await signIn('daniel@example.com');
   const r2=await act(dan,'/time-off','removeHoliday',{id:sql(`select id from "Holiday" where name='E2E Common Day' and "locationId"='${AMD}'`)});
-  ok('team manager: removing a holiday is refused, even by a crafted call',refused(r2,'Only admins')&&sql(`select count(*) from "Holiday" where name='E2E Common Day'`)===String(NLOC),r2.text.slice(0,160));
+  ok('team manager: removing a holiday is refused, even by a crafted call',refused(r2,'Only Admins can add or change public holidays')&&sql(`select count(*) from "Holiday" where name='E2E Common Day'`)===String(NLOC),r2.text.slice(0,160));
 
   // ---- time off requests: a member asks; a location manager or an admin decides
   const reqA=addDays(ws,3), reqP=addDays(ws,-11), reqWd=addDays(ws,4), reqWe=addDays(ws,5);
@@ -270,11 +270,11 @@ const esc=(s)=>String(s).replace(/'/g,"''");
   await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
   ok('location manager: time off added for a member counts at once, recorded as theirs',timeOffOf(K,hb).startsWith(`APPROVED|${RAVI}|${RAVI}|`),timeOffOf(K,hb));
   const lmK2=await act(rav,'/time-off','addTimeOff',{userId:K2,from:addDays(ws,11),to:addDays(ws,11)});
-  ok('location manager: cannot add time off for another location manager (crafted call)',refused(lmK2,'Only admins')&&sql(`select count(*) from "TimeOff" where "userId"='${K2}' and "startDate"='${addDays(ws,11)}'`)==='0',lmK2.text.slice(0,160));
+  ok('location manager: cannot add time off for another location manager (crafted call)',refused(lmK2,'Only Admins can change an Admin\'s or Location manager\'s time off')&&sql(`select count(*) from "TimeOff" where "userId"='${K2}' and "startDate"='${addDays(ws,11)}'`)==='0',lmK2.text.slice(0,160));
   await go(dan,'/time-off');
   ok('team manager: the button asks for their own time off, with no person picker',(await dan.locator('main button.btn.primary:has-text("Request time off")').count())===1);
   const dr=await act(dan,'/time-off','addTimeOff',{userId:PRIYA,from:addDays(ws,11),to:addDays(ws,11)});
-  ok("team manager: cannot add time off for a team member (crafted call)",refused(dr,'Only location managers and admins')&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${addDays(ws,11)}'`)==='0',dr.text.slice(0,160));
+  ok("team manager: cannot add time off for a team member (crafted call)",refused(dr,'Only Location managers and Admins can add or change someone else\'s time off')&&sql(`select count(*) from "TimeOff" where "userId"='${PRIYA}' and "startDate"='${addDays(ws,11)}'`)==='0',dr.text.slice(0,160));
   const ar=await act(adm,'/time-off','addTimeOff',{userId:M,from:addDays(ws,11),to:addDays(ws,11),type:'PTO'});
   ok('admin: adds time off for anyone at once',/"ok":true/.test(ar.text)&&timeOffOf(M,addDays(ws,11)).startsWith(`APPROVED|${ADM}|${ADM}|`),ar.text.slice(0,120));
   const rm=await act(mp,'/time-off','removeTimeOff',{id:idOf(K,hb)});

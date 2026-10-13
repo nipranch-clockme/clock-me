@@ -58,7 +58,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
   await p.click('button:has-text("Submit for approval")');await p.waitForSelector('button:has-text("Cancel submission")');
   await d.goto(BASE+'/approvals');await d.waitForLoadState('networkidle');
-  const card=()=>d.locator('section.panel.full .item:has-text("Cancel Test")');
+  const card=()=>d.locator('section.panel.full .item:has-text("Cancel Test"):has(button:has-text("Approve"))');
   ok('approver sees 2 hours',fmtOk(await card().innerText(),2));
   await p.click('button:has-text("Cancel submission")');await p.waitForSelector('text=Submission cancelled');
   sql(`update "TimeEntry" set minutes=180 where id='${uid}e'`);
@@ -98,7 +98,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   const lock0=sql(`select coalesce(to_char("lockBefore",'YYYY-MM-DD'),'') from "Settings"`);
   try{
    sql(`update "Settings" set "lockBefore"='${addDays(ws,6)}'`);await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
-   ok('fully locked week offers no Cancel submission',(await p.locator('button:has-text("Cancel submission")').count())===0&&(await p.textContent('main')).includes('locked by an admin'));
+   ok('fully locked week offers no Cancel submission',(await p.locator('button:has-text("Cancel submission")').count())===0&&(await p.textContent('main')).includes('locked by an Admin'));
   }finally{sql(`update "Settings" set "lockBefore"=${lock0?`'${lock0}'`:'null'}`);}
   ok('no browser errors',p.errs.length===0&&d.errs.length===0,JSON.stringify([p.errs,d.errs]));
  }finally{
