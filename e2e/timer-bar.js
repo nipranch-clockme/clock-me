@@ -33,7 +33,7 @@ const go = async (p, u) => { await p.goto(BASE + u); await p.waitForLoadState('n
     // pick a project, a phase and a tag on the bar, then go to a manual entry
     await p.selectOption('#tm-project', { index: 1 });
     const barProject = await p.inputValue('#tm-project');
-    await p.selectOption('#tm-phase', { index: 1 });
+    await p.selectOption('#tm-phase', await p.locator('#tm-phase option').last().getAttribute('value'));
     const barPhase = await p.inputValue('#tm-phase');
     await p.click('.tmtag-btn');
     ok(await p.locator('.tagpick').first().isVisible(), 'the Tags button opens the tick boxes');

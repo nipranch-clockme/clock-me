@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, type Me } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { DAY_MAX_MINUTES, cleanText, dayTotalError, entryDateError, isDayLocked, missingFields, parseStart, timeSubject } from "@/lib/entries";
+import { DAY_MAX_MINUTES, cleanText, dayTotalError, entryDateError, isDayLocked, laterPhaseInUse, missingFields, parseStart, phaseInUseMessage, timeSubject } from "@/lib/entries";
 import { readTagIds, tagNamesOf } from "@/lib/tags";
 import { loggableProjectsWhere, trackableProjectsWhere, visibleProjectsWhere } from "@/lib/scope";
 import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
@@ -76,6 +76,11 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   if (project && phaseId && !phase) errs.Phase = "That phase doesn't belong to this project.";
   // A phase the project manager removed can stay on old entries, but can't be picked for new time.
   else if (phase && phase.sort >= 999 && old?.phaseId !== phase.id) errs.Phase = "That phase has been removed from the project. Choose another.";
+  // Once a later phase of the project has time on it, new time can't go on an earlier one. Only a new entry or a changed phase is checked.
+  else if (project && phase && (!old || old.phaseId !== phase.id)) {
+    const later = await laterPhaseInUse(project.id, phase.id, old?.id);
+    if (later) errs.Phase = phaseInUseMessage(later, phase.name);
+  }
   const tagIds = await readTagIds(form);
   const description = cleanText(String(form.get("description") ?? ""));
   if (description.length > DESCRIPTION_MAX) errs.Description = `A description can be at most ${DESCRIPTION_MAX} characters. This one has ${description.length.toLocaleString("en-US")}.`;

@@ -13,6 +13,8 @@ export const GROUPS: [string, string][] = [
 ];
 /** Groupings that are periods of time: shown in date order, not biggest first, and without colours. */
 export const TIME_GROUPS = ["day", "month"];
+/** The groupings a viewer can pick: no Client for a Guest, and no Phase while phases are ignored. */
+export const groupsFor = (me: Me, nophase?: string) => GROUPS.filter(([k]) => !(k === "client" && hidesClients(me)) && !(k === "phase" && nophase === "1"));
 
 export const FILTER_KEYS = ["person", "team", "client", "project", "phase", "tag", "status", "location"] as const;
 export type FilterKey = (typeof FILTER_KEYS)[number];
@@ -23,6 +25,8 @@ export type Tab = (typeof TABS)[number][0];
 
 export type ReportParams = {
   tab: Tab; range: string; from?: string; to?: string; group: string; group2?: string; est?: string; desc?: string;
+  /** "1" when the Ignore phases switch is on: each project is reported as one, not split by phase. */
+  nophase?: string;
   /** "approvals" when the page was opened from Approvals (Review time): it keeps the way back and shows overtime for that week. */
   ref?: string;
 } & Record<FilterKey, string[]>;
@@ -39,7 +43,7 @@ export function spToRecord(sp: URLSearchParams): SP {
 export function parseReportParams(sp: SP, me: Me): ReportParams {
   const s = (k: string) => { const v = Array.isArray(sp[k]) ? (sp[k] as string[])[0] : sp[k]; return typeof v === "string" && v ? v : undefined; };
   const list = (k: string) => { const v = sp[k]; const a = Array.isArray(v) ? v : v ? [v] : []; return [...new Set(a.filter(Boolean))].slice(0, 300); };
-  const groups = GROUPS.filter(([k]) => !(k === "client" && hidesClients(me))); // a Guest can't group by client
+  const groups = groupsFor(me, s("nophase"));
   const group = groups.some((g) => g[0] === s("group")) ? s("group")! : "project";
   const tab = TABS.find((t) => t[0] === s("tab"))?.[0] ?? (s("detail") === "1" ? "detailed" : "summary"); // `detail=1` is how older links asked for the Detailed view
   const p: ReportParams = {
@@ -47,6 +51,7 @@ export function parseReportParams(sp: SP, me: Me): ReportParams {
     group2: groups.some((g) => g[0] === s("group2")) && s("group2") !== group ? s("group2") : undefined,
     est: s("est") === "1" && group === "project" ? "1" : undefined,
     desc: s("desc")?.slice(0, 200),
+    nophase: s("nophase") === "1" ? "1" : undefined,
     ref: s("ref") === "approvals" ? "approvals" : undefined,
     person: list("person"), team: list("team"), client: hidesClients(me) ? [] : list("client"), project: list("project"), phase: list("phase"), tag: list("tag"),
     status: list("status").filter((x) => STATUSES.some((t) => t[0] === x)), location: me.role === "ADMIN" ? list("location") : [], // only admins filter by office

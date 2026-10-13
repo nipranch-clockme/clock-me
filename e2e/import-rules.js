@@ -90,15 +90,15 @@ const byName = (rows, name) => rows.find((r) => r[1] === name || r[2] === name) 
     // ---------- Admin: timesheet ----------
     const sheet = (extra = '') => [
       'Date,Email,Project,Phase,Tag,Description,Hours,Start',
-      '2026-10-05,admin@example.com,Website rebuild,Submission 1,CAD,Rules one,8:00:00,9:00 AM',
-      '2026-10-05,admin@example.com,Website rebuild,Submission 1,CAD,Rules two,1:75,',
-      '2026-10-05,admin@example.com,Website rebuild,Submission 1,CAD,Rules three,1.5,13:00',
-      '10/06/2026,admin@example.com,Website rebuild,Submission 1,"CAD, ENG",Rules four,2,5:00 PM',
-      "2026-10-07,admin@example.com,Website rebuild,Submission 1,CAD,'=SUM(1),1,",
+      '2026-10-05,admin@example.com,Website rebuild,Submission 5,CAD,Rules one,8:00:00,9:00 AM',
+      '2026-10-05,admin@example.com,Website rebuild,Submission 5,CAD,Rules two,1:75,',
+      '2026-10-05,admin@example.com,Website rebuild,Submission 5,CAD,Rules three,1.5,13:00',
+      '10/06/2026,admin@example.com,Website rebuild,Submission 5,"CAD, ENG",Rules four,2,5:00 PM',
+      "2026-10-07,admin@example.com,Website rebuild,Submission 5,CAD,'=SUM(1),1,",
       '2026-10-07,admin@example.com,Website rebuild,Nope,CAD,Rules six,1,',
-      '2026-10-07,admin@example.com,Website rebuild,Submission 1,Nope,Rules seven,1,',
-      '2026-10-07,ghost@example.com,Website rebuild,Submission 1,CAD,Rules eight,1,',
-      '2026-10-07,admin@example.com,Website rebuild,Submission 1,,Rules nine,1,',
+      '2026-10-07,admin@example.com,Website rebuild,Submission 5,Nope,Rules seven,1,',
+      '2026-10-07,ghost@example.com,Website rebuild,Submission 5,CAD,Rules eight,1,',
+      '2026-10-07,admin@example.com,Website rebuild,Submission 5,,Rules nine,1,',
       extra,
     ].filter(Boolean).join('\n');
     await d.paste('time', sheet());

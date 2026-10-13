@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const rows: unknown[][] = [["Date", "Person", "Email", "Office", "Team", "Client", "Project", "Phase", "Tags", "Description", ...fields.map((f) => f.name), "Start", "Hours", "Minutes"]];
   for (const e of entries) {
     const c = (e.custom ?? {}) as Record<string, string>;
-    rows.push([toStr(e.date), e.user.name, e.user.email, e.user.location.name, e.user.team?.name ?? "", hidesClients(me) ? "" : e.project.client.name, e.project.name, e.phase?.name ?? "", tagText(e.tagIds, tagNames), e.description, ...fields.map((f) => c[f.id] ?? ""), clock(e.startMin), (e.minutes / 60).toFixed(2), e.minutes]); // whole minutes add up exactly to the totals in the app
+    rows.push([toStr(e.date), e.user.name, e.user.email, e.user.location.name, e.user.team?.name ?? "", hidesClients(me) ? "" : e.project.client.name, e.project.name, p.nophase ? "" : e.phase?.name ?? "", tagText(e.tagIds, tagNames), e.description, ...fields.map((f) => c[f.id] ?? ""), clock(e.startMin), (e.minutes / 60).toFixed(2), e.minutes]); // whole minutes add up exactly to the totals in the app
   }
   return new Response(toCsv(rows), {
     headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="the-time-sink-time-${p.range === "all" ? "all-time" : `${from}-to-${to}`}.csv"` },

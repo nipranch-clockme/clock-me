@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { DAY_MAX_MINUTES, DESCRIPTION_MAX, cleanText, dayTotalError, isDayLocked, missingFields } from "@/lib/entries";
+import { DAY_MAX_MINUTES, DESCRIPTION_MAX, cleanText, dayTotalError, isDayLocked, laterPhaseInUse, missingFields, phaseInUseMessage } from "@/lib/entries";
 import { trackableProjectsWhere } from "@/lib/scope";
 import { addDays, localDate, localMinutes, shortDate, toDate } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -93,6 +93,9 @@ export async function stopTimer(_: TimerResult, form: FormData): Promise<TimerRe
   }
   const miss = await missingFields({ ...f, custom: {} }, settings);
   if (miss.length) return { ok: false, error: `Fill in: ${miss.join(", ")}.`, fields: miss };
+  const phase = project.phases.find((p) => p.id === f.phaseId);
+  const later = phase && (await laterPhaseInUse(project.id, phase.id));
+  if (later) return { ok: false, error: phaseInUseMessage(later, phase.name), fields: ["Phase"] };
   for (const s of segs) {
     const lock = await isDayLocked(me.id, s.date, settings);
     if (lock) return { ok: false, error: `${lock} Discard the timer, or ask an Admin to unlock the day.` };

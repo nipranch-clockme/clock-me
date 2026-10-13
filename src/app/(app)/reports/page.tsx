@@ -2,8 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { scopeLabel, visibleUsersWhere } from "@/lib/scope";
-import { GROUPS, TIME_GROUPS, TABS, STATUSES, clipText, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
+import { clientColorFor, scopeLabel, visibleUsersWhere } from "@/lib/scope";
+import { GROUPS, TIME_GROUPS, TABS, STATUSES, clipText, groupsFor, parseReportParams, reportWhere, reportQuery, stepRange } from "@/lib/report";
 import { hidesClients } from "@/lib/scope";
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
 import { DESCRIPTION_MAX, clock, fmtHours, pct } from "@/lib/format";
@@ -25,11 +25,11 @@ type Combo = Rec & { userId: string; projectId: string; _sum: { minutes: number 
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireUser();
-  const groups = GROUPS.filter(([k]) => !(k === "client" && hidesClients(me))); // a Guest can't group by client
   const settings = await getSettings();
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const raw = await searchParams;
   const p = parseReportParams(raw, me);
+  const groups = groupsFor(me, p.nophase);
   const fromApprovals = p.ref === "approvals";
   const scope = { user: visibleUsersWhere(me) };
 
@@ -59,7 +59,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const g2 = p.tab === "summary" ? p.group2 : undefined;
   const groupsUsed = [p.group, g2].filter(Boolean) as string[];
   const needDate = groupsUsed.some((g) => TIME_GROUPS.includes(g));
-  const by = ["userId", "projectId", "phaseId", "tagIds", ...(groupsUsed.includes("description") ? ["description"] : []), ...(needDate ? ["date"] : [])];
+  const by = ["userId", "projectId", ...(p.nophase ? [] : ["phaseId"]), "tagIds", ...(groupsUsed.includes("description") ? ["description"] : []), ...(needDate ? ["date"] : [])];
   const colored = !TIME_GROUPS.includes(p.group);
   const stackField = p.tab === "summary" && colored ? STACK_FIELD[p.group] : undefined;
   const CAP = 500;
@@ -67,7 +67,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     db.timeEntry.groupBy({ by: by as Prisma.TimeEntryScalarFieldEnum[], where, _sum: { minutes: true }, _count: true }) as unknown as Promise<Combo[]>,
     p.tab === "summary" ? (db.timeEntry.groupBy({ by: (stackField ? ["date", stackField] : ["date"]) as Prisma.TimeEntryScalarFieldEnum[], where, _sum: { minutes: true } }) as unknown as Promise<(Rec & { _sum: { minutes: number | null } })[]>) : Promise.resolve([]),
     p.tab === "detailed"
-      ? db.timeEntry.findMany({ where, orderBy: [{ date: "desc" }, { startMin: "desc" }], take: CAP, include: { user: { select: { id: true, name: true } }, project: { select: { name: true, client: { select: { name: true } } } }, phase: { select: { name: true } } } })
+      ? db.timeEntry.findMany({ where, orderBy: [{ date: "desc" }, { startMin: "desc" }], take: CAP, include: { user: { select: { id: true, name: true } }, project: { select: { name: true, client: { select: { name: true, color: true } } } }, phase: { select: { name: true } } } })
       : Promise.resolve([]),
   ]);
   const phases = combos.length ? await db.phase.findMany({ where: { id: { in: [...new Set(combos.map((c) => c.phaseId).filter(Boolean))] as string[] } }, select: { id: true, name: true } }) : [];
@@ -233,6 +233,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <span className="sp" />
             <PrintButton />
           </div>
+          <div className="rnophase">
+            <label className="tog"><input type="checkbox" role="switch" name="nophase" value="1" data-auto defaultChecked={!!p.nophase} /><span aria-hidden="true" /> Ignore phases</label>
+            <span className="note">Phases show how many revisions a project had. Turn this on to report each project without splitting it by phase.</span>
+          </div>
 
           {p.tab === "summary" && <div className="rchart"><BarChart keys={keys} data={B} totals={BT} series={series} unit={unit} lbl={lbl} f={f} empty={total === 0} /></div>}
 
@@ -259,21 +263,25 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
           {p.tab === "detailed" && (
             <div className="tablebox">
-              <table className="rtable">
-                <thead><tr><th>Date</th><th>Time</th><th>Person</th>{!hidesClients(me) && <th>Client</th>}<th>Project</th><th>Phase</th><th>Tags</th><th>Description</th><th className="num">Hours</th></tr></thead>
+              <table className="rtable rdetail">
+                <thead><tr><th>Time entry</th><th>User</th><th>Time</th><th className="num">Duration</th></tr></thead>
                 <tbody>
-                  {detailRows.map((e) => (
-                    <tr key={e.id} className={hasOtTag(e.tagIds, otIds) ? "otrow" : undefined}>
-                      <td data-l="Date" className="nowrap">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
-                      <td data-l="Time" className="nw">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}</td>
-                      <td data-l="Person" className="nowrap"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
-                      {!hidesClients(me) && <td data-l="Client">{e.project.client.name}</td>}
-                      <td data-l="Project">{e.project.name}</td><td data-l="Phase" className="nowrap">{e.phase?.name ?? ""}</td><td data-l="Tags">{tagText(e.tagIds, T)}</td>
-                      <td data-l="Description"><bdi className="clamp2" title={e.description || undefined}>{clipText(e.description, DESCRIPTION_MAX)}</bdi></td>
-                      <td className="num nowrap" data-l="Hours">{f(e.minutes)}{hasOtTag(e.tagIds, otIds) && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
-                    </tr>
-                  ))}
-                  {!detailRows.length && <tr><td colSpan={9} className="empty">No time in this range.</td></tr>}
+                  {detailRows.map((e) => {
+                    const ot = hasOtTag(e.tagIds, otIds), tags = tagText(e.tagIds, T);
+                    return (
+                      <tr key={e.id} className={ot ? "otrow" : undefined}>
+                        <td data-l="Time entry">
+                          {e.description ? <bdi className="clamp2 rdesc" title={e.description}>{clipText(e.description, DESCRIPTION_MAX)}</bdi> : <div className="rdesc note">No description</div>}
+                          <div className="rmeta"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{e.project.name}{!hidesClients(me) && ` - ${e.project.client.name}`}{!p.nophase && e.phase && <span className="rphase">{e.phase.name}</span>}</div>
+                          {tags && <div className="rmeta">{tags}</div>}
+                        </td>
+                        <td data-l="User" className="nowrap"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
+                        <td data-l="Time" className="nowrap">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}<div className="note">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</div></td>
+                        <td data-l="Duration" className="num nowrap">{f(e.minutes)}{ot && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
+                      </tr>
+                    );
+                  })}
+                  {!detailRows.length && <tr><td colSpan={4} className="empty">No time in this range.</td></tr>}
                 </tbody>
               </table>
               {entryCount > CAP && <p className="note rcap">Showing the latest {CAP} of {entryCount.toLocaleString("en-US")} entries. Use Export to get all of them.</p>}

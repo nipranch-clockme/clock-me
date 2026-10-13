@@ -65,6 +65,28 @@ export async function missingFields(e: EntryLike, settings: AppSettings) {
   return out;
 }
 
+/** The later phase of this project that someone already has time on, when `phaseId` is an earlier one, with the person who logged it most
+ *  recently. Null when nothing later is in use. A removed phase (sort 999) is never a later one, and is never the one being checked.
+ *  `exceptId` is the entry being changed, so moving the only entry off a later phase isn't refused by its own row. */
+export async function laterPhaseInUse(projectId: string, phaseId: string, exceptId?: string): Promise<{ phase: string; user: string } | null> {
+  const mine = await db.phase.findUnique({ where: { id: phaseId }, select: { sort: true } });
+  if (!mine || mine.sort >= 999) return null;
+  const latest = await db.timeEntry.findFirst({
+    where: { projectId, phase: { sort: { gt: mine.sort, lt: 999 } }, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    orderBy: { createdAt: "desc" },
+    select: { phase: { select: { name: true } }, user: { select: { name: true } } },
+  });
+  if (!latest?.phase) return null;
+  return { phase: latest.phase.name, user: latest.user.name };
+}
+
+/** Why new time can't go on `phase`, given the later phase already in use (from laterPhaseInUse). */
+export const phaseInUseMessage = (later: { phase: string; user: string }, phase: string) =>
+  `"${later.phase}" is already being used by ${later.user}, so "${phase}" can't take new time on this project.`;
+
+/** Thrown when a save is refused for this reason, so the message can reach the person (other errors stay generic). */
+export class PhaseInUseError extends Error {}
+
 const ONLY_MANAGERS = "Only Location managers and Admins can add or change someone else's time.";
 
 /**

@@ -34,14 +34,14 @@ const run = 'legacy' + process.pid;
 
     // The older timesheet format: Date, Email, Project, Phase, Tag, Description, Hours, Start.
     const csv = ['Date,Email,Project,Phase,Tag,Description,Hours,Start',
-      `2026-10-05,admin@example.com,Website rebuild,Submission 1,CAD,API work ${run},2.5,10:30`,
-      `2026-10-05,admin@example.com,Website rebuild,Submission 1,CAD,x ${run},1,`,
+      `2026-10-05,admin@example.com,Website rebuild,Submission 5,CAD,API work ${run},2.5,10:30`,
+      `2026-10-05,admin@example.com,Website rebuild,Submission 5,CAD,x ${run},1,`,
       '2026-10-06,admin@example.com,Website rebuild,Nope,CAD,x,1,',
-      'bad,admin@example.com,Website rebuild,Submission 1,CAD,x,1,',
-      `2026-10-06,admin@example.com,Website rebuild,Submission 2,Revit,"Call, with ""quotes""\nand a second line ${run}",1:15,`,
-      `2026-10-06,admin@example.com,Website rebuild,Submission 1,CAD,'- note ${run},1,9:5`,
-      `2026-10-06,admin@example.com,Website rebuild,Submission 1,CAD,'- note ${run},1,`,
-      `2026-10-06,admin@example.com,Website rebuild,Submission 1,CAD,5" screen ${run},1,`].join('\n');
+      'bad,admin@example.com,Website rebuild,Submission 5,CAD,x,1,',
+      `2026-10-06,admin@example.com,Website rebuild,Submission 5,Revit,"Call, with ""quotes""\nand a second line ${run}",1:15,`,
+      `2026-10-06,admin@example.com,Website rebuild,Submission 5,CAD,'- note ${run},1,9:5`,
+      `2026-10-06,admin@example.com,Website rebuild,Submission 5,CAD,'- note ${run},1,`,
+      `2026-10-06,admin@example.com,Website rebuild,Submission 5,CAD,5" screen ${run},1,`].join('\n');
     await d.paste('time', csv);
     let c = await d.check();
     ok(c.rows.length === 8, 'time: eight rows listed (a quoted line break stays in one row)');

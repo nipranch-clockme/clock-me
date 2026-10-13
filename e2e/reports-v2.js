@@ -38,10 +38,10 @@ const entries=async(p)=>num((await p.locator('.rcounts').innerText()).match(/([\
 
  // description contains
  await go(a,'/reports?range=lastmonth&tab=detailed');
- const firstDesc=(await a.locator('.rtable tbody tr td[data-l=Description]').first().innerText()).trim();
+ const firstDesc=(await a.locator('.rtable tbody tr td[data-l="Time entry"]').first().innerText()).trim();
  const word=firstDesc.split(/\s+/)[0].toUpperCase();
  await go(a,`/reports?range=lastmonth&tab=detailed&desc=${encodeURIComponent(word)}`);
- const descs=await a.locator('.rtable tbody tr td[data-l=Description]').allInnerTexts();
+ const descs=await a.locator('.rtable tbody tr td[data-l="Time entry"]').allInnerTexts();
  ok('description filter ignores case and keeps only matches',descs.length>0&&descs.every((d)=>d.toUpperCase().includes(word)),word+' → '+descs.length);
 
  // status: every entry sits in exactly one timesheet status

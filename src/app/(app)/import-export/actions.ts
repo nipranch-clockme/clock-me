@@ -10,6 +10,7 @@ import { emailConfigured, sendEmail } from "@/lib/email";
 import { checkPeople, savePeople, type PersonDraft } from "@/lib/importPeople";
 import { checkProjects, saveProjects, type ProjectDraft } from "@/lib/importProjects";
 import { checkTime, saveTime, type EntryDraft } from "@/lib/importTime";
+import { PhaseInUseError } from "@/lib/entries";
 import { sampleRows } from "@/lib/importSample";
 import { MAX_IMPORT_BYTES, PREVIEW_ROWS, summarise, type ImportKind, type ImportResult, type PreviewRow } from "@/lib/importTypes";
 
@@ -111,7 +112,7 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
   if (!drafts.length) return { ...view, error: "None of the rows can be imported. Fix the problems in the file and check it again." };
   let imported: number;
   try { imported = await saveTime(drafts, c.plan); }
-  catch (e) { console.error("Time import failed", e); return { ...view, error: SAVE_FAILED }; }
+  catch (e) { console.error("Time import failed", e); return { ...view, error: e instanceof PhaseInUseError ? e.message : SAVE_FAILED }; }
   // One line per person whose time was added, so it shows against them (and who added it) as well as in the summary line.
   const perPerson = new Map<string, { n: number; minutes: number; from: string; to: string }>();
   for (const d of drafts) {

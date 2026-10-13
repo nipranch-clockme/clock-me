@@ -5,7 +5,7 @@ import { getSettings } from "./settings";
 import { visibleProjectsWhere, visibleUsersWhere } from "./scope";
 import { EXTRA_CELLS, csvObjects } from "./csv";
 import { dateWithYear, monday, toDate, toStr } from "./dates";
-import { DAY_MAX_MINUTES, cleanText as cleanEntryText, entryDateError, isBlankText } from "./entries";
+import { DAY_MAX_MINUTES, PhaseInUseError, cleanText as cleanEntryText, entryDateError, isBlankText, laterPhaseInUse, phaseInUseMessage } from "./entries";
 import { DESCRIPTION_MAX, fmtHours } from "./format";
 import { sortTagIds } from "./tags";
 import { CLIENT_COLORS, clean, cleanText, hasColumn, nameKey, parseDateFlexible, parseDurationFlexible, parseTimeFlexible, pick, splitList } from "./importParse";
@@ -167,6 +167,17 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
     const have = new Set(existing.map((e) => entryKey({ ...e, date: toStr(e.date) })));
     for (const o of ok) if (o.key && have.has(o.key)) { o.row.error = "Already imported"; o.data = undefined; }
 
+    // Time can't go on an earlier phase once a later one of its project is in use (the same rule the Timesheet form applies).
+    const laterUse = new Map<string, { phase: string; user: string } | null>();
+    for (const o of ok) {
+      const d = o.data;
+      if (!d?.projectId || !d.phaseId) continue;
+      const k = `${d.projectId}|${d.phaseId}`;
+      if (!laterUse.has(k)) laterUse.set(k, await laterPhaseInUse(d.projectId, d.phaseId));
+      const later = laterUse.get(k);
+      if (later) { o.row.error = phaseInUseMessage(later, d.phaseName); o.data = undefined; }
+    }
+
     // A person's day can't hold more than 24 hours: the time already saved that day plus every row of this file for it. The import adds
     // to what is saved and never replaces it, so all of the saved time counts. When the day would be too full, all its rows are held back.
     const dayKey = (userId: string, date: string) => `${userId}|${date}`;
@@ -218,6 +229,13 @@ export async function checkTime(me: Me, text: string, wantCreate: boolean) {
 
 /** Saves the checked time together (or none, if anything fails), first creating any clients, projects, phases and tags the file asked for. */
 export async function saveTime(drafts: EntryDraft[], plan: TimePlan) {
+  // checkTime leaves these rows out already. Checked again here, so nothing is saved that the Timesheet form would refuse.
+  const pairs = new Map<string, { projectId: string; phaseId: string; phaseName: string }>();
+  for (const d of drafts) if (d.projectId && d.phaseId) pairs.set(`${d.projectId}|${d.phaseId}`, { projectId: d.projectId, phaseId: d.phaseId, phaseName: d.phaseName });
+  for (const { projectId, phaseId, phaseName } of pairs.values()) {
+    const later = await laterPhaseInUse(projectId, phaseId);
+    if (later) throw new PhaseInUseError(phaseInUseMessage(later, phaseName));
+  }
   return db.$transaction(async (tx) => {
     const clientIds = new Map<string, string>();
     const projectIds = new Map<string, string>();

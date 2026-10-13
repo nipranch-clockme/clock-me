@@ -22,7 +22,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
   const uid = 'mtag' + run, email = uid + '@example.com';
   const T = Object.fromEntries(['CAD', 'ENG', 'Revit'].map((n) => [n, sql(`select id from "Tag" where name='${n}'`)]));
   const proj = sql(`select id from "Project" where name='Patient portal'`);
-  const phase = sql(`select id from "Phase" where "projectId"='${proj}' and name='Submission 1'`);
+  const phase = sql(`select id from "Phase" where "projectId"='${proj}' and name='Submission 5'`);
   const client = sql(`select "clientId" from "Project" where id='${proj}'`);
   const priya = sql(`select "locationId"||'|'||"teamId"||'|'||"passwordHash" from "User" where email='priya@example.com'`).split('|');
   const todayStr = sql(`select to_char(now() at time zone 'UTC','YYYY-MM-DD')`), ws = mondayOf(todayStr), wed = addDays(ws, 2);
@@ -43,7 +43,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     ok((await p.textContent('dialog[open] .tagpick legend')).replace(/\s*\*/, '').trim() === 'Tags', 'the dialog asks for Tags');
     ok(await p.locator('dialog[open] .tagpick-i input[type=checkbox]').count() === tagCount, `one tick box for each of the ${tagCount} tags`);
     ok(await p.locator('dialog[open] select[name=tagId]').count() === 0, 'the single tag dropdown is gone');
-    await p.selectOption('#e-phase', { label: 'Submission 1' }); await p.fill('#e-dur', '2'); await p.fill('#e-desc', 'two tags');
+    await p.selectOption('#e-phase', { label: 'Submission 5' }); await p.fill('#e-dur', '2'); await p.fill('#e-desc', 'two tags');
     await p.click('dialog[open] button:has-text("Add entry")'); await p.waitForSelector('dialog[open] [role=alert]');
     ok(/Tags/.test(await p.textContent('dialog[open] [role=alert]')) && await p.locator('dialog[open] .tagpick.err').count() === 1, 'no tag ticked is refused when tags are required');
     await p.check('.tagpick-i:has-text("CAD") input'); await p.check('.tagpick-i:has-text("ENG") input');
@@ -70,7 +70,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     await go(p, '/timesheet');
     await p.click(`tr:has-text("Patient portal") button.addcell[aria-label*="Wed"]`); await p.waitForSelector('dialog[open] #e-phase');
     ok(await p.locator('dialog[open] .tagpick legend .req').count() === 0, 'Tags is not marked required when Settings turn that off');
-    await p.selectOption('#e-phase', { label: 'Submission 1' }); await p.fill('#e-dur', '0.5'); await p.fill('#e-desc', 'no tags');
+    await p.selectOption('#e-phase', { label: 'Submission 5' }); await p.fill('#e-dur', '0.5'); await p.fill('#e-desc', 'no tags');
     await p.click('dialog[open] button:has-text("Add entry")'); await p.waitForSelector('dialog[open]', { state: 'detached' }).catch(() => {});
     await p.waitForTimeout(500);
     ok(sql(`select count(*) from "TimeEntry" where "userId"='${uid}' and cardinality("tagIds")=0`) === '1', 'an entry with no tags is saved when tags are optional');
@@ -143,10 +143,10 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     const note = 'mt' + run;
     const mon = addDays(ws, -7), tue = addDays(ws, -6); // last week: after any lock date, and not a week the new person has closed
     const csvIn = ['Date,Email,Project,Phase,Tag,Description,Hours',
-      `${mon},${email},Patient portal,Submission 1,"CAD, Revit",${note} two,1`,
-      `${mon},${email},Patient portal,Submission 1,"Revit, CAD, cad",${note} dup,2`,
-      `${tue},${email},Patient portal,Submission 1,Nope,${note} unknown,1`,
-      `${tue},${email},Patient portal,Submission 1,,${note} none,1`].join('\n');
+      `${mon},${email},Patient portal,Submission 5,"CAD, Revit",${note} two,1`,
+      `${mon},${email},Patient portal,Submission 5,"Revit, CAD, cad",${note} dup,2`,
+      `${tue},${email},Patient portal,Submission 5,Nope,${note} unknown,1`,
+      `${tue},${email},Patient portal,Submission 5,,${note} none,1`].join('\n');
     await d.paste('time', csvIn);
     let c = await d.check();
     const cell = (r) => r.join(' | ');
