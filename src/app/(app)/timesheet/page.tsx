@@ -162,7 +162,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
+      <TimesheetGrid opts={opts} meId={me.id} canEdit={editable} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
@@ -172,7 +172,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
       </>}
       {view !== "cal" && <DayOffList dates={dates} marks={marks} />}
       {view === "cal" && <CalendarView me={me} subject={subject} subjectName={subjectName} people={people.map((p) => ({ id: p.id, name: pickName(p) }))} editable={editable} opts={opts} settings={settings} offset={offset} />}
-      {view === "timer" && <TimerView opts={opts} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} timeZone={settings.timeZone} />}
+      {view === "timer" && <TimerView opts={opts} meId={me.id} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} timeZone={settings.timeZone} />}
     </section>
     </>
   );

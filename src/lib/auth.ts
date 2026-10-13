@@ -5,6 +5,7 @@ import type { Role } from "@prisma/client";
 import { db } from "./db";
 import { hasSessionCookie, readSession } from "./session";
 import { canTab, type Tab } from "./roles";
+import { safeNext } from "./next";
 
 export const currentUser = cache(async () => {
   const session = await readSession();
@@ -27,7 +28,11 @@ export async function signInPath() {
 
 export async function requireUser(): Promise<Me> {
   const u = await currentUser();
-  if (!u) redirect(await signInPath());
+  if (!u) {
+    // Their session has ended. Once they sign in again, they go back to the page they asked for, when it's one of ours.
+    const next = safeNext((await headers()).get("x-pathname"));
+    redirect(next ? `/login?reason=ended&next=${encodeURIComponent(next)}` : "/login?reason=ended");
+  }
   return u;
 }
 

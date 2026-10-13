@@ -266,7 +266,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   await go(d,'/dashboard?range=lastmonth');
   const drow=await d.locator(`tr:has(a[href="/profile/${M}"])`).evaluateAll((trs)=>trs.map((tr)=>[...tr.cells].map((c)=>c.textContent.trim())));
   ok('Dashboard top performers link to profiles',drow.length>=1&&(await d.locator('td a[href^="/profile/"]').count())>=3);
-  ok('Dashboard productivity equals profile utilisation',drow.length>=1&&drow[0][2]===pct(logged/expected),JSON.stringify(drow[0]));
+  ok('Dashboard utilisation equals profile utilisation',drow.length>=1&&drow[0][2]===pct(logged/expected),JSON.stringify(drow[0]));
   await go(d,'/reports?range=lastmonth&group=person');
   ok('Reports grouped by person link to profiles',(await d.locator(`tbody a[href="/profile/${M}"]`).count())===1);
   await go(d,'/reports?range=lastmonth&group=project');

@@ -2,7 +2,8 @@
 import { startTransition, useActionState, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { unstable_rethrow, useRouter } from "next/navigation";
 import { saveEntry, deleteEntry, type DeleteResult, type EntryResult } from "@/app/(app)/timesheet/actions";
-import type { EntryOptions, EntryValue } from "./entryTypes";
+import type { EntryOptions } from "./entryTypes";
+import { clearDraft, pagePath, saveDraft, type EntryEdit } from "./entryDraft";
 import SearchSelect from "@/components/SearchSelect";
 import TagPicker from "@/components/TagPicker";
 import { DESCRIPTION_MAX, parseDuration } from "@/lib/format";
@@ -36,7 +37,7 @@ const focusHeading = () => document.querySelector<HTMLElement>("h1")?.focus({ pr
 
 /** `value.ownerId` is set when the time belongs to someone else (a location manager or admin adding or changing it on their behalf). It is fixed when the form opens, so the person shown is the person saved.
  *  `today` (the company's date) sets the last date the picker offers. */
-export default function EntryDialog({ opts, value, onClose, onSaved, today }: { opts: EntryOptions; value: EntryValue | null; onClose: () => void; onSaved?: () => void; today?: string }) {
+export default function EntryDialog({ opts, value, meId, onClose, onSaved, today }: { opts: EntryOptions; value: EntryEdit | null; meId: string; onClose: () => void; onSaved?: () => void; today?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   // Focus goes back to whatever opened the dialog. A deleted entry's button leaves the page, so then the page heading takes focus.
   const opener = useRef<HTMLElement | null>(null);
@@ -66,17 +67,21 @@ export default function EntryDialog({ opts, value, onClose, onSaved, today }: { 
   const restoreFocus = () => {
     const el = opener.current;
     const a = document.activeElement;
-    if (el && !el.isConnected) focusHeading();
-    else if (el && (!a || a === document.body || ref.current?.contains(a))) el.focus();
+    // A restored form has no opener (nothing was focused when it opened), so focus goes to the page heading instead.
+    if (!el) { if (!a || a === document.body) focusHeading(); }
+    else if (!el.isConnected) focusHeading();
+    else if (!a || a === document.body || ref.current?.contains(a)) el.focus();
   };
+  // Closing ends the entry (saved, deleted or cancelled), so the text kept for it is dropped. When the page itself goes (a session that ended
+  // sends the person to sign in), the text is kept, so it can come back after signing in.
   return (
-    <dialog ref={ref} className="wide" onClose={() => { restoreFocus(); onClose(); }} aria-labelledby="entry-title">
-      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "") + (value.ownerId ?? "")} opts={opts} value={value} today={today} onDone={() => ref.current?.close()} onSaved={onSaved} onDeleted={() => { deleted.current = true; }} />}
+    <dialog ref={ref} className="wide" onClose={() => { restoreFocus(); if (ref.current?.isConnected) clearDraft(); onClose(); }} aria-labelledby="entry-title" aria-describedby={value?.restored ? "e-restored" : undefined}>
+      {value && <EntryForm key={(value.id ?? "") + value.date + (value.startMin ?? "") + (value.ownerId ?? "")} opts={opts} value={value} meId={meId} today={today} onDone={() => ref.current?.close()} onSaved={onSaved} onDeleted={() => { deleted.current = true; }} />}
     </dialog>
   );
 }
 
-function EntryForm({ opts, value, today, onDone, onSaved, onDeleted }: { opts: EntryOptions; value: EntryValue; today?: string; onDone: () => void; onSaved?: () => void; onDeleted: () => void }) {
+function EntryForm({ opts, value, meId, today, onDone, onSaved, onDeleted }: { opts: EntryOptions; value: EntryEdit; meId: string; today?: string; onDone: () => void; onSaved?: () => void; onDeleted: () => void }) {
   const ownerId = value.ownerId;
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -91,6 +96,24 @@ function EntryForm({ opts, value, today, onDone, onSaved, onDeleted }: { opts: E
   const ro = !!value.readOnly || !!value.lockedReason;
   // An existing entry may sit on a phase the project manager has since removed: show it so it can be kept.
   const keepOldPhase = !!value.id && !!value.phaseId && !!value.phaseName && !project?.phases.some((p) => p.id === value.phaseId);
+  // The typed text is kept as it changes, so a session that ends (a save sends the person to sign in) doesn't lose it. A restored form
+  // keeps it from the start. A read-only entry has nothing typed.
+  const kept = useRef(!!value.restored);
+  const keepText = () => {
+    const form = formRef.current;
+    if (!form || ro) return;
+    const fd = new FormData(form);
+    const text = (k: string) => String(fd.get(k) ?? "");
+    const pid = text("projectId");
+    saveDraft({
+      path: pagePath(), savedAt: Date.now(), by: meId, forId: value.ownerId ?? meId, id: value.id || undefined, fixed: !!value.fixed, context: value.context,
+      projectId: pid, projectName: opts.projects.find((p) => p.id === pid)?.name ?? value.projectName, phaseId: text("phaseId"), tagIds: fd.getAll("tagIds").map(String),
+      description: text("description"), custom: Object.fromEntries(opts.fields.map((f) => [f.id, text("cf_" + f.id)])), date: text("date"), start: text("start"), duration: text("duration"),
+    });
+  };
+  const typed = () => { kept.current = true; keepText(); };
+  // Also after a project change, which swaps the phase list (the form only sees the new phase once the project has changed).
+  useEffect(() => { if (kept.current) keepText(); }, [projectId]);
   useEffect(() => { if (state?.ok) { onDone(); onSaved?.(); router.refresh(); } }, [state, onDone, onSaved, router]);
   const [confirming, setConfirming] = useState(false);
   const [deleting, startDelete] = useTransition();
@@ -174,14 +197,14 @@ function EntryForm({ opts, value, today, onDone, onSaved, onDeleted }: { opts: E
   const startField = (
     <div>
       <label htmlFor="e-start">Start<span className="req"> *</span></label>
-      <input id="e-start" type="time" name="start" defaultValue={hhmm(value.startMin ?? 540)} required className={bad("start")} {...invalid("start", "e-start")} />
+      <input id="e-start" type="time" name="start" defaultValue={value.restored ? value.restored.start : hhmm(value.startMin ?? 540)} required className={bad("start")} {...invalid("start", "e-start")} />
       {errLine("start", "e-start")}
     </div>
   );
   const durField = (
     <div>
       <label htmlFor="e-dur">Duration<span className="req"> *</span></label>
-      <input id="e-dur" name="duration" defaultValue={dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" required className={bad("duration")} {...invalid("duration", "e-dur")} />
+      <input id="e-dur" name="duration" defaultValue={value.restored ? value.restored.duration : dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" required className={bad("duration")} {...invalid("duration", "e-dur")} />
       {errLine("duration", "e-dur")}
     </div>
   );
@@ -239,9 +262,10 @@ function EntryForm({ opts, value, today, onDone, onSaved, onDeleted }: { opts: E
       {value.context && <p className="sub" style={{ marginBottom: 6 }}>{value.context}</p>}
       {value.ownerName && <p className="sub">{ownerId ? `On behalf of ${value.ownerName}` : value.ownerName}</p>}
       {value.lockedReason && <p className="alert info">{value.lockedReason}</p>}
+      {value.restored && !ro && <p id="e-restored" className="alert info" role="status">{value.id ? "We restored the changes you were making to this entry before your session ended. Check them, then save." : "We restored the entry you were adding before your session ended. Check it, then save."}</p>}
       {!ro && <p className="sub">Required fields are marked *</p>}
       {/* The server checks every field and returns all problems at once, so the browser's own one-at-a-time checks are off. */}
-      <form ref={formRef} noValidate onSubmit={submit}>
+      <form ref={formRef} noValidate onSubmit={submit} onChange={typed}>
         <fieldset disabled={ro} style={{ border: 0, padding: 0, margin: 0 }}>
           <input type="hidden" name="id" value={value.id ?? ""} />
           {ownerId && <input type="hidden" name="userId" value={ownerId} />}
@@ -280,7 +304,10 @@ function EntryForm({ opts, value, today, onDone, onSaved, onDeleted }: { opts: E
         {delError && <p className="err-text" role="alert">{delError}</p>}
         {!ro && (
           <div className="row between" style={{ marginTop: 14 }}>
-            <button className="btn primary" aria-disabled={pending || deleting || undefined}>{pending ? "Saving…" : value.id ? "Save changes" : "Add entry"}</button>
+            <span className="row">
+              <button className="btn primary" aria-disabled={pending || deleting || undefined}>{pending ? "Saving…" : value.id ? "Save changes" : "Add entry"}</button>
+              {value.restored && <button type="button" className="btn" aria-disabled={pending || deleting || undefined} onClick={() => { if (pending || deleting) return; clearDraft(); onDone(); }}>{value.id ? "Discard these changes" : "Discard this entry"}</button>}
+            </span>
             {value.id && (confirming ? (
               <div className="row" role="group" aria-labelledby="e-del-q">
                 <span id="e-del-q">Delete this entry?</span>

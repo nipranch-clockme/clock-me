@@ -41,7 +41,7 @@ export default async function HoursView({ me, yearParam }: { me: Me; yearParam?:
       )}
       <p className="note" style={{ margin: "10px 0 0" }}>
         Each box is the hours expected of the person per week in that month. A month the same as the person&apos;s expected hours per week follows them (change that figure from Edit on the People tab); a blue box has its own figure.
-        Type 0 for a month with nothing expected, such as a long leave or a sabbatical. Productivity on the Dashboard and in profiles uses the figure for each month, less public holidays and time off. Admins are not a resource, so they are not listed.
+        Type 0 for a month with nothing expected, such as a long leave or a sabbatical. Utilisation on the Dashboard and in profiles uses the figure for each month, less public holidays and time off. Admins are not a resource, so they are not listed.
         {me.role === "LOCATION" ? " You can change people in your own office. Other Location managers and your own hours are changed by an Admin." : ""}
       </p>
     </section>

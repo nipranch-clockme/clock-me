@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import EntryDialog from "@/components/EntryDialog";
-import type { EntryOptions, EntryValue } from "@/components/entryTypes";
+import type { EntryOptions } from "@/components/entryTypes";
+import { draftEdit, useRestoreDraft, type EntryEdit } from "@/components/entryDraft";
 import type { DayMark } from "@/lib/dayMark";
 
 type CalEntry = { id: string; projectId: string; projectName: string; color: string; phaseId: string | null; phaseName: string; tagIds: string[]; description: string; custom: Record<string, string>; date: string; startMin: number; minutes: number };
@@ -35,7 +36,7 @@ const byStart = (a: CalEntry, b: CalEntry) => a.startMin - b.startMin || b.minut
 // Rows saved before start times were checked can start before 00:00 or at 24:00 or later.
 const inDay = (e: CalEntry) => e.startMin >= 0 && e.startMin < 24 * 60;
 
-export default function CalendarWeek({ opts, dates, entries, today, editable, locked, marks = [], ownerName, ownerId }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; locked: (string | null)[]; ownerName: string;
+export default function CalendarWeek({ opts, dates, entries, today, editable, meId, locked, marks = [], ownerName, ownerId }: { opts: EntryOptions; dates: string[]; entries: CalEntry[]; today: string; editable: boolean; meId: string; locked: (string | null)[]; ownerName: string;
   /** Set when the week belongs to someone else whose time the viewer may change (location managers and admins). */
   ownerId?: string;
   /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
@@ -50,7 +51,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
     const a = Math.max(H0 * 60, Math.min(e.startMin, H1 * 60 - 15));
     return { startMin: a, minutes: Math.max(a + 15, Math.min(e.startMin + e.minutes, H1 * 60)) - a };
   };
-  const [edit, setEdit] = useState<EntryValue | null>(null);
+  const [edit, setEdit] = useState<EntryEdit | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const lastPointer = useRef("mouse");
@@ -59,6 +60,13 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
   const f = (m: number) => opts.timeFormat === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2);
   const canAdd = (i: number) => editable && !locked[i];
   const who = ownerId ? { ownerId, ownerName } : {};
+  // The form for an existing entry: read only unless the person may change this time.
+  const entryForm = (e: CalEntry, i: number): EntryEdit => ({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerId: editable ? ownerId : undefined, ownerName: editable && !ownerId ? undefined : ownerName });
+  // A draft from before the session ended reopens its form: the entry being changed if it is still there, otherwise a new entry on that day.
+  useRestoreDraft({ by: meId, forId: ownerId ?? meId, editable }, (d) => {
+    const e = d.id ? entries.find((x) => x.id === d.id) : undefined;
+    setEdit({ ...(e ? entryForm(e, dates.indexOf(e.date)) : { lockedReason: locked[dates.indexOf(d.date)], ...who }), ...draftEdit(d) });
+  });
   // The day's add button starts where that day's last entry ends (09:00 on an empty day), like the Timesheet's + buttons.
   const nextStart = (d: string) => {
     const ends = fits.filter((e) => e.date === d).map((e) => e.startMin + e.minutes);
@@ -159,7 +167,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
               {(() => { const day = entries.filter((e) => e.date === d).sort(byStart); const pos = layout(day.map((e) => ({ ...e, ...drawn(e) }))); return day.map((e) => { const { col, cols } = pos.get(e.id)!; const at = drawn(e); return (
                 <button key={e.id} className="ev" title={[e.projectName, `${hm(e.startMin)} to ${hm(e.startMin + e.minutes)} · ${f(e.minutes)} h`, e.description].filter(Boolean).join("\n")}
                   style={{ top: Math.max(0, Math.min((at.startMin / 60 - H0) * PX, (H1 - H0) * PX - 18)), height: Math.max(18, (at.minutes / 60) * PX - 2), borderLeftColor: `var(--${e.color})`, textAlign: "left", left: `calc(${(col / cols) * 100}% + 3px)`, right: "auto", width: `calc(${100 / cols}% - 6px)` }}
-                  onClick={() => setEdit({ ...e, readOnly: !editable, lockedReason: editable ? locked[i] : null, ownerId: editable ? ownerId : undefined, ownerName: editable && !ownerId ? undefined : ownerName })}>
+                  onClick={() => setEdit(entryForm(e, i))}>
                   <b>{e.projectName}</b><span>{hm(e.startMin)} · {f(e.minutes)}</span>
                 </button>
               ); }); })()}
@@ -167,7 +175,7 @@ export default function CalendarWeek({ opts, dates, entries, today, editable, lo
           ))}
         </div>
       </div>
-      <EntryDialog opts={opts} value={edit} today={today} onClose={() => setEdit(null)} />
+      <EntryDialog opts={opts} value={edit} meId={meId} today={today} onClose={() => setEdit(null)} />
     </>
   );
 }

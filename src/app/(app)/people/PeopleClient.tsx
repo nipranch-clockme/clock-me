@@ -101,7 +101,7 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, to
           <div><label htmlFor="pf-join">Joining date</label><input id="pf-join" name="joiningDate" type="date" min="1950-01-01" max={today} defaultValue={person?.joiningDate} /></div>
           <div><label htmlFor="pf-target">Expected hours per week</label><input id="pf-target" name="weeklyTarget" type="number" min="0" max="80" step="0.5" defaultValue={person?.weeklyTarget ?? 40} /></div>
         </div>
-        <p className="note">Set expected hours to 0 to leave someone out of productivity on the Dashboard. The joining date shows years of experience on their profile.</p>
+        <p className="note">Set expected hours to 0 to leave someone out of utilisation on the Dashboard. The joining date shows years of experience on their profile.</p>
         {person && <label className="check"><input type="checkbox" name="active" defaultChecked={person.active} disabled={self} /> Active (inactive people can&apos;t sign in)</label>}
         {person && self && <input type="hidden" name="active" value="on" />}
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}

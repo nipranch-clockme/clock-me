@@ -6,6 +6,7 @@ import { createSession, destroySession } from "@/lib/session";
 import { sendEmail, appUrl, emailConfigured } from "@/lib/email";
 import { issueLinkToken, liveTokenWhere, SELF_RESET_HOURS } from "@/lib/tokens";
 import { clearAttempts, clientIp, releaseAttempts, takeAttempt } from "@/lib/throttle";
+import { safeNext } from "@/lib/next";
 
 export type LoginState = { error: string; email: string } | null;
 
@@ -16,6 +17,8 @@ const getDummyHash = () => (dummyHash ??= bcrypt.hash("no-account-placeholder", 
 export async function login(_: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  // The page they were on when their session ended, if the sign-in page was sent with one.
+  const next = safeNext(form.get("next"));
   const ip = await clientIp();
   const attempt = await takeAttempt([[`login:${email}`, 10], [`login-ip:${ip}`, 50]]);
   if (!attempt.allowed) return { error: "Too many sign-in attempts. Wait 15 minutes and try again, or reset your password.", email };
@@ -27,7 +30,7 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   // They remembered their password, so any reset link they asked for is no longer needed.
   if (user.inviteToken) await db.user.update({ where: { id: user.id }, data: { inviteToken: null, inviteExpires: null } });
   await createSession(user.id, user.sessionVersion);
-  redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
+  redirect(next ?? (user.role === "MEMBER" ? "/timesheet" : "/dashboard"));
 }
 
 /** Signs out on every device, so a copy of the sign-in cookie stops working too. */

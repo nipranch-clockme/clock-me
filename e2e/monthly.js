@@ -290,9 +290,9 @@ const GENERIC="isn't in your list|can't change the hours";
   // the first table in a Top 5 panel is the top five; a location manager's panel also has the bottom five after it
   const heads=async(p)=>(await p.locator('section.panel:has(h3:has-text("Top 5")) .tablebox').first().locator('thead th').allInnerTexts()).map((x)=>x.trim());
   await go(rav,'/dashboard');
-  ok('top 5: only Productivity and Hours for a location manager',(await heads(rav)).join()==='#,Person,Productivity,Hours',(await heads(rav)).join());
+  ok('top 5: only Utilisation and Hours for a location manager',(await heads(rav)).join()==='#,Person,Utilisation,Hours',(await heads(rav)).join());
   await go(adm,'/dashboard');
-  ok('top 5: only Productivity and Hours (and Office) for an admin, in every table',(await adm.locator('section.panel:has(h3:has-text("Top 5")) thead').evaluateAll((ts)=>ts.map((t)=>t.innerText.replace(/\s+/g,' ').trim()))).every((x)=>!/target/i.test(x)&&/Productivity/.test(x)&&/Hours/.test(x)));
+  ok('top 5: only Utilisation and Hours (and Office) for an admin, in every table',(await adm.locator('section.panel:has(h3:has-text("Top 5")) thead').evaluateAll((ts)=>ts.map((t)=>t.innerText.replace(/\s+/g,' ').trim()))).every((x)=>!/target/i.test(x)&&/Utilisation/.test(x)&&/Hours/.test(x)));
   ok('top 5: the same rule on the sentence under the title says admins are left out',/[Aa]dmins \(who are not a resource\)/.test(await adm.locator('.phd .sub').innerText()));
   // bottom 5: for a location manager and for each office, under the top five, never repeating a name from it; never for the whole company
   // the # column holds the place; a row's Productivity and Hours cells are not places, so take the first cell only
@@ -303,7 +303,7 @@ const GENERIC="isn't in your list|can't change the hours";
   // a location with five people or fewer has nobody left for the bottom five, and says so
   const everyone=await saysEveryone(rav,'Top 5 performers',1);
   const lmOk=everyone ? lmTop.length<=5 : lmTop.length===5&&lmBot.length>0&&(await places(rav,'Top 5 performers',1)).every((x)=>+x>5);
-  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmOk&&(everyone||(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Productivity,Hours'),`top ${lmTop.length} | bottom ${lmBot.length}`);
+  ok('bottom 5: a location manager gets one after the top five, with the same columns and places after the top five',lmOk&&(everyone||(await rav.locator('section.panel:has(h3:has-text("Top 5 performers")) .tablebox').nth(1).locator('thead th').allInnerTexts()).map((x)=>x.trim()).join()==='#,Person,Utilisation,Hours'),`top ${lmTop.length} | bottom ${lmBot.length}`);
   ok('bottom 5: the whole company has none',(await adm.locator('section.panel:has(h3:has-text("Top 5 performers"))').locator('.tablebox').count())===1);
   const officeSecs=adm.locator('section.panel:has(h3:has-text("Top 5 in "))');
   const offCheck=[];

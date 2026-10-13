@@ -2,7 +2,8 @@
 import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EntryDialog from "@/components/EntryDialog";
-import type { EntryOptions, EntryValue } from "@/components/entryTypes";
+import type { EntryOptions } from "@/components/entryTypes";
+import { draftEdit, useRestoreDraft, type EntryEdit } from "@/components/entryDraft";
 import { addRow, removeRow } from "./actions";
 import SearchSelect from "@/components/SearchSelect";
 import type { DayMark } from "@/lib/dayMark";
@@ -19,7 +20,7 @@ const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("e
 /** The start of a description for a chip's spoken label: the first 80 characters. */
 const shortText = (s: string) => (s.length > 80 ? Array.from(s.slice(0, 81)).slice(0, 80).join("").trimEnd() + "…" : s);
 
-export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight, ownerId, ownerName }: {
+export default function TimesheetGrid({ opts, entries, rows, dates, locked, marks = [], weekStart, rowsLocked, today, footerLeft, footerRight, ownerId, ownerName, meId, canEdit }: {
   opts: EntryOptions; entries: SheetEntry[]; rows: SheetRow[]; dates: string[]; locked: (string | null)[]; weekStart: string; rowsLocked: boolean;
   /** For each day: a public holiday or time off to show, or null. Time can still be logged on these days. */
   marks?: (DayMark | null)[];
@@ -29,9 +30,11 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   footerLeft?: ReactNode; footerRight?: ReactNode;
   /** Set when the week belongs to someone else whose time the viewer may change (location managers and admins). */
   ownerId?: string; ownerName?: string;
+  /** The signed-in person, and whether they may change this week's time (their own, or someone they may change for). */
+  meId: string; canEdit: boolean;
 }) {
   const router = useRouter();
-  const [edit, setEdit] = useState<EntryValue | null>(null);
+  const [edit, setEdit] = useState<EntryEdit | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const [tipPos, setTipPos] = useState<{ left: number; top: number } | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -86,12 +89,20 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
     setTip(null);
     setEdit({ projectId: r.projectId, projectName: r.projectName, date: d, startMin: nextStart(d), fixed: true, ownerId, ownerName: ownerId ? ownerName : undefined, context: `${r.projectName} · ${r.clientName} · ${dayLabel(d)}` });
   };
+  // The form for an existing entry. On a project that's closed for new time, the full form lets the person move the entry to another project.
+  const entryForm = (e: SheetEntry): EntryEdit => {
+    if (!canLog(e.projectId)) return { ...e, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` };
+    return { ...e, fixed: true, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` };
+  };
   const openEntry = (e: SheetEntry) => {
     setTip(null);
-    // On a project that's closed for new time, the full form lets the person move the entry to another project.
-    if (!canLog(e.projectId)) return setEdit({ ...e, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` });
-    setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+    setEdit(entryForm(e));
   };
+  // A draft from before the session ended reopens its form: the entry being changed if it is still there, otherwise a new entry on that day.
+  useRestoreDraft({ by: meId, forId: ownerId ?? meId, editable: canEdit }, (d) => {
+    const e = d.id ? entries.find((x) => x.id === d.id) : undefined;
+    setEdit({ ...(e ? entryForm(e) : { ownerId, ownerName: ownerId ? ownerName : undefined, lockedReason: lockFor(d.date) }), ...draftEdit(d) });
+  });
   const changeRow = (fn: typeof addRow, fd: FormData, setError: (m: string) => void, after?: () => void) => {
     setBusy(true);
     setError("");
@@ -194,7 +205,7 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
         </div>
       </dialog>
       {/* Closing the dialog puts focus back on the chip; don't let that pop the tooltip up. */}
-      <EntryDialog opts={opts} value={edit} today={today} onClose={() => { setEdit(null); setTip(null); }} />
+      <EntryDialog opts={opts} value={edit} meId={meId} today={today} onClose={() => { setEdit(null); setTip(null); }} />
     </>
   );
 }

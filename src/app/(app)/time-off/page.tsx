@@ -33,7 +33,7 @@ export default async function TimeOffPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHead title="Time off" beside={toggle} sub={view === "time"
-        ? `${scopeLabel(me)}. Approved time off is taken out of expected hours, so productivity stays fair. Time can still be logged on those days.`
+        ? `${scopeLabel(me)}. Approved time off is taken out of expected hours, so utilisation stays fair. Time can still be logged on those days.`
         : "Public holidays are set for each office and taken out of everyone's expected hours in that office. Only Admins can add or change them. Time can still be logged on those days."} />
       {view === "time" ? <TimeOffList me={me} show={sp.show} today={t} lock={settings.lockBeforeStr} /> : <Holidays me={me} office={sp.office} year={sp.year} today={t} lock={settings.lockBeforeStr} />}
     </>

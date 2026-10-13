@@ -26,7 +26,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     await getSettings(); // sets the company time zone for "today"
     return (
       <>
-        <PageHead title="People" beside={views} actions={<YearPicker year={gridYear(year)} view="hours" />} sub="Expected hours per week for each person, month by month. Hours can go up or down through the year, and productivity follows the month." />
+        <PageHead title="People" beside={views} actions={<YearPicker year={gridYear(year)} view="hours" />} sub="Expected hours per week for each person, month by month. Hours can go up or down through the year, and utilisation follows the month." />
         <div className="grid"><HoursView me={me} yearParam={year} /></div>
       </>
     );

@@ -153,7 +153,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     return (
       <div className="tablebox"><table className={showOffice ? undefined : "toptable"}>
         {!showOffice && <colgroup><col className="c-rank" /><col /><col className="c-prod" /><col className="c-hrs" /></colgroup>}
-        <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Productivity</th><th className="num">Hours</th></tr></thead>
+        <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Utilisation</th><th className="num">Hours</th></tr></thead>
         <tbody>
           {shown.map((r) => (
             <tr key={r.id}><td className="num">{up.indexOf(r) + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
@@ -169,16 +169,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         actions={<AutoForm className="phd-a" key={range + rank}>
           {sp.ryear && <input type="hidden" name="ryear" value={sp.ryear} />}{sp.roffice && <input type="hidden" name="roffice" value={sp.roffice} />}
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
-          <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Productivity</option><option value="total">Total hours</option></Ifld>
+          <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Utilisation</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}
-        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Productivity is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by productivity, people with 0 inventory hours are left out; Admins (who are not a resource) are always left out.`} />
+        sub={`${b >= a ? `${longDate(a)} to ${longDate(b)}. ` : "No complete days in this period yet. "}Utilisation is hours logged divided by inventory hours (each person's expected hours per week, counted per working day so far, less their office's public holidays and their time off). When ranked by utilisation, people with 0 inventory hours are left out; Admins (who are not a resource) are always left out.`} />
       {tabNav("overview")}
       <div className="grid g3">
         <MyStats me={me} timeFormat={settings.timeFormat} collapsible closed={closedMyNumbers} />
         <section className="panel full">
           <h3>{scopeLabel(me)}</h3>
           <div className="stats spread">
-            <div className="stat"><b>{pct(all.prod)}</b><span>productivity</span></div>
+            <div className="stat"><b>{pct(all.prod)}</b><span>utilisation</span></div>
             <div className="stat"><b>{f(all.m)}</b><span>total hours</span></div>
             <div className="stat"><b>{f(all.tg)}</b><span>inventory hours</span></div>
             <div className="stat"><b>{f(all.avg)}</b><span>average hours per person</span></div>
@@ -194,7 +194,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 return (
                   <section className={`panel${i >= teamCards.length - ({ 2: 2, 1: 4 }[teamCards.length % 3] ?? 0) ? " w3" : ""}`} key={t}>
                     <div className="ch"><h3><span className="dot" style={{ background: `var(--${TEAMCOL[i % TEAMCOL.length]})` }} />{t === "No team" ? t : `${t} team`}</h3><span className="cd">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
-                    <div className="stat" style={{ margin: "4px 0 10px" }}><b>{pct(o.prod)}</b><span>team productivity</span></div>
+                    <div className="stat" style={{ margin: "4px 0 10px" }}><b>{pct(o.prod)}</b><span>team utilisation</span></div>
                     <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
                     <div className="stats spread sm" style={{ marginTop: 14 }}>
                       <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
@@ -213,7 +213,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           return (
             <section className="panel" key={l.id}>
               <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
-              <div className="stat" style={{ margin: "12px 0 8px" }}><b>{pct(o.prod)}</b><span>total productivity</span></div>
+              <div className="stat" style={{ margin: "12px 0 8px" }}><b>{pct(o.prod)}</b><span>total utilisation</span></div>
               <div className="meter" style={{ height: 10 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
               <div className="stats spread sm" style={{ marginTop: 12 }}>
                 <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
@@ -224,8 +224,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         })}
         {company && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
-          <h3>Productivity by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
-          <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly productivity by team" : "Monthly productivity by office"} />
+          <h3>Utilisation by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
+          <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly utilisation by team" : "Monthly utilisation by office"} />
           <div className="legend">{series.map((s) => <span key={s.id}><i style={{ background: `var(--${s.color})` }} />{s.name}</span>)}</div>
         </section>
         {inventory.map((o) => (
@@ -237,7 +237,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </section>
         ))}
         <section className="panel full">
-          <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {company ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "productivity"}</span></div>
+          <div className="row between"><h3 style={{ margin: 0 }}>Top 5 performers, {company ? "all offices" : scopeLabel(me)}</h3><span className="note">Ranked by {rank === "total" ? "total hours" : "utilisation"}</span></div>
           <div style={{ marginTop: 10 }}>{topTable(rows, multiOffice)}</div>
           {me.role === "LOCATION" && <>
             <div className="row between" style={{ marginTop: 18 }}><h3 style={{ margin: 0 }}>Bottom 5 performers, {scopeLabel(me)}</h3></div>

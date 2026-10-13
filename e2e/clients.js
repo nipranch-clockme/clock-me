@@ -226,7 +226,7 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   const ph=await (await b.newContext({viewport:{width:390,height:800}})).newPage();
   await ph.goto(BASE+'/login');await ph.fill('#email','oliver@example.com');await ph.fill('#password','password123');await ph.click('button:has-text("Sign in")');await ph.waitForURL(u=>!u.pathname.startsWith('/login'));
   for(const path of ['/clients','/dashboard?tab=clients',`/clients/${t}fx`]){await go(ph,path);ok(`phone: ${path.replace(t,'…')} fits the screen`,(await ph.evaluate(()=>document.documentElement.scrollWidth))<=390);}
-  await go(a,'/dashboard');ok('dashboard still shows productivity',/\d+%productivity/.test((await a.textContent('.stats')).replace(/\s+/g,'')));
+  await go(a,'/dashboard');ok('dashboard still shows utilisation',/\d+%utilisation/.test((await a.textContent('.stats')).replace(/\s+/g,'')));
   errs.push(...a.errs,...o.errs,...d.errs);
   ok('no browser errors',errs.length===0,JSON.stringify(errs));
  }finally{

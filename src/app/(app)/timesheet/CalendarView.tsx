@@ -35,7 +35,7 @@ export default async function CalendarView({ me, subject, subjectName = subject.
       {others && editable && <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is recorded in the change log, which Admins can see in Settings. They still submit their own week.</p>}
       <p className="note" style={{ margin: "0 0 10px" }}>{!others || editable ? "Click a time to add an hour, drag down the day to add exactly the time spent, or use the + button at the top of a day. Click an entry to edit or delete it." : "Viewing someone else's calendar. Read only."}</p>
       <CalendarWeek
-        opts={opts} dates={dates} today={today()} editable={editable} locked={locked} marks={marks}
+        opts={opts} dates={dates} today={today()} editable={editable} meId={me.id} locked={locked} marks={marks}
         ownerId={others && editable ? subject.id : undefined}
         ownerName={subjectName}
         entries={rows.map((e) => ({ id: e.id, projectId: e.projectId, projectName: hidden.has(e.projectId) ? HIDDEN_PROJECT : e.project.name, color: clientColorFor(me, e.project.client.color), phaseId: e.phaseId, phaseName: hidden.has(e.projectId) ? "" : (e.phase?.name ?? ""), tagIds: e.tagIds, description: e.description, custom: (e.custom ?? {}) as Record<string, string>, date: toStr(e.date), startMin: e.startMin, minutes: e.minutes }))}

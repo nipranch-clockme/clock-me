@@ -2,7 +2,8 @@
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import EntryDialog from "@/components/EntryDialog";
-import type { EntryOptions, EntryValue } from "@/components/entryTypes";
+import type { EntryOptions } from "@/components/entryTypes";
+import { draftEdit, useRestoreDraft, type EntryEdit } from "@/components/entryDraft";
 import type { SheetEntry } from "./TimesheetGrid";
 import { discardTimer, startTimer, stopTimer, type TimerResult } from "./timer-actions";
 import SearchSelect from "@/components/SearchSelect";
@@ -22,8 +23,8 @@ const startTime = (iso: string, timeZone: string) => {
 };
 
 /** Timesheet view 3: start and stop a timer on one project. Stopping adds the time as entries. */
-export default function TimerView({ opts, run, entries, dates, today, locked, blocked, timeZone }: {
-  opts: EntryOptions; run: RunningTimer | null; entries: SheetEntry[]; dates: string[]; today: string; locked: (string | null)[]; blocked: string | null; timeZone: string;
+export default function TimerView({ opts, meId, run, entries, dates, today, locked, blocked, timeZone }: {
+  opts: EntryOptions; run: RunningTimer | null; entries: SheetEntry[]; dates: string[]; today: string; locked: (string | null)[]; blocked: string | null; timeZone: string; meId: string;
 }) {
   const router = useRouter();
   const [startState, startAction, starting] = useActionState<TimerResult, FormData>(startTimer, null);
@@ -47,7 +48,7 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   const clearBar = () => { setProjectId(""); setPhaseId(""); setDesc(""); clearTags(); closeTags(); focusHere(descRef.current); };
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
-  const [edit, setEdit] = useState<EntryValue | null>(null);
+  const [edit, setEdit] = useState<EntryEdit | null>(null);
   const [msg, setMsg] = useState("");
   useEffect(() => { setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { if (startState?.ok) { started.current = true; closeTags(); router.refresh(); } }, [startState, router]);
@@ -75,7 +76,13 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
   };
   const days = [...dates].reverse().filter((d) => entries.some((e) => e.date === d));
   const lockFor = (d: string) => locked[dates.indexOf(d)] ?? null;
-  const open = (e: SheetEntry) => setEdit({ ...e, fixed: true, lockedReason: lockFor(e.date), context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+  const entryForm = (e: SheetEntry): EntryEdit => ({ ...e, fixed: true, lockedReason: lockFor(e.date), context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` });
+  const open = (e: SheetEntry) => setEdit(entryForm(e));
+  // A draft from before the session ended reopens its form: a list entry being changed if it is still there, otherwise the manual entry.
+  useRestoreDraft({ by: meId, forId: meId, editable: true }, (d) => {
+    const e = d.id ? entries.find((x) => x.id === d.id) : undefined;
+    setEdit({ ...(e ? entryForm(e) : { lockedReason: blocked }), ...draftEdit(d) });
+  });
   // A manual entry starts from what is on the bar: the project, phase, tags and description.
   const manual = () => {
     const fd = new FormData(formRef.current ?? undefined);
@@ -135,7 +142,7 @@ export default function TimerView({ opts, run, entries, dates, today, locked, bl
         );
       })}
       {/* Only a new manual entry starts from the bar, so only that clears it. Editing an entry from the list leaves the bar alone. */}
-      <EntryDialog opts={opts} value={edit} today={today} onClose={() => setEdit(null)} onSaved={edit && !edit.id ? clearBar : undefined} />
+      <EntryDialog opts={opts} value={edit} meId={meId} today={today} onClose={() => setEdit(null)} onSaved={edit && !edit.id ? clearBar : undefined} />
     </>
   );
 }
