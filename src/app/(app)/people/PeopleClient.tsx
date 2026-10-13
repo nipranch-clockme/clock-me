@@ -15,10 +15,11 @@ export default function PeopleClient(props: Props) {
   const [editing, setEditing] = useState<Person | null>(null);
   const [inviting, setInviting] = useState(false);
   const [q, setQ] = useState("");
+  const [place, setPlace] = useState(""); // "" is every office
   const ref = useRef<HTMLDialogElement>(null);
   const open = editing || inviting;
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
-  const shown = people.filter((p) => !q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase()));
+  const shown = people.filter((p) => (!place || p.locationId === place) && (!q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase())));
 
   return (
     <section className="panel full">
@@ -29,20 +30,28 @@ export default function PeopleClient(props: Props) {
           <button type="button" className="btn primary" onClick={() => setInviting(true)}>Invite person</button>
         </div>
       </div>
+      {props.locations.length > 1 && (
+        <div className="row" role="group" aria-label="Office" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
+          <div className="seg">
+            <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
+            {props.locations.map((l) => <button key={l.id} type="button" aria-pressed={place === l.id} onClick={() => setPlace(l.id)}>{l.name}</button>)}
+          </div>
+          {place && <span className="note">{shown.length} of {people.length} {people.length === 1 ? "person" : "people"}</span>}
+        </div>
+      )}
       <div className="tablebox"><table className="ctable pptable">
-        <thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Office and team</th><th className="num eh">Expected hours per week</th><th /></tr></thead>
+        <thead><tr><th>Name</th><th>Role</th><th>Office and team</th><th className="num eh">Expected hours per week</th><th /></tr></thead>
         <tbody>
           {shown.map((p) => (
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
               <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
-              <td data-l="Employee ID">{p.employeeId || <span className="note">Not set</span>}</td>
               <td data-l="Role">{roleName(p.role)}</td>
               <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
               <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION" && p.role !== "HUMAN_RESOURCE" && p.role !== "GUEST")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
             </tr>
           ))}
-          {!shown.length && <tr><td colSpan={6} className="empty">Nobody matches.</td></tr>}
+          {!shown.length && <tr><td colSpan={5} className="empty">Nobody matches.</td></tr>}
         </tbody>
       </table></div>
       <dialog ref={ref} className="wide" onClose={() => { setEditing(null); setInviting(false); }} aria-labelledby="pp-title">

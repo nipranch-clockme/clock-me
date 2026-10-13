@@ -221,10 +221,10 @@ const pct=(v)=>`${Math.round(v*100)}%`;
   ok('someone new has no full months to chart yet',(await a.textContent('main')).includes('No full months to show yet.'));
   await go(a,`/profile/${MARCUS}`);ok('admin opens people in any office',(await head(a)).includes('Marcus Lee'));
 
-  // People page: Employee ID column, links, renamed field, joining date, CSV
+  // People page: no Employee ID column, links, renamed field, joining date, CSV
   sql(`update "User" set "employeeId"='PF-${process.pid}' where id='${M}'`);
   await go(a,'/people');
-  ok('People list has an Employee ID column',(await a.textContent('thead')).includes('Employee ID')&&(await a.locator(`tr:has-text("Profile Test") td:nth-child(2)`).textContent())===`PF-${process.pid}`);
+  ok('People list has no Employee ID column',!(await a.textContent('thead')).includes('Employee ID'));
   ok('People names link to profiles',(await a.locator(`a[href="/profile/${M}"]`).count())===1);
   ok('People search finds employee IDs',await (async()=>{await a.fill('#pp-q',`pf-${process.pid}`);const n=await a.locator('tbody tr').count();await a.fill('#pp-q','');return n===1;})());
   await a.locator('tr:has-text("Profile Test") button:has-text("Edit")').click();await a.waitForSelector('dialog[open] #pf-emp');
