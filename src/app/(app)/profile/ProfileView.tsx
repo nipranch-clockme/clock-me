@@ -100,7 +100,7 @@ export default async function ProfileView({ me, person, range: rangeParam }: { m
             <h2>{person.name}</h2>
             {person.title && <p className="profile-title">{person.title}</p>}
             <p className="note" style={{ margin: 0 }} title={person.joiningDate ? `Joined ${dateWithYear(toStr(person.joiningDate))}` : undefined}>{joinedText(person.joiningDate)}</p>
-            {(!person.active || !person.passwordHash) && <div style={{ marginTop: 6 }}>{!person.active ? <Pill tone="locked">Inactive</Pill> : <Pill tone="submitted">Invite pending</Pill>}</div>}
+            {(!person.active || !person.passwordHash) && <div style={{ marginTop: 6 }}>{!person.active ? <Pill tone="locked">Archived</Pill> : <Pill tone="submitted">Invite pending</Pill>}</div>}
           </div>
           {(self || manage) && (
             <div className="profile-actions">

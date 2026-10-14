@@ -70,7 +70,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const ownOffice = me.role === "ADMIN" ? null : me.locationId;
   const listed = byUser.filter((r) => !ownOffice || U.get(r.userId)?.locationId === ownOffice);
   const others = byUser.filter((r) => !listed.includes(r));
-  const personRows = listed.map((r) => { const u = U.get(r.userId); return { key: r.userId, m: r._sum.minutes ?? 0, label: <>{u?.name ?? "Unknown"} {u && !u.active && <Pill tone="locked">Inactive</Pill>}<div className="note">{u ? `${u.location.name} · ${u.team?.name ?? "No team"}` : ""}</div></> }; }).sort((a, b) => b.m - a.m);
+  const personRows = listed.map((r) => { const u = U.get(r.userId); return { key: r.userId, m: r._sum.minutes ?? 0, label: <>{u?.name ?? "Unknown"} {u && !u.active && <Pill tone="locked">Archived</Pill>}<div className="note">{u ? `${u.location.name} · ${u.team?.name ?? "No team"}` : ""}</div></> }; }).sort((a, b) => b.m - a.m);
   if (others.length) personRows.push({ key: "others", m: others.reduce((a, r) => a + (r._sum.minutes ?? 0), 0), label: <span className="note">People in other offices ({others.length})</span> });
   const mm = new Map(byMonth.map((r) => [r.m, Number(r.minutes)]));
   // A contract that is the same in every month of the chart is a line across it; one that changes by month is a dashed line that follows each month.

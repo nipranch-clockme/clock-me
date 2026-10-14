@@ -67,16 +67,15 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
   if ("error" in p) return { ok: false, error: p.error };
   const scopeErr = checkScope(me, p.data.locationId, p.data.role);
   if (scopeErr) return { ok: false, error: scopeErr };
-  const active = form.get("active") === "on";
-  if (id === me.id && (!active || p.data.role !== me.role)) return { ok: false, error: "You can't change your own role or deactivate yourself. Ask another Admin." };
+  // Archiving has its own action (setArchived), so this form never changes whether someone is active.
+  if (id === me.id && p.data.role !== me.role) return { ok: false, error: "You can't change your own role. Ask another Admin." };
   const name = String(form.get("name") ?? "").trim() || person.name;
-  // A role, office or status change cancels any open invite or reset link (a new one can be made),
-  // and deactivating someone signs them out everywhere.
-  const sensitive = person.role !== p.data.role || person.locationId !== p.data.locationId || person.active !== active;
+  // A role or office change cancels any open invite or reset link (a new one can be made).
+  const sensitive = person.role !== p.data.role || person.locationId !== p.data.locationId;
   try {
     await db.user.update({
       where: { id },
-      data: { ...p.data, name, active, ...(sensitive ? { inviteToken: null, inviteExpires: null } : {}), ...(person.active && !active ? { sessionVersion: { increment: 1 } } : {}) },
+      data: { ...p.data, name, ...(sensitive ? { inviteToken: null, inviteExpires: null } : {}) },
     });
   } catch (e) {
     if (isDupEmployeeId(e)) return { ok: false, error: DUP_EMPLOYEE_ID };
@@ -87,9 +86,31 @@ export async function updatePerson(_: PeopleResult, form: FormData): Promise<Peo
     ...profileChanges(person, p.data),
     person.locationId !== p.data.locationId && "office",
     person.teamId !== p.data.teamId && "team",
-    person.active !== active && (active ? "reactivated" : "deactivated"),
   ].filter(Boolean);
   await logAction(me.id, `Updated ${name}${changes.length ? `: ${changes.join(", ")}` : ""}`, id);
+  revalidatePath("/people");
+  revalidatePath(`/profile/${id}`);
+  return { ok: true };
+}
+
+/** Archives someone or restores them. Nothing is deleted: their time, reports and history stay as they are. */
+export async function setArchived(_: PeopleResult, form: FormData): Promise<PeopleResult> {
+  const me = await requireTab("people");
+  const id = String(form.get("id"));
+  const archive = form.get("archive") === "1";
+  const person = await db.user.findUnique({ where: { id } });
+  if (!person) return { ok: false, error: "Person not found." };
+  const scopeErr = checkScope(me, person.locationId, person.role);
+  if (scopeErr) return { ok: false, error: scopeErr };
+  if (id === me.id) return { ok: false, error: "You can't archive yourself. Ask another Admin." };
+  if (person.active === !archive) return { ok: true }; // already in the state asked for
+  if (archive && person.role === "ADMIN" && (await db.user.count({ where: { role: "ADMIN", active: true } })) <= 1) return { ok: false, error: "Keep at least one active Admin." };
+  // Archiving signs them out everywhere and cancels any open invite or reset link.
+  await db.user.update({
+    where: { id },
+    data: archive ? { active: false, inviteToken: null, inviteExpires: null, sessionVersion: { increment: 1 } } : { active: true },
+  });
+  await logAction(me.id, `${archive ? "Archived" : "Restored"} ${person.name}`, id);
   revalidatePath("/people");
   revalidatePath(`/profile/${id}`);
   return { ok: true };
@@ -101,7 +122,7 @@ export async function resetLink(_: PeopleResult, form: FormData): Promise<People
   if (!person) return { ok: false, error: "Person not found." };
   const scopeErr = checkScope(me, person.locationId, person.role);
   if (scopeErr) return { ok: false, error: scopeErr };
-  if (!person.active) return { ok: false, error: "Reactivate this person first." };
+  if (!person.active) return { ok: false, error: "Restore this person first." };
   // Always a fresh link: any older one stops working.
   const hours = person.passwordHash ? RESET_HOURS : INVITE_HOURS;
   const link = `${appUrl()}/invite/${await issueLinkToken(person.id, hours)}`;

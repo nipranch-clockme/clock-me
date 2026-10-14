@@ -3,7 +3,7 @@ import { startTransition, useActionState, useEffect, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Role } from "@prisma/client";
-import { invitePerson, resetLink, updatePerson, type PeopleResult } from "./actions";
+import { invitePerson, resetLink, setArchived, updatePerson, type PeopleResult } from "./actions";
 import { roleName } from "@/lib/roles";
 
 type Person = { id: string; name: string; email: string; title: string; role: Role; locationId: string; locationName: string; teamId: string | null; teamName: string; weeklyTarget: number; employeeId: string; joiningDate: string; active: boolean; pending: boolean };
@@ -16,10 +16,11 @@ export default function PeopleClient(props: Props) {
   const [inviting, setInviting] = useState(false);
   const [q, setQ] = useState("");
   const [place, setPlace] = useState(""); // "" is every office
+  const [status, setStatus] = useState<"active" | "archived" | "all">("active"); // archived people are hidden until picked
   const ref = useRef<HTMLDialogElement>(null);
   const open = editing || inviting;
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
-  const shown = people.filter((p) => (!place || p.locationId === place) && (!q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase())));
+  const shown = people.filter((p) => (!place || p.locationId === place) && (status === "all" || p.active === (status === "active")) && (!q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase())));
 
   return (
     <section className="panel full">
@@ -30,21 +31,32 @@ export default function PeopleClient(props: Props) {
           <button type="button" className="btn primary" onClick={() => setInviting(true)}>Invite person</button>
         </div>
       </div>
-      {props.locations.length > 1 && (
-        <div className="row" role="group" aria-label="Office" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
-          <div className="seg">
-            <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
-            {props.locations.map((l) => <button key={l.id} type="button" aria-pressed={place === l.id} onClick={() => setPlace(l.id)}>{l.name}</button>)}
+      <div className="pfilter" style={{ margin: "0 0 10px" }}>
+        {props.locations.length > 1 && (
+          <div role="group" aria-label="Office" className="row" style={{ gap: 10, alignItems: "center" }}>
+            <span className="pf-label">Office</span>
+            <div className="seg">
+              <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
+              {props.locations.map((l) => <button key={l.id} type="button" aria-pressed={place === l.id} onClick={() => setPlace(l.id)}>{l.name}</button>)}
+            </div>
           </div>
-          {place && <span className="note">{shown.length} of {people.length} {people.length === 1 ? "person" : "people"}</span>}
+        )}
+        <div role="group" aria-label="Status" className="row" style={{ gap: 10, alignItems: "center" }}>
+          <span className="pf-label">Status</span>
+          <div className="seg">
+            <button type="button" aria-pressed={status === "active"} onClick={() => setStatus("active")}>Active</button>
+            <button type="button" aria-pressed={status === "archived"} onClick={() => setStatus("archived")}>Archived</button>
+            <button type="button" aria-pressed={status === "all"} onClick={() => setStatus("all")}>All</button>
+          </div>
         </div>
-      )}
+        {(place || status !== "active") && <span className="note">{shown.length} of {people.length} {people.length === 1 ? "person" : "people"}</span>}
+      </div>
       <div className="tablebox"><table className="ctable pptable">
         <thead><tr><th>Name</th><th>Role</th><th>Office and team</th><th className="num eh">Expected hours per week</th><th /></tr></thead>
         <tbody>
           {shown.map((p) => (
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
-              <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Inactive</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
+              <td><Link className="plink" href={`/profile/${p.id}`}>{p.name}</Link> {p.pending && <span className="pill p-submitted">Invite pending</span>} {!p.active && <span className="pill p-locked">Archived</span>}<div className="note">{p.email}{p.title ? ` · ${p.title}` : ""}</div></td>
               <td data-l="Role">{roleName(p.role)}</td>
               <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
@@ -111,8 +123,6 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, to
           <div><label htmlFor="pf-target">Expected hours per week</label><input id="pf-target" name="weeklyTarget" type="number" min="0" max="80" step="0.5" defaultValue={person?.weeklyTarget ?? 40} /></div>
         </div>
         <p className="note">Set expected hours to 0 to leave someone out of utilisation on the Dashboard. The joining date shows years of experience on their profile.</p>
-        {person && <label className="check"><input type="checkbox" name="active" defaultChecked={person.active} disabled={self} /> Active (inactive people can&apos;t sign in)</label>}
-        {person && self && <input type="hidden" name="active" value="on" />}
         {state?.error && <p className="err-text" role="alert">{state.error}</p>}
         <div className="row" style={{ marginTop: 14 }}>
           <button className="btn primary" disabled={pending}>{pending ? "Saving…" : person ? "Save changes" : "Create invite"}</button>
@@ -126,7 +136,28 @@ function PersonForm({ person, locations, teams, roles, defaultLocation, meId, to
           {resetState?.error && <p className="err-text" role="alert">{resetState.error}</p>}
         </form>
       )}
+      {person && !self && <ArchiveBox person={person} onDone={onDone} />}
     </div>
+  );
+}
+
+/** Archive keeps their time and history and only stops them signing in and showing in the working lists. Nothing is deleted. */
+function ArchiveBox({ person, onDone }: { person: Person; onDone: () => void }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState<PeopleResult, FormData>(setArchived, null);
+  useEffect(() => { if (state?.ok) { onDone(); router.refresh(); } }, [state, onDone, router]);
+  return (
+    <form action={action} style={{ marginTop: 16, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+      <input type="hidden" name="id" value={person.id} />
+      <input type="hidden" name="archive" value={person.active ? "1" : "0"} />
+      <p className="note" style={{ margin: "0 0 8px" }}>
+        {person.active
+          ? "Archiving signs them out and keeps their time, reports and history. They drop out of the timesheet picker, approvals and dashboard numbers. Nothing is deleted."
+          : "This person is archived. Restoring them lets them sign in again and puts them back in the working lists."}
+      </p>
+      <button className={person.active ? "btn bad" : "btn"} disabled={pending}>{pending ? "Saving…" : person.active ? "Archive person" : "Restore person"}</button>
+      {state?.error && <p className="err-text" role="alert">{state.error}</p>}
+    </form>
   );
 }
 
