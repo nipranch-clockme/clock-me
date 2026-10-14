@@ -91,8 +91,9 @@ export default function TimesheetGrid({ opts, entries, rows, dates, locked, mark
   };
   // The form for an existing entry. On a project that's closed for new time, the full form lets the person move the entry to another project.
   const entryForm = (e: SheetEntry): EntryEdit => {
-    if (!canLog(e.projectId)) return { ...e, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` };
-    return { ...e, fixed: true, lockedReason: lockFor(e.date), ownerId, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` };
+    // "On behalf of" describes a change; a read only view shows whose time it is without it.
+    if (!canLog(e.projectId)) return { ...e, lockedReason: lockFor(e.date), ownerId: canEdit ? ownerId : undefined, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} is archived or no longer open to ${ownerId ? ownerName : "you"}. You can move this entry to another project or delete it.` };
+    return { ...e, fixed: true, lockedReason: lockFor(e.date), ownerId: canEdit ? ownerId : undefined, ownerName: ownerId ? ownerName : undefined, context: `${e.projectName} · ${e.clientName} · ${dayLabel(e.date)}` };
   };
   const openEntry = (e: SheetEntry) => {
     setTip(null);
