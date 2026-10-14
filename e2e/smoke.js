@@ -1,7 +1,11 @@
 const {chromium}=require('playwright');
+const {execSync}=require('child_process');
 const BASE=process.env.BASE||'http://localhost:3000';
+const PSQL=process.env.PSQL||'psql -h /var/run/postgresql tags_t';
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await b.newPage({viewport:{width:1200,height:1000}});
 const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error'&&!/fonts|ERR_CERT/.test(m.text()))errs.push(m.text())});
+// Earlier runs leave empty rows behind on this week, which would leave no project to add. Drop the empty ones first.
+execSync(`${PSQL} -v ON_ERROR_STOP=1 -At`,{input:`delete from "TimesheetRow" r using "User" u where u.id=r."userId" and u.email='priya@example.com' and r."weekStart">=date_trunc('week', now())::date-7 and not exists (select 1 from "TimeEntry" e where e."userId"=r."userId" and e."projectId"=r."projectId" and e.date>=r."weekStart" and e.date<r."weekStart"+7);`});
 await p.goto(BASE+'/login');await p.waitForLoadState('networkidle');await p.fill('#email','priya@example.com');await p.fill('#password','wrong');await p.click('button:has-text("Sign in")');await p.waitForSelector('[role=alert]');await p.waitForTimeout(800);
 await p.fill('#password','password123');await p.click('button:has-text("Sign in")');await p.waitForURL('**/timesheet',{timeout:90000});
 await p.screenshot({path:'/tmp/claude-0/a-sheet.png',fullPage:true});

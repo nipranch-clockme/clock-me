@@ -33,11 +33,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const ws = addDays(monday(today()), offset * 7);
   const dates = DAYS.map((_, i) => addDays(ws, i));
   // Whose week this is. Location managers and admins can switch to someone else and add or change their time (never the Timer, which is
-  // always your own); a Team/Project Manager can look at a team member on the Calendar, read only.
-  const canSwitch = view !== "timer" && me.role !== "MEMBER" && !(me.role === "LEADER" && view === "sheet");
+  // always your own). Anyone else with a team or office to look after (a Team/Project Manager) can open a person they can see, read only.
+  const canSwitch = view !== "timer" && me.role !== "MEMBER";
   const people = canSwitch ? await db.user.findMany({ where: { AND: [visibleUsersWhere(me), { active: true }] }, orderBy: { name: "asc" }, include: { team: true, location: true } }) : [];
+  // The picker lists only the people whose time you can change; anyone else you can see is opened from a link, read only.
   const pickable = view === "sheet" ? people.filter((p) => canEditTimeFor(me, p)) : people;
-  const subject: Me = (sp.u && sp.u !== me.id ? pickable.find((p) => p.id === sp.u) : undefined) ?? me;
+  const subject: Me = (sp.u && sp.u !== me.id ? people.find((p) => p.id === sp.u) : undefined) ?? me;
   const others = subject.id !== me.id;
   // Two people can share a name, so the picker and the on-behalf banner add the office to those names.
   const dupNames = new Set(people.map((p) => p.name).filter((n, i, all) => all.indexOf(n) !== i));
