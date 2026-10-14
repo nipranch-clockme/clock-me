@@ -77,7 +77,9 @@ const q = (s) => s.replace(/'/g, "''");
     await visitor.goto(`${BASE}/share/${token}?tag=${tag[0]}`); await visitor.waitForLoadState('networkidle');
     ok((await visitor.locator('.rtotal b').innerText()) === money(mins(`and '${tag[0]}' = any(e."tagIds")`)), 'one tag: total matches the database');
     await visitor.goto(`${BASE}/share/${token}?tag=none`); await visitor.waitForLoadState('networkidle');
-    ok((await visitor.locator('.rtotal b').innerText()) === money(90) && mins(`and cardinality(e."tagIds") = 0`) === 90, 'No tag: total matches the database');
+    // Other untagged time for this client (the guest's sample entries) counts too, so compare with the database rather than a fixed 90.
+    const noTag = mins(`and cardinality(e."tagIds") = 0`);
+    ok(noTag >= 90 && (await visitor.locator('.rtotal b').innerText()) === money(noTag), 'No tag: total matches the database');
     await visitor.goto(`${BASE}/share/${token}?by=tag`); await visitor.waitForLoadState('networkidle');
     ok(await visitor.locator('.rtable th:has-text("TAG")').count() === 1 && await visitor.locator('.rtable tbody tr.rg-row').count() >= myTags.length, 'group by tag lists the tags');
     await visitor.goto(`${BASE}/share/${token}?range=thisyear`); await visitor.waitForLoadState('networkidle');
