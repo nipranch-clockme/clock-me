@@ -7,11 +7,12 @@ import { GROUPS, TIME_GROUPS, TABS, STATUSES, clipText, groupsFor, parseReportPa
 import { hidesClients } from "@/lib/scope";
 import { DAYS, RANGES, addDays, dow, longDate, monday, today, toDate, toStr, shortDate } from "@/lib/dates";
 import { DESCRIPTION_MAX, clock, fmtHours, pct } from "@/lib/format";
-import { tagText } from "@/lib/tags";
+import { tagNamesOf } from "@/lib/tags";
 import { teamLabelOf } from "@/lib/clientTeams";
 import { hasOtTag, loadOtTagIds } from "@/lib/overtime";
 import AutoForm from "@/components/AutoForm";
 import Link from "next/link";
+import { Fragment } from "react";
 import { PageHead, Ifld, Pill } from "@/components/ui";
 import FilterMenu from "@/components/FilterMenu";
 import ExportMenu from "@/components/ExportMenu";
@@ -267,7 +268,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <thead><tr><th>Time entry</th><th>User</th><th>Date</th><th className="num">Duration</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => {
-                    const ot = hasOtTag(e.tagIds, otIds), tags = tagText(e.tagIds, T);
+                    const ot = hasOtTag(e.tagIds, otIds), tags = tagNamesOf(e.tagIds, T);
                     return (
                       <tr key={e.id} className={ot ? "otrow" : undefined}>
                         <td data-l="Time entry">
@@ -275,7 +276,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                           <div className="rline">
                             {e.description ? <bdi className="rdesc" title={e.description}>{clipText(e.description, DESCRIPTION_MAX)}</bdi> : <span className="rdesc note">No description</span>}
                             <span className="rproj"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{e.project.name}{!hidesClients(me) && ` - ${e.project.client.name}`}</span>
-                            {tags && <span className="rtags">{tags}</span>}
+                            {tags.length > 0 && <span className="rtags">{tags.map((n, i) => <Fragment key={n}>{i > 0 && " "}<span className="rtag">{n}</span></Fragment>)}</span>}
                             {!p.nophase && e.phase && <span className="rphase">{e.phase.name}</span>}
                           </div>
                         </td>
