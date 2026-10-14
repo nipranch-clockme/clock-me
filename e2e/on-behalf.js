@@ -143,18 +143,17 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('the admin lock date still applies',refused(l3,'locked by an Admin'),l3.text.slice(0,200));
   sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
 
-  // ---- calendar: the same for a location manager
+  // ---- the Timesheet again, for a location manager (the Calendar tab has been removed)
   await go(rav,`/timesheet?u=${K}`);
-  ok('calendar: banner and picker for the location manager',/You are adding and changing time for Klh Test/.test(await rav.textContent('main'))&&(await rav.locator('.whose-label:has-text("Whose time")').count())===1);
-  ok('calendar: the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Next week"]','href')));
-  const col=await rav.$('.cal .col >> nth=3');const box=await col.boundingBox();
-  await rav.mouse.click(box.x+box.width/2,box.y+60);await rav.waitForSelector('dialog[open] #e-project');
-  ok('calendar: the form says it is on their behalf',/On behalf of Klh Test/.test(await rav.textContent('dialog[open]')));
-  await rav.selectOption('#e-project',pa);await fillEntry(rav,{dur:'1.5'});
+  ok('timesheet: banner and picker for the location manager',/You are adding and changing time for Klh Test/.test(await rav.textContent('main'))&&(await rav.locator('.whose-label:has-text("Whose time")').count())===1);
+  ok('timesheet: the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Next week"]','href')));
+  await rav.locator('td.sheetcell.open').first().click({position:{x:8,y:8}});await rav.waitForSelector('dialog[open] #e-dur');
+  ok('timesheet: the form says it is on their behalf',/On behalf of Klh Test/.test(await rav.textContent('dialog[open]')));
+  await fillEntry(rav,{dur:'1.5'});
   await rav.click('dialog[open] button:has-text("Add entry")');await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
-  ok('calendar: the entry is added to their calendar',count(`select count(*) from "TimeEntry" where "userId"='${K}' and minutes=90`)===1&&(await rav.locator('button.ev').count())>=1);
-  await rav.locator('button.ev').first().click();await rav.waitForSelector('dialog[open] #e-dur');
-  ok('calendar: an existing entry opens for editing, not read only',(await rav.locator('dialog[open] button:has-text("Save changes")').count())===1);
+  ok('timesheet: the entry is added to their week',count(`select count(*) from "TimeEntry" where "userId"='${K}' and minutes=90`)===1&&(await rav.locator('button.chipbtn').count())>=1);
+  await rav.locator('button.chipbtn').first().click();await rav.waitForSelector('dialog[open] #e-dur');
+  ok('timesheet: an existing entry opens for editing, not read only',(await rav.locator('dialog[open] button:has-text("Save changes")').count())===1);
   await rav.click('dialog[open] button:has-text("Close")');
   await go(rav,`/timesheet?view=timer&u=${K}`);
   ok('the Timer is always your own: no banner, no picker',(await rav.locator('.alert.info:has-text("You are adding")').count())===0&&(await rav.locator('.whose').count())===0);
@@ -199,9 +198,9 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${t}rd','${PRIYA}','${pa}','${xa}','{}','${addDays(ws,2)}',600,60,'ob-read','{}',now())`);
   await go(lead,`/timesheet?u=${PRIYA}`);
-  ok('Team/Project Manager: a team member\'s calendar is still read only',/Read only/.test(await lead.textContent('main'))&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
-  const evs=await lead.locator('button.ev').count();
-  if(evs){await lead.locator('button.ev').first().click();await lead.waitForSelector('dialog[open]');ok('...and an entry there opens without a Save button, and without "On behalf of"',(await lead.locator('dialog[open] button:has-text("Save changes")').count())===0&&!/On behalf of/.test(await lead.textContent('dialog[open]')));}
+  ok('Team/Project Manager: a team member\'s timesheet is still read only',/Read only/.test(await lead.textContent('main'))&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
+  const evs=await lead.locator('button.chipbtn').count();
+  if(evs){await lead.locator('button.chipbtn').first().click();await lead.waitForSelector('dialog[open]');ok('...and an entry there opens without a Save button, and without "On behalf of"',(await lead.locator('dialog[open] button:has-text("Save changes")').count())===0&&!/On behalf of/.test(await lead.textContent('dialog[open]')));}
   else ok('...(no entries this week to open; the note above covers it)',true);
   // two people with the same name are told apart by their office
   const klhName=sql(`select name from "Location" where id='${KLH}'`);

@@ -49,6 +49,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   };
   const subjectName = nameOf(subject);
   const editable = !others || canEditTimeFor(me, subject); // someone else's week is read only unless you may change their time
+  const readOnly = others && !editable;
   const [rows, sheet, opts, savedRows, offs, ex] = await Promise.all([
     db.timeEntry.findMany({ where: { userId: subject.id, date: { gte: toDate(ws), lte: toDate(dates[6]) } }, include: { project: { include: { client: true } }, phase: true }, orderBy: [{ date: "asc" }, { startMin: "asc" }] }),
     db.timesheet.findUnique({ where: { userId_weekStart: { userId: subject.id, weekStart: toDate(ws) } } }),
@@ -98,7 +99,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const run = view === "timer" ? await db.timerRun.findUnique({ where: { userId: me.id } }) : null;
   const blocked = view === "timer" ? await isDayLocked(me.id, today(), settings, false, isAdmin) : null;
   const waiting = others ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. Cancel the submission to change it.";
-  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an Admin." : editLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
+  const lockedFor = dates.map((d) => (readOnly ? "Read only: you can see this time but not change it." : adminLocked(d) ? "This date is locked by an Admin." : editLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const toggle = (
     <div className="seg vt" role="group" aria-label="Timesheet view">
       {([["timer", "Timer"], ["sheet", "Timesheet"]] as const).map(([k, l]) => (
@@ -120,6 +121,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
         <div className="row" style={{ marginBottom: 12 }}>
           <PersonPicker label="Whose time" people={pickable.map((p) => ({ id: p.id, name: pickName(p) }))} current={subject.id} meId={me.id} offset={offset} />
         </div>
+      )}
+      {readOnly && view === "sheet" && (
+        <p className="alert info" role="status">Read only: you can see <strong>{subjectName}</strong>&apos;s time but not change it.</p>
       )}
       {others && editable && view === "sheet" && (
         <p className="alert info" role="status">You are adding and changing time for <strong>{subjectName}</strong>. They will see it on their own timesheet, and every change is recorded in the change log, which Admins can see in Settings. They still submit their own week.</p>
@@ -164,7 +168,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} meId={me.id} canEdit={editable} entries={entries} rows={rowList} weekStart={ws} rowsLocked={editLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
+      <TimesheetGrid opts={opts} meId={me.id} canEdit={editable} entries={entries} rows={rowList} weekStart={ws} rowsLocked={editLocked || readOnly} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
