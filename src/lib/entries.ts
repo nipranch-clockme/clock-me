@@ -5,13 +5,21 @@ import type { AppSettings } from "./settings";
 import type { Me } from "./auth";
 import { timeEditError, visibleProjectsWhere, visibleUsersWhere } from "./scope";
 
-/** A day is locked when an admin has locked it, or the person's week is submitted or approved. */
-export async function isDayLocked(userId: string, date: string, settings: AppSettings, onBehalf = false) {
+/** A day is locked when an admin has locked it, or the person's week is submitted or approved. Admins can still change a
+ *  submitted or approved week (the approval stays as it is); the admin lock date applies to everyone. */
+export async function isDayLocked(userId: string, date: string, settings: AppSettings, onBehalf = false, byAdmin = false) {
   if (settings.lockBeforeStr && date <= settings.lockBeforeStr) return "This date is locked by an Admin.";
+  if (byAdmin) return null;
   const ts = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(monday(date)) } } });
   if (ts?.status === "SUBMITTED") return onBehalf ? "That week is waiting for approval. Send it back from Approvals to change it." : "That week is waiting for approval. Cancel the submission on the Timesheet to change it.";
   if (ts?.status === "APPROVED") return "That week is already approved.";
   return null;
+}
+
+/** The status of the week a date falls in when it is closed to changes (waiting for approval or approved), else null. Admin edits to these weeks are noted in the log. */
+export async function closedWeekStatus(userId: string, date: string) {
+  const ts = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(monday(date)) } }, select: { status: true } });
+  return ts?.status === "SUBMITTED" || ts?.status === "APPROVED" ? ts.status : null;
 }
 
 /** The longest description a time entry or a running timer may have. Browser code imports it from format.ts, since this file reads the database. */

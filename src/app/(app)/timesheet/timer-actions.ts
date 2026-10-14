@@ -97,7 +97,7 @@ export async function stopTimer(_: TimerResult, form: FormData): Promise<TimerRe
   const later = phase && (await laterPhaseInUse(project.id, phase.id));
   if (later) return { ok: false, error: phaseInUseMessage(later, phase.name), fields: ["Phase"] };
   for (const s of segs) {
-    const lock = await isDayLocked(me.id, s.date, settings);
+    const lock = await isDayLocked(me.id, s.date, settings, false, me.role === "ADMIN");
     if (lock) return { ok: false, error: `${lock} Discard the timer, or ask an Admin to unlock the day.` };
     const full = await dayTotalError(me.id, s.date, s.minutes, settings.timeFormat);
     if (full) return { ok: false, error: `${full} Change that day's other entries on the Timesheet, or discard the timer.` };

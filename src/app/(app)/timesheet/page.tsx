@@ -64,6 +64,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const want = ex(subject, ws, dates[6], { whole: true }); // this week's expected minutes: the weekly target less holidays and time off
   const status = sheet?.status ?? "DRAFT";
   const statusLocked = status === "SUBMITTED" || status === "APPROVED";
+  // An admin can still change a week that is waiting or approved; everyone else is stopped by it.
+  const isAdmin = me.role === "ADMIN";
+  const editLocked = statusLocked && !isAdmin;
   const adminLocked = (d: string) => !!settings.lockBeforeStr && d <= settings.lockBeforeStr;
   // People can take back a submitted week, unless an admin has locked every day of it.
   const canCancel = status === "SUBMITTED" && !dates.every(adminLocked);
@@ -93,9 +96,9 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const copied = Number(sp.copied ?? 0), lastCount = Number(sp.last ?? 0), skipped = Number(sp.skipped ?? 0);
 
   const run = view === "timer" ? await db.timerRun.findUnique({ where: { userId: me.id } }) : null;
-  const blocked = view === "timer" ? await isDayLocked(me.id, today(), settings) : null;
+  const blocked = view === "timer" ? await isDayLocked(me.id, today(), settings, false, isAdmin) : null;
   const waiting = others ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. Cancel the submission to change it.";
-  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an Admin." : statusLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
+  const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an Admin." : editLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const toggle = (
     <div className="seg vt" role="group" aria-label="Timesheet view">
       {([["timer", "Timer"], ["sheet", "Timesheet"]] as const).map(([k, l]) => (
@@ -161,12 +164,12 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <ul style={{ margin: "6px 0 0" }}>{missingList.map(({ e, miss }) => <li key={e.id}>{toStr(e.date)} · {e.project.name}: {miss.join(", ")}</li>)}</ul>
         </div>
       )}
-      <TimesheetGrid opts={opts} meId={me.id} canEdit={editable} entries={entries} rows={rowList} weekStart={ws} rowsLocked={statusLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
+      <TimesheetGrid opts={opts} meId={me.id} canEdit={editable} entries={entries} rows={rowList} weekStart={ws} rowsLocked={editLocked} today={today()} dates={dates} marks={marks} ownerId={others ? subject.id : undefined} ownerName={others ? subjectName : undefined} locked={lockedFor} footerLeft={statusLocked ? <span className="note">{others ? (status === "SUBMITTED" ? "This week is waiting for approval. It can be sent back from Approvals if something needs changing." : "This week is approved.") : canCancel ? "This week is waiting for approval. Cancel the submission if you need to change something." : status === "SUBMITTED" ? "This week is waiting for approval. Its days are locked by an Admin, so it can't be changed." : "This week is approved. Ask your approver if something needs changing."}</span> : others ? null : (
           <form action={copyLastWeek}><input type="hidden" name="week" value={ws} /><input type="hidden" name="back" value={back} /><button className="btn">Copy last week</button></form>
         )} />
       <p className="note" style={{ margin: "12px 0 0" }}>
-        {statusLocked ? <>This week can&apos;t be changed{status === "SUBMITTED" ? " while it waits for approval" : ""}. <span className="honly">Click an entry to see its details, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an entry to see its details.</span></>
-          : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", at least one tag" : " and at least one tag") : ""}${settings.requireDescription ? " and a description" : ""}.`}</>}
+        {editLocked ? <>This week can&apos;t be changed{status === "SUBMITTED" ? " while it waits for approval" : ""}. <span className="honly">Click an entry to see its details, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an entry to see its details.</span></>
+          : <>{statusLocked && <>This week {status === "APPROVED" ? "is approved. As an admin you can still change it, and the approval stays." : "is waiting for approval. As an admin you can still change it."} </>}<span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", at least one tag" : " and at least one tag") : ""}${settings.requireDescription ? " and a description" : ""}.`}</>}
       </p>
       </>}
       <DayOffList dates={dates} marks={marks} />

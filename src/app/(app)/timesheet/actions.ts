@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, type Me } from "@/lib/auth";
 import { getSettings, logAction } from "@/lib/settings";
-import { DAY_MAX_MINUTES, cleanText, dayTotalError, entryDateError, isDayLocked, laterPhaseInUse, missingFields, parseStart, phaseInUseMessage, timeSubject } from "@/lib/entries";
+import { DAY_MAX_MINUTES, cleanText, closedWeekStatus, dayTotalError, entryDateError, isDayLocked, laterPhaseInUse, missingFields, parseStart, phaseInUseMessage, timeSubject } from "@/lib/entries";
 import { readTagIds, tagNamesOf } from "@/lib/tags";
 import { loggableProjectsWhere, trackableProjectsWhere, visibleProjectsWhere } from "@/lib/scope";
 import { addDays, isDateStr, monday, shortDate, toDate, toStr, weekLabel } from "@/lib/dates";
@@ -42,6 +42,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   const who = await timeSubject(me, String(form.get("userId") ?? ""));
   if ("error" in who) return { ok: false, error: who.error };
   const person = who.person, onBehalf = person.id !== me.id;
+  const byAdmin = me.role === "ADMIN";
   const settings = await getSettings();
   const id = String(form.get("id") ?? "");
 
@@ -50,7 +51,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
     if (!old) return { ok: false, error: "This entry was deleted. Reload the page to see the latest." };
     if (old.userId !== person.id) return { ok: false, error: onBehalf ? `That entry isn't ${person.name}'s.` : "You can only change your own entries." };
     if (onBehalf && !(await canSeeProject(me, old.projectId))) return { ok: false, error: `That entry isn't ${person.name}'s.` };
-    const lockOld = await isDayLocked(person.id, toStr(old.date), settings, onBehalf);
+    const lockOld = await isDayLocked(person.id, toStr(old.date), settings, onBehalf, byAdmin);
     if (lockOld) return { ok: false, error: lockOld };
   }
 
@@ -95,7 +96,7 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
   }
   // Moving time to a day that's locked is a problem with the date. (A locked day the entry is already on was refused above.)
   if (!errs.date) {
-    const lock = await isDayLocked(person.id, date, settings, onBehalf);
+    const lock = await isDayLocked(person.id, date, settings, onBehalf, byAdmin);
     if (lock) errs.date = lock;
   }
 
@@ -112,7 +113,9 @@ export async function saveEntry(_: EntryResult, form: FormData): Promise<EntryRe
     // Deleted in another tab since it was read above: say so rather than fail.
     if (!(await db.timeEntry.updateMany({ where: { id: old.id }, data })).count) return { ok: false, error: "This entry was deleted. Reload the page to see the latest." };
   } else await db.timeEntry.create({ data: { ...data, userId: person.id } });
-  const behalf = onBehalf ? ` on behalf of ${person.name}` : "";
+  // An admin's change to a week that is waiting or approved is marked in the log, so the approved hours never change unseen.
+  const closed = byAdmin ? await closedWeekStatus(person.id, date) : null;
+  const behalf = (onBehalf ? ` on behalf of ${person.name}` : "") + (closed ? ` (in a week ${closed === "APPROVED" ? "already approved" : "waiting for approval"})` : "");
   if (!old) await logAction(me.id, `Added ${fmtHours(minutes, settings.timeFormat)} h on ${project.name} for ${shortDate(date)}${behalf}`, person.id);
   else {
     const names = await tagNames([...old.tagIds, ...tagIds]);
@@ -155,7 +158,7 @@ export async function deleteEntry(form: FormData): Promise<DeleteResult> {
   if ("error" in who) return { ok: false, error: me.role === "ADMIN" || me.role === "LOCATION" ? who.error : "You can only delete your own entries." };
   const person = who.person, onBehalf = person.id !== me.id;
   if (onBehalf && !(await canSeeProject(me, e.projectId))) return { ok: false, error: `That entry isn't ${person.name}'s.` };
-  const lock = await isDayLocked(person.id, toStr(e.date), settings, onBehalf);
+  const lock = await isDayLocked(person.id, toStr(e.date), settings, onBehalf, me.role === "ADMIN");
   if (lock) return { ok: false, error: lock };
   // Of two deletes at once (a double click, two tabs), only the one that removes the row carries on.
   const gone = await db.timeEntry.deleteMany({ where: { id: e.id } });
@@ -167,7 +170,8 @@ export async function deleteEntry(form: FormData): Promise<DeleteResult> {
     await db.timesheetRow.createMany({ data: [{ userId: person.id, weekStart: toDate(ws), projectId: e.projectId }], skipDuplicates: true });
   }
   const names = await tagNames(e.tagIds);
-  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}${onBehalf ? ` on behalf of ${person.name}` : ""}: phase ${e.phase?.name ?? "none"}, tags ${tagList(e.tagIds, names)}, ${descStart(e.description)}`, person.id);
+  const closed = me.role === "ADMIN" ? await closedWeekStatus(person.id, toStr(e.date)) : null;
+  await logAction(me.id, `Deleted ${fmtHours(e.minutes, settings.timeFormat)} h on ${e.project.name} from ${shortDate(toStr(e.date))}${onBehalf ? ` on behalf of ${person.name}` : ""}${closed ? ` (in a week ${closed === "APPROVED" ? "already approved" : "waiting for approval"})` : ""}: phase ${e.phase?.name ?? "none"}, tags ${tagList(e.tagIds, names)}, ${descStart(e.description)}`, person.id);
   revalidatePath("/timesheet");
   revalidatePath("/calendar");
   return { ok: true };
@@ -175,8 +179,9 @@ export async function deleteEntry(form: FormData): Promise<DeleteResult> {
 
 export type RowResult = { ok: boolean; error?: string };
 
-/** The week's own status lock (submitted or approved). Admin lock dates only stop changes to time, not rows. */
-async function weekClosed(userId: string, ws: string, onBehalf = false) {
+/** The week's own status lock (submitted or approved). Admin lock dates only stop changes to time, not rows. Admins are not stopped by it. */
+async function weekClosed(userId: string, ws: string, onBehalf = false, byAdmin = false) {
+  if (byAdmin) return null;
   const sheet = await db.timesheet.findUnique({ where: { userId_weekStart: { userId, weekStart: toDate(ws) } } });
   return sheet?.status === "SUBMITTED" ? (onBehalf ? "This week is waiting for approval. Send it back from Approvals to change it." : "This week is waiting for approval. Cancel the submission to change it.")
     : sheet?.status === "APPROVED" ? "This week is approved." : null;
@@ -191,7 +196,7 @@ export async function addRow(form: FormData): Promise<RowResult> {
   const projectId = String(form.get("projectId") ?? "");
   if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
   const ws = monday(week);
-  const closed = await weekClosed(person.id, ws, person.id !== me.id);
+  const closed = await weekClosed(person.id, ws, person.id !== me.id, me.role === "ADMIN");
   if (closed) return { ok: false, error: closed };
   const project = await db.project.findFirst({ where: { id: projectId, ...loggableProjectsWhere(me, person) }, select: { id: true, name: true } });
   if (!project) return { ok: false, error: person.id === me.id ? "Choose a project you can log time on." : `Choose a project ${person.name} can log time on.` };
@@ -210,7 +215,7 @@ export async function removeRow(form: FormData): Promise<RowResult> {
   const projectId = String(form.get("projectId") ?? "");
   if (!isDateStr(week)) return { ok: false, error: "Something went wrong. Reload the page and try again." };
   const ws = monday(week);
-  const closed = await weekClosed(person.id, ws, person.id !== me.id);
+  const closed = await weekClosed(person.id, ws, person.id !== me.id, me.role === "ADMIN");
   if (closed) return { ok: false, error: closed };
   if (person.id !== me.id && !(await canSeeProject(me, projectId))) return { ok: false, error: `Choose a project ${person.name} can log time on.` };
   const hasTime = await db.timeEntry.count({ where: { userId: person.id, projectId, date: { gte: toDate(ws), lte: toDate(addDays(ws, 6)) } } });
@@ -263,7 +268,7 @@ export async function copyLastWeek(form: FormData) {
   const me = await requireUser();
   const ws = monday(String(form.get("week")));
   const back = String(form.get("back") ?? "/timesheet");
-  if (await weekClosed(me.id, ws)) redirect(back);
+  if (await weekClosed(me.id, ws, false, me.role === "ADMIN")) redirect(back);
   const prev = addDays(ws, -7);
   const week = (from: string) => ({ gte: toDate(from), lte: toDate(addDays(from, 6)) });
   // Only last week's projects come across, as empty rows. The person adds this week's hours themselves.
