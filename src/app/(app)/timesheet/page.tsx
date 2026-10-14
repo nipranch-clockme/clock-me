@@ -11,7 +11,6 @@ import { dayMarks, loadExpected } from "@/lib/timeoff";
 import { dayMark } from "@/lib/dayMark";
 import { PageHead, Pill, statusTone } from "@/components/ui";
 import { sheetStatusLabel } from "@/lib/sheetStatus";
-import CalendarView from "./CalendarView";
 import TimerView from "./TimerView";
 import PersonPicker from "./PersonPicker";
 import WeekFocus from "./WeekFocus";
@@ -28,7 +27,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const me = await requireUser();
   const settings = await getSettings();
-  const view = sp.view === "cal" || sp.view === "timer" ? sp.view : "sheet";
+  const view = sp.view === "timer" ? "timer" : "sheet";
   // Any other week offset in the address is held at the nearest end, so it never reaches the date maths.
   const offset = Math.min(0, Math.max(-MAX_WEEKS_BACK, parseInt(sp.w ?? "0") || 0));
   const ws = addDays(monday(today()), offset * 7);
@@ -99,8 +98,8 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
   const lockedFor = dates.map((d) => (adminLocked(d) ? "This date is locked by an Admin." : statusLocked ? (status === "SUBMITTED" ? waiting : "This week is approved.") : null));
   const toggle = (
     <div className="seg vt" role="group" aria-label="Timesheet view">
-      {([["timer", "Timer"], ["sheet", "Timesheet"], ["cal", "Calendar"]] as const).map(([k, l]) => (
-        <Link key={k} href={href(k, offset)} aria-pressed={view === k} replace><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[k === "sheet" ? "sheet" : k === "cal" ? "cal" : "timer"] }} />{l}</Link>
+      {([["timer", "Timer"], ["sheet", "Timesheet"]] as const).map(([k, l]) => (
+        <Link key={k} href={href(k, offset)} aria-pressed={view === k} replace><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS[k === "sheet" ? "sheet" : "timer"] }} />{l}</Link>
       ))}
     </div>
   );
@@ -116,7 +115,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
     <section className="panel">
       {view === "sheet" && pickable.length > 1 && (
         <div className="row" style={{ marginBottom: 12 }}>
-          <PersonPicker view="sheet" label="Whose time" people={pickable.map((p) => ({ id: p.id, name: pickName(p) }))} current={subject.id} meId={me.id} offset={offset} />
+          <PersonPicker label="Whose time" people={pickable.map((p) => ({ id: p.id, name: pickName(p) }))} current={subject.id} meId={me.id} offset={offset} />
         </div>
       )}
       {others && editable && view === "sheet" && (
@@ -170,8 +169,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           : <><span className="honly">Click an empty day to add time. Click an entry to change it, or hover over it to see its phase, tags and description.</span><span className="tonly">Tap an empty day to add time. Tap an entry to change it.</span>{` Every entry needs a phase${settings.requireTag ? (settings.requireDescription ? ", at least one tag" : " and at least one tag") : ""}${settings.requireDescription ? " and a description" : ""}.`}</>}
       </p>
       </>}
-      {view !== "cal" && <DayOffList dates={dates} marks={marks} />}
-      {view === "cal" && <CalendarView me={me} subject={subject} subjectName={subjectName} people={people.map((p) => ({ id: p.id, name: pickName(p) }))} editable={editable} opts={opts} settings={settings} offset={offset} />}
+      <DayOffList dates={dates} marks={marks} />
       {view === "timer" && <TimerView opts={opts} meId={me.id} run={run ? { projectId: run.projectId, phaseId: run.phaseId, tagIds: run.tagIds, description: run.description, startedAt: run.startedAt.toISOString() } : null} entries={entries} dates={dates} today={today()} locked={lockedFor} blocked={blocked} timeZone={settings.timeZone} />}
     </section>
     </>

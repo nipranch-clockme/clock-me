@@ -1,4 +1,3 @@
-import TableFilter from "@/components/TableFilter";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { addedProjectsWhere, canCreateProject, canEditProject, clientColorFor, hidesClients, visibleProjectsWhere } from "@/lib/scope";
@@ -10,16 +9,22 @@ import { clientTypeName, contractOf, perMonth } from "@/lib/clients";
 import Link from "next/link";
 import { Suspense } from "react";
 
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ client?: string }> }) {
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ client?: string; active?: string; access?: string; q?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const creator = canCreateProject(me);
   // Restricted projects only show to the people, teams and offices they are shared with (and their managers).
   // Team members see just the projects they've been added to, without the clients and phase templates lists.
   const where = creator ? visibleProjectsWhere(me) : addedProjectsWhere(me);
+  // The filter bar (managers and admins): Active is the default, and the name search is case-insensitive.
+  const active = creator && sp.active === "archived" ? "archived" : creator && sp.active === "all" ? "all" : "active";
+  const activeWhere = active === "all" ? {} : { archived: active === "archived" };
+  const accessWhere = creator && sp.access === "everyone" ? { access: "PUBLIC" as const } : creator && sp.access === "restricted" ? { access: "RESTRICTED" as const } : {};
+  const needle = creator ? sp.q?.trim() ?? "" : "";
+  const nameWhere = needle ? { name: { contains: needle, mode: "insensitive" as const } } : {};
   const [projects, clients, templates, locations, teams, users, usage] = await Promise.all([
     db.project.findMany({
-      where: { ...where, ...(creator && sp.client ? { clientId: sp.client } : {}) },
+      where: { ...where, ...(creator && sp.client ? { clientId: sp.client } : {}), ...activeWhere, ...accessWhere, ...nameWhere },
       include: { client: true, phases: { orderBy: { sort: "asc" } }, managers: { include: { user: true } }, locations: { include: { location: true } }, teams: { include: { team: { include: { location: true } } } }, users: { include: { user: true } } },
       orderBy: [{ archived: "asc" }, { client: { name: "asc" } }, { name: "asc" }],
     }),
@@ -57,30 +62,35 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       <section className="panel full">
         <Suspense><ProjectsClient creator={creator} canImport={canTab("import-export", me.role)} form={formData} editable={editable} count={projects.length} admin={me.role === "ADMIN"} /></Suspense>
         {creator && (
-          <div className="row" style={{ margin: "4px 0 12px" }}>
-            <div className="chips">
-              <Link className="chip" href="/projects" aria-current={!sp.client ? "true" : undefined}>All clients</Link>
-              {clients.map((c) => <Link key={c.id} className="chip" href={`/projects?client=${c.id}`} aria-current={sp.client === c.id ? "true" : undefined}>{c.name}</Link>)}
-            </div>
-          </div>
+          <form className="pfilter" method="get" role="search" aria-label="Filter projects">
+            <span className="pf-label">Filter</span>
+            <label>Active<select name="active" defaultValue={active}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></label>
+            <label>Client<select name="client" defaultValue={sp.client ?? ""}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label>Access<select name="access" defaultValue={creator && sp.access ? sp.access : "all"}><option value="all">All</option><option value="everyone">Everyone</option><option value="restricted">Restricted</option></select></label>
+            <label className="pf-find"><span className="sr-only">Find by name</span><input type="search" name="q" placeholder="Find by name" defaultValue={needle} /></label>
+            <button className="btn primary">Apply filter</button>
+          </form>
         )}
         {/* The empty message sits outside the table so it doesn't scroll sideways with it on phones. */}
         {!projects.length ? <p className="empty">{!creator ? "You haven't been added to any projects yet." : sp.client ? "No projects for this client." : "No projects yet."}</p> : (
           <>
-          <TableFilter label="Search projects" placeholder="Search projects or clients…" />
           <div className="tablebox">
             <table className="ptable ctable">
-              <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
+              <thead><tr>{creator && <th className="pick"><span className="sr-only">Select to edit in bulk</span></th>}<th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
               <tbody>
                 {projects.map((p) => {
                   const u = used[p.id] ?? 0, pc = p.budgetHours ? u / p.budgetHours : 0;
+                  const phases = p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", "), managers = p.managers.map((m) => m.user.name).join(", ");
+                  const who = p.access === "PUBLIC" ? "Everyone" : `Restricted: ${accessText(p)}`;
                   return (
                     <tr key={p.id}>
-                      <td><span className="dot" style={{ background: `var(--${clientColorFor(me, p.client.color)})` }} />{p.name} {p.archived && <Pill tone="locked">Archived</Pill>}{!hidesClients(me) && <div className="note">{p.client.name}</div>}</td>
-                      <td data-l="Who can see it">{p.access === "PUBLIC" ? <Pill tone="locked">Everyone</Pill> : <><Pill tone="locked">Restricted</Pill><div className="note">{accessText(p)}</div></>}</td>
-                      <td className="note" data-l="Managers">{p.managers.map((m) => m.user.name).join(", ") || "–"}</td>
-                      <td className="note" data-l="Phases">{p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", ")}</td>
-                      <td data-l="Budget">{p.budgetHours ? <><div className="meter"><i className={pc > 1 ? "over" : pc > 0.85 ? "hi" : ""} style={{ width: `${Math.min(100, pc * 100)}%` }} /></div><div className="note">{Math.round(u)} of {p.budgetHours} h</div></> : <span className="note">No budget</span>}</td>
+                      {creator && <td className="pick">{editable.some((e) => e.id === p.id) && <input type="checkbox" name="ids" value={p.id} aria-label={`Select ${p.name}`} />}</td>}
+                      {/* one line: the project, then its client beside it */}
+                      <td className="pone"><span className="dot" style={{ background: `var(--${clientColorFor(me, p.client.color)})` }} /><span className="prname">{p.name}</span>{!hidesClients(me) && <span className="prclient">{p.client.name}</span>} {p.archived && <Pill tone="locked">Archived</Pill>}</td>
+                      <td data-l="Who can see it" className="pone clip" title={who}>{p.access === "PUBLIC" ? <Pill tone="locked">Everyone</Pill> : <><Pill tone="locked">Restricted</Pill> <span className="note">{accessText(p)}</span></>}</td>
+                      <td className="note pone clip" data-l="Managers" title={managers}>{managers || "–"}</td>
+                      <td className="note pone clip" data-l="Phases" title={phases}>{phases}</td>
+                      <td data-l="Budget" className="pone">{p.budgetHours ? <span className="pbud"><span className="meter"><i className={pc > 1 ? "over" : pc > 0.85 ? "hi" : ""} style={{ width: `${Math.min(100, pc * 100)}%` }} /></span><span className="note">{Math.round(u)} of {p.budgetHours} h</span></span> : <span className="note">No budget</span>}</td>
                       <td className="act">{editable.some((e) => e.id === p.id) && <Link className="btn sm" scroll={false} href={`/projects?${new URLSearchParams({ ...(sp.client ? { client: sp.client } : {}), edit: p.id })}`}>Edit</Link>}</td>
                     </tr>
                   );

@@ -1,7 +1,7 @@
 "use client";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { saveProject, type FormResult } from "./actions";
+import { saveProject, bulkEditProjects, type FormResult } from "./actions";
 import SearchSelect from "@/components/SearchSelect";
 
 type Opt = { id: string; name: string };
@@ -34,6 +34,16 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
     if (!open && d.open) d.close();
   }, [open]);
   const newHref = () => { const q = new URLSearchParams(sp.toString()); q.set("new", "1"); return `${path}?${q}`; };
+  // The rows are drawn by the server page, so the ticked projects are read from the page itself.
+  const [picked, setPicked] = useState<string[]>([]);
+  const bulkRef = useRef<HTMLDialogElement>(null);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
+  useEffect(() => {
+    const read = () => setPicked([...document.querySelectorAll<HTMLInputElement>('input[name="ids"]:checked')].map((i) => i.value));
+    document.addEventListener("change", read);
+    return () => document.removeEventListener("change", read);
+  }, []);
+  const openBulk = () => { setBulkIds(picked); bulkRef.current?.showModal(); };
 
   return (
     <>
@@ -42,13 +52,82 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
           <h3 style={{ margin: 0 }}>Projects</h3>
           <p className="note" style={{ margin: "2px 0 0" }}>{count} project{count === 1 ? "" : "s"}{creator ? "" : " you've been added to. Projects open to everyone aren't listed, but you can still log time on them."}</p>
         </div>
-        {creator && <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>}
+        {creator && (
+          <div className="row" style={{ flex: "0 1 auto", gap: 8 }}>
+            {picked.length > 0 && <button type="button" className="btn" onClick={openBulk}>Bulk edit ({picked.length})</button>}
+            <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>
+          </div>
+        )}
       </div>
       {creator && !form.clients.length && <p className="alert info">{admin ? "Add a client below before creating a project." : "An Admin needs to add a client before projects can be created."}</p>}
       <dialog ref={ref} className="wide" onClose={close} aria-labelledby="proj-title">
         {open && <ProjectEditor key={open} form={form} project={open === "new" ? null : editable.find((p) => p.id === open)!} admin={admin} onDone={() => ref.current?.close()} />}
       </dialog>
+      <dialog ref={bulkRef} className="wide" aria-labelledby="bulk-title" onClose={() => setBulkIds([])}>
+        {bulkIds.length > 0 && <BulkEditor key={bulkIds.join()} ids={bulkIds} form={form} onDone={() => bulkRef.current?.close()} />}
+      </dialog>
     </>
+  );
+}
+
+/** Changes the same things on several projects. Each part is ticked on separately; projects the person doesn't manage are skipped. */
+function BulkEditor({ ids, form, onDone }: { ids: string[]; form: ProjectForm; onDone: () => void }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState<FormResult, FormData>(bulkEditProjects, null);
+  const [access, setAccess] = useState("PUBLIC");
+  useEffect(() => { if (state?.ok) router.refresh(); }, [state, router]);
+  const box = { maxHeight: 150, overflow: "auto", border: "1px solid var(--line)", borderRadius: 8, padding: "6px 10px" } as const;
+  const n = ids.length;
+
+  return (
+    <div className="panel">
+      <div className="row between" style={{ marginBottom: 8 }}>
+        <h2 id="bulk-title">Bulk edit {n} project{n === 1 ? "" : "s"}</h2>
+        <button type="button" className="btn sm" onClick={onDone}>Close</button>
+      </div>
+      <p className="note" style={{ margin: "0 0 10px" }}>Tick what you want to change. Projects you don&apos;t manage are skipped.</p>
+      <form action={action}>
+        {ids.map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
+        <div className="bulkrow" style={{ display: "grid", gap: 14 }}>
+          <label className="check"><input type="checkbox" name="doClient" /> Client</label>
+          <div><label htmlFor="bulk-client" className="sr-only">Client</label>
+            <select id="bulk-client" name="clientId" defaultValue="">
+              <option value="" disabled>Choose a client</option>
+              {form.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <label className="check"><input type="checkbox" name="doAccess" /> Who can see it</label>
+          <div>
+            <div className="seg" role="group" aria-label="Who can see it">
+              <label><input type="radio" name="access" value="PUBLIC" checked={access === "PUBLIC"} onChange={() => setAccess("PUBLIC")} /> Everyone in the company</label>
+              <label><input type="radio" name="access" value="RESTRICTED" checked={access === "RESTRICTED"} onChange={() => setAccess("RESTRICTED")} /> Only chosen offices, teams or people</label>
+            </div>
+            {access === "RESTRICTED" && (
+              <>
+                <div className="row" style={{ marginTop: 10, alignItems: "flex-start" }}>
+                  <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend className="note">Offices</legend><div style={box}>{form.locations.map((l) => <label key={l.id} className="check"><input type="checkbox" name="loc" value={l.id} /> {l.name}</label>)}</div></fieldset>
+                  <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend className="note">Teams</legend><div style={box}>{form.teams.map((t) => <label key={t.id} className="check"><input type="checkbox" name="team" value={t.id} /> {t.name}</label>)}</div></fieldset>
+                  <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend className="note">People</legend><div style={box}>{form.users.map((u) => <label key={u.id} className="check"><input type="checkbox" name="user" value={u.id} /> {u.name}</label>)}</div></fieldset>
+                </div>
+                <div className="row" style={{ marginTop: 8, gap: 16 }}>
+                  <label className="check"><input type="radio" name="accessMode" value="add" defaultChecked /> Add to existing</label>
+                  <label className="check"><input type="radio" name="accessMode" value="overwrite" /> Overwrite existing</label>
+                </div>
+              </>
+            )}
+          </div>
+
+          <label className="check"><input type="checkbox" name="doPhases" /> Add phases</label>
+          <div><label htmlFor="bulk-phases" className="sr-only">Phases to add</label><input id="bulk-phases" name="addPhases" placeholder="Separate with commas, e.g. Submission 6, Final" /></div>
+        </div>
+        {state?.error && <p className="err-text" role="alert">{state.error}</p>}
+        {state?.ok && state.message && <p role="status">{state.message}</p>}
+        <div className="row" style={{ marginTop: 14 }}>
+          <button className="btn primary" disabled={pending}>{pending ? "Saving…" : `Apply to ${n} project${n === 1 ? "" : "s"}`}</button>
+        </div>
+      </form>
+    </div>
   );
 }
 

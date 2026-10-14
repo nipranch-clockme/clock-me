@@ -25,7 +25,7 @@ export async function saveMonthlyHours(_: GridResult, form: FormData): Promise<G
   const plans = [];
   for (const p of people) {
     if (!canManagePerson(me, p)) return { ok: false, error: "You can't change the hours of one of these people." };
-    if (p.role === "ADMIN" || p.role === "HUMAN_RESOURCE" || p.role === "GUEST") return { ok: false, error: "Admins, Human Resource and Guests are not a resource, so they have no expected hours." };
+    if (p.role === "ADMIN" || p.role === "GUEST") return { ok: false, error: "Admins and Guests are not a resource, so they have no expected hours." };
     const own = new Map(p.monthlyHours.map((m) => [m.month.toISOString().slice(0, 7), m.weeklyHours]));
     const edit = rowEdit(cells.get(p.id)!, own, p.weeklyTarget, MAX_WEEKLY);
     if ("error" in edit) return { ok: false, error: `${p.name}: ${edit.error.replace("Enter hours", "Enter weekly hours")}` };

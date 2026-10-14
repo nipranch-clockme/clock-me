@@ -58,11 +58,11 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   let banner=(await lead.locator('.alert.ot').allInnerTexts()).join(' ').replace(/\s+/g,' ');
   ok('review: a banner gives the OT hours, the entries and the person',banner.includes(`OT ${f(300)} h`)&&/2 entries tagged OT in this view \(Overtime Alpha\)/.test(banner),banner);
   // the banner and marks stay on while moving between the report's views
-  await lead.click('nav.rtabs a:has-text("Detailed")');await lead.waitForURL(/tab=detailed/);await lead.waitForSelector('table.rtable td[data-l="Time"]');await lead.waitForLoadState('networkidle');
+  await lead.click('nav.rtabs a:has-text("Detailed")');await lead.waitForURL(/tab=detailed/);await lead.waitForSelector('table.rtable td[data-l="Date"]');await lead.waitForLoadState('networkidle');
   ok('review: the Detailed view keeps the review link',/ref=approvals/.test(lead.url()));
   banner=(await lead.locator('.alert.ot').allInnerTexts()).join(' ').replace(/\s+/g,' ');
   ok('review: the banner is still there on Detailed, saying the entries are marked below',/OT/.test(banner)&&/marked below/.test(banner),banner);
-  const rows=await lead.$$eval('table.rtable tbody tr',(trs)=>trs.map((tr)=>{const meta=tr.querySelectorAll('td[data-l="Time entry"] .rmeta');return {ot:tr.classList.contains('otrow'),pill:!!tr.querySelector('.p-ot'),hours:tr.querySelector('td[data-l="Duration"]')?.textContent.replace(/\s+/g,' ').trim(),tags:meta.length>1?meta[meta.length-1].textContent.trim():undefined,date:tr.querySelector('td[data-l="Time"]')?.textContent.trim()};}));
+  const rows=await lead.$$eval('table.rtable tbody tr',(trs)=>trs.map((tr)=>{const meta=tr.querySelectorAll('td[data-l="Time entry"] .rtags');return {ot:tr.classList.contains('otrow'),pill:!!tr.querySelector('.p-ot'),hours:tr.querySelector('td[data-l="Duration"]')?.textContent.replace(/\s+/g,' ').trim(),tags:meta.length>0?meta[meta.length-1].textContent.trim():undefined,date:tr.querySelector('td[data-l="Date"]')?.textContent.trim()};}));
   const marked=rows.filter((r)=>r.ot);
   ok('review: exactly the two entries tagged OT are marked, each with an OT pill and the tag still listed',rows.length===7&&marked.length===2&&marked.every((r)=>r.pill&&r.tags==='OT'&&/OT$/.test(r.hours)),JSON.stringify(rows));
   ok('review: the entries that are not tagged OT are plain',rows.filter((r)=>!r.ot).every((r)=>!r.pill&&!/OT/.test(r.hours)));
@@ -70,7 +70,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   ok('review: still on the review after another view, and the banner points to Detailed',/ref=approvals/.test(lead.url())&&(await lead.locator('.alert.ot').count())===1&&/Detailed view marks each one/.test(await lead.locator('.alert.ot').innerText()));
   // Charlie: the entry has two tags, and one of them is OT
   await lead.goto(BASE+`/reports?range=custom&from=${W}&to=${WE}&person=${C}&group=project&tab=detailed&ref=approvals`);await lead.waitForLoadState('networkidle');
-  const rowsC=await lead.$$eval('table.rtable tbody tr',(trs)=>trs.map((tr)=>{const meta=tr.querySelectorAll('td[data-l="Time entry"] .rmeta');return {ot:tr.classList.contains('otrow'),tags:meta.length>1?meta[meta.length-1].textContent.trim():undefined};}));
+  const rowsC=await lead.$$eval('table.rtable tbody tr',(trs)=>trs.map((tr)=>{const meta=tr.querySelectorAll('td[data-l="Time entry"] .rtags');return {ot:tr.classList.contains('otrow'),tags:meta.length>0?meta[meta.length-1].textContent.trim():undefined};}));
   ok('review: an entry with two tags is marked, and both tags are listed',rowsC.filter((r)=>r.ot).length===1&&/OT/.test(rowsC.find((r)=>r.ot).tags)&&/E2E Other Tag/.test(rowsC.find((r)=>r.ot).tags),JSON.stringify(rowsC));
   // A person with none tagged OT
   await lead.goto(BASE+`/reports?range=custom&from=${W}&to=${WE}&person=${B}&group=project&tab=detailed&ref=approvals`);await lead.waitForLoadState('networkidle');

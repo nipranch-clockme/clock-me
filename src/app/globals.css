@@ -362,6 +362,21 @@ a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);co
 .chip .linkbtn:hover{color:var(--bad);text-decoration:none}
 .cols2{columns:2 200px;column-gap:20px} .cols2>div{break-inside:avoid;margin-bottom:14px} .cols2>div:last-child{margin-bottom:0} /* stacked on a phone, the groups keep a gap */
 .ptable td:first-child{min-width:190px} .ptable td:nth-child(5){min-width:130px} .ptable td:nth-child(5) .note{white-space:nowrap}
+/* Projects: the filter bar above the list; on a wide screen each project is one line, its client beside its name */
+.pfilter{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:4px 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.pfilter .pf-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pfilter label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+.pfilter select{width:auto}
+.pfilter .pf-find{flex:1 1 220px}
+.pfilter .pf-find input{width:100%}
+@media (min-width:700px){
+  .ptable td.pone{white-space:nowrap}
+  .ptable td.pick,.ptable th.pick{width:2.2em;text-align:center}
+  .ptable td.clip{max-width:240px;overflow:hidden;text-overflow:ellipsis}
+  .ptable .prclient{margin-left:8px;color:var(--muted);font-size:12.5px}
+  .ptable .pbud{display:inline-flex;align-items:center;gap:8px}
+  .ptable .pbud .meter{width:90px;flex:none}
+}
 /* People: the role and office dropdowns are just wide enough for their longest option */
 .pptable .pname{min-width:0} .pptable select[data-urole]{min-width:150px} .pptable select[data-uloc]{min-width:104px} .pptable th.eh{white-space:normal;min-width:108px}
 /* Tables that turn into cards when their box is too narrow for every column (People, Projects): the header row hides and each row
@@ -413,6 +428,12 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
 .offwrap{container-type:inline-size;min-width:0}
 .offs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
 .offs>.panel{grid-column:span 2} .offs>.panel.w3{grid-column:span 3}
+/* Dashboard, company view: the offices as compact cards, all in one row where the width allows */
+.ofcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+.ofcards .panel{padding:12px 14px;min-width:0}
+.ofcards h3{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ofcards .stat b{font-size:20px}
+.ofcards .stat span{font-size:12px}
 @container (width<980px){.offs>.panel,.offs>.panel.w3{grid-column:span 3} .offs>.panel:first-child:nth-last-child(odd){grid-column:1/-1}}
 @container (width<660px){.offs>.panel,.offs>.panel.w3,.offs>.panel:first-child:nth-last-child(odd){grid-column:1/-1}}
 /* Dashboard top performers in a narrow box (phones): the ranking numbers stay in view. The job title line and the target
@@ -861,6 +882,9 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .mgrid th.now{color:var(--accent-ink);box-shadow:inset 0 -2px 0 var(--accent)}
 .mgrid td.mc{padding:4px 2px}
 .mgrid .mo{text-align:center} /* a month's name, figure and total share one centre line */
+.mgrid .dstd{white-space:nowrap}
+.mgrid .dstd select{width:auto;min-width:0;padding-right:28px} /* the Standard column is as narrow as its longest choice */
+
 .mgrid input.cell{width:58px;min-height:30px;padding:5px 6px;text-align:center}
 .mgrid input.cell.chg{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .mgrid .chgtxt{color:var(--accent-ink);font-weight:600}
@@ -900,6 +924,12 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .rtable td[data-l="Time entry"]{min-width:16em;white-space:normal} /* the description and its project line wrap rather than widen the table */
 .rdesc{font-weight:500}
 .rmeta{margin-top:2px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+/* Detailed report: one line per entry on a wide screen; the description gives way first when the line is too long */
+.rline{display:flex;align-items:baseline;gap:4px 10px;white-space:nowrap;min-width:0}
+.rline .rdesc{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rline .rproj,.rline .rtags{flex:0 0 auto;font-size:12.5px;color:var(--muted)}
+.rline .rproj{display:inline-flex;align-items:center;gap:6px}
+.rline .rphase{margin-left:0}
 .rphase{display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid var(--line2);border-radius:4px;font-size:11.5px;line-height:1.5;color:var(--muted);white-space:nowrap}
 /* The Detailed report on a phone or a narrow box: each entry is a small block, its cells stacked under their names (data-l), the duration at the right */
 @container (width<560px){

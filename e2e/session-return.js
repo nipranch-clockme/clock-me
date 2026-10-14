@@ -12,7 +12,7 @@ const here = (p) => new URL(p.url()).pathname + new URL(p.url()).search;
 (async () => {
   const b = await start();
   const EMAIL = "priya@example.com";
-  const PAGE = "/timesheet?view=cal";
+  const PAGE = "/timesheet";
   const sv = sql(`select "sessionVersion" from "User" where email='${EMAIL}'`);
   try {
     const p = await login(b, EMAIL);

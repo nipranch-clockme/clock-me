@@ -37,7 +37,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const rank = sp.rank === "total" ? "total" : "prod";
   // Location managers and admins have three tabs: Team overview (below), Client overview (each client's hours and utilisation, which used to be
   // the Clients page's overview) and Detailed utilisation, the office's monthly report like the sheet they kept before. Location managers see
-  // their office; admins the office they pick. Human Resource sees the company's utilisation (Team overview and Detailed utilisation, every
+  // their office; admins the office they pick. Human Resource is removed; company utilisation is for Admins (Team overview and Detailed utilisation, every
   // office) without anything about clients. Each tab keeps the other's choices in its links.
   const company = SEES_COMPANY_UTILISATION.includes(me.role);
   const tabs = me.role === "LOCATION" || company;
@@ -63,7 +63,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
   if (tabs && sp.tab === "detailed") {
     const offices = company ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
-    // Admins and Human Resource can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
+    // Admins can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
     const choices = company ? [{ id: ALL_OFFICES, name: "All offices" }, ...offices] : offices;
     const office = choices.find((o) => o.id === sp.roffice) ?? offices[0];
     const locationId = office && office.id !== ALL_OFFICES ? office.id : null;
@@ -75,7 +75,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {tabNav("detailed")}
         <div className="grid g3">
           {office
-            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={company ? choices : undefined} contracts={me.role !== "HUMAN_RESOURCE"} years={years}
+            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={company ? choices : undefined} contracts years={years}
                 keep={Object.fromEntries(Object.entries({ tab: "detailed", range: sp.range, rank: sp.rank }).filter((e): e is [string, string] => !!e[1]))} />
             : <p className="note full">No offices yet.</p>}
         </div>
@@ -208,20 +208,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>
           </div>
         )}
-        {company && locs.map((l) => {
-          const o = sum(rows.filter((r) => r.locationId === l.id));
-          return (
-            <section className="panel" key={l.id}>
-              <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
-              <div className="stat" style={{ margin: "12px 0 8px" }}><b>{pct(o.prod)}</b><span>total utilisation</span></div>
-              <div className="meter" style={{ height: 10 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
-              <div className="stats spread sm" style={{ marginTop: 12 }}>
-                <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
-                <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
-              </div>
-            </section>
-          );
-        })}
+        {company && locs.length > 0 && (
+          // every office in one row where the width allows (wraps on narrow screens)
+          <div className="full ofcards">
+            {locs.map((l) => {
+              const o = sum(rows.filter((r) => r.locationId === l.id));
+              return (
+                <section className="panel" key={l.id}>
+                  <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
+                  <div className="stat" style={{ margin: "8px 0 6px" }}><b>{pct(o.prod)}</b><span>total utilisation</span></div>
+                  <div className="meter" style={{ height: 8 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
+                  <div className="stats spread sm" style={{ marginTop: 10 }}>
+                    <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
+                    <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
         {company && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
           <h3>Utilisation by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>

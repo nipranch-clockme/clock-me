@@ -264,19 +264,23 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {p.tab === "detailed" && (
             <div className="tablebox">
               <table className="rtable rdetail">
-                <thead><tr><th>Time entry</th><th>User</th><th>Time</th><th className="num">Duration</th></tr></thead>
+                <thead><tr><th>Time entry</th><th>User</th><th>Date</th><th className="num">Duration</th></tr></thead>
                 <tbody>
                   {detailRows.map((e) => {
                     const ot = hasOtTag(e.tagIds, otIds), tags = tagText(e.tagIds, T);
                     return (
                       <tr key={e.id} className={ot ? "otrow" : undefined}>
                         <td data-l="Time entry">
-                          {e.description ? <bdi className="clamp2 rdesc" title={e.description}>{clipText(e.description, DESCRIPTION_MAX)}</bdi> : <div className="rdesc note">No description</div>}
-                          <div className="rmeta"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{e.project.name}{!hidesClients(me) && ` - ${e.project.client.name}`}{!p.nophase && e.phase && <span className="rphase">{e.phase.name}</span>}</div>
-                          {tags && <div className="rmeta">{tags}</div>}
+                          {/* one line per entry: description, then the project with its tags and phase */}
+                          <div className="rline">
+                            {e.description ? <bdi className="rdesc" title={e.description}>{clipText(e.description, DESCRIPTION_MAX)}</bdi> : <span className="rdesc note">No description</span>}
+                            <span className="rproj"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{e.project.name}{!hidesClients(me) && ` - ${e.project.client.name}`}</span>
+                            {tags && <span className="rtags">{tags}</span>}
+                            {!p.nophase && e.phase && <span className="rphase">{e.phase.name}</span>}
+                          </div>
                         </td>
                         <td data-l="User" className="nowrap"><Link className="plink" href={`/profile/${e.user.id}`}>{e.user.name}</Link></td>
-                        <td data-l="Time" className="nowrap">{clock(e.startMin)} – {clock(e.startMin + e.minutes)}<div className="note">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</div></td>
+                        <td data-l="Date" className="nowrap">{shortDate(toStr(e.date))}, {toStr(e.date).slice(0, 4)}</td>
                         <td data-l="Duration" className="num nowrap">{f(e.minutes)}{ot && <> <span title="Tagged OT"><Pill tone="ot">OT</Pill></span></>}</td>
                       </tr>
                     );

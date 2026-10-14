@@ -66,7 +66,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const banner=(await rav.locator('.alert.info').first().innerText()).replace(/\s+/g,' ');
   ok('the page says whose time it is and what happens',/You are adding and changing time for Klh Test/.test(banner)&&/change log/.test(banner),banner);
   ok('there is no Submit or Copy last week for someone else',(await rav.locator('button:has-text("Submit for approval"), button:has-text("Cancel submission"), button:has-text("Copy last week")').count())===0);
-  ok('the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Previous week"]','href'))&&/u=/.test(await rav.getAttribute('.seg.vt a:has-text("Calendar")','href'))&&!/u=/.test(await rav.getAttribute('.seg.vt a:has-text("Timer")','href')));
+  ok('the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Previous week"]','href'))&&/u=/.test(await rav.getAttribute('.seg.vt a:has-text("Timesheet")','href'))&&!/u=/.test(await rav.getAttribute('.seg.vt a:has-text("Timer")','href')));
   // add a project row for them
   await rav.click('button:has-text("Add project row")');await rav.selectOption('#addrow-project',pa);
   await cap('addRow',()=>rav.click('dialog[open] button:has-text("Add row")'));await rav.waitForSelector('dialog[open]',{state:'detached'});await rav.waitForLoadState('networkidle');
@@ -144,7 +144,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   sql(`update "Settings" set "lockBefore"=${lockOld?`'${lockOld}'`:'null'}`);
 
   // ---- calendar: the same for a location manager
-  await go(rav,`/timesheet?view=cal&u=${K}`);
+  await go(rav,`/timesheet?u=${K}`);
   ok('calendar: banner and picker for the location manager',/You are adding and changing time for Klh Test/.test(await rav.textContent('main'))&&(await rav.locator('.whose-label:has-text("Whose time")').count())===1);
   ok('calendar: the week links keep that person',/u=/.test(await rav.getAttribute('a[aria-label="Next week"]','href')));
   const col=await rav.$('.cal .col >> nth=3');const box=await col.boundingBox();
@@ -159,10 +159,10 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   await go(rav,`/timesheet?view=timer&u=${K}`);
   ok('the Timer is always your own: no banner, no picker',(await rav.locator('.alert.info:has-text("You are adding")').count())===0&&(await rav.locator('.whose').count())===0);
   // another office's admin: read only, and the page must not carry that admin's project list (every project in the company)
-  await go(rav,`/timesheet?view=cal&u=${KA}`);
+  await go(rav,`/timesheet?u=${KA}`);
   ok("calendar: an admin in the office is read only, and their project list does not reach the page",/Read only/.test(await rav.textContent('main'))&&!(await rav.content()).includes('E2E Restricted '+t),'');
   // a person in the office the manager can look at but not change (another location manager): read only
-  await go(rav,`/timesheet?view=cal&u=${K2}`);
+  await go(rav,`/timesheet?u=${K2}`);
   ok('calendar: another location manager is read only for them',/Read only/.test(await rav.textContent('main'))&&(await rav.locator('.alert.info:has-text("You are adding")').count())===0);
 
   // ---- the admin
@@ -198,7 +198,7 @@ const mondayOf=(s)=>addDays(s,-dow(s));
   const t1=await act(lead,'saveEntry',entryFields(PRIYA));
   ok('Team/Project Manager: cannot add time for their team member (crafted call)',refused(t1,'Only Location managers and Admins can add or change someone else\'s time')&&count(`select count(*) from "TimeEntry" where "userId"='${PRIYA}' and description='crafted'`)===0,t1.text.slice(0,200));
   sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${t}rd','${PRIYA}','${pa}','${xa}','{}','${addDays(ws,2)}',600,60,'ob-read','{}',now())`);
-  await go(lead,`/timesheet?view=cal&u=${PRIYA}`);
+  await go(lead,`/timesheet?u=${PRIYA}`);
   ok('Team/Project Manager: a team member\'s calendar is still read only',/Read only/.test(await lead.textContent('main'))&&(await lead.locator('.alert.info:has-text("You are adding")').count())===0);
   const evs=await lead.locator('button.ev').count();
   if(evs){await lead.locator('button.ev').first().click();await lead.waitForSelector('dialog[open]');ok('...and an entry there opens without a Save button, and without "On behalf of"',(await lead.locator('dialog[open] button:has-text("Save changes")').count())===0&&!/On behalf of/.test(await lead.textContent('dialog[open]')));}

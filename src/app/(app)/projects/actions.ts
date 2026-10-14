@@ -7,7 +7,7 @@ import { canCreateProject, canEditProject } from "@/lib/scope";
 import { perMonth } from "@/lib/clients";
 import type { ClientType } from "@prisma/client";
 
-export type FormResult = { ok: boolean; error?: string } | null;
+export type FormResult = { ok: boolean; error?: string; message?: string } | null;
 const list = (form: FormData, k: string) => form.getAll(k).map(String).filter(Boolean);
 
 export async function saveProject(_: FormResult, form: FormData): Promise<FormResult> {
@@ -142,4 +142,63 @@ export async function updateClient(_: FormResult, form: FormData): Promise<FormR
   revalidatePath("/projects");
   revalidatePath("/clients", "layout");
   return { ok: true };
+}
+
+/**
+ * Bulk edit: the same change to several projects at once. Only the projects the person manages change; the rest are counted as skipped.
+ * Each part is ticked on separately: the client, who can see it (add to or overwrite the chosen people), and phases to add.
+ */
+export async function bulkEditProjects(_: FormResult, form: FormData): Promise<FormResult> {
+  const me = await requireUser();
+  if (!canCreateProject(me)) return { ok: false, error: "Only managers and Admins can edit projects in bulk." };
+  const ids = [...new Set(list(form, "ids"))];
+  if (!ids.length) return { ok: false, error: "Select at least one project." };
+  const doClient = form.get("doClient") === "on", clientId = String(form.get("clientId") ?? "");
+  const doAccess = form.get("doAccess") === "on", access = form.get("access") === "RESTRICTED" ? "RESTRICTED" : "PUBLIC";
+  const overwrite = form.get("accessMode") === "overwrite";
+  const locs = list(form, "loc"), teams = list(form, "team"), users = list(form, "user");
+  const doPhases = form.get("doPhases") === "on";
+  const newPhases = String(form.get("addPhases") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!doClient && !doAccess && !doPhases) return { ok: false, error: "Tick what you want to change." };
+  if (doClient && !(await db.client.findUnique({ where: { id: clientId } }))) return { ok: false, error: "Choose a client." };
+  if (doAccess && access === "RESTRICTED" && !locs.length && !teams.length && !users.length) return { ok: false, error: "Pick at least one office, team or person, or choose Everyone in the company." };
+  if (doPhases && !newPhases.length) return { ok: false, error: "Enter the phases to add." };
+  if (doPhases && new Set(newPhases.map((p) => p.toLowerCase())).size !== newPhases.length) return { ok: false, error: "Each phase name must be different." };
+
+  const projects = await db.project.findMany({ where: { id: { in: ids } }, include: { managers: true, phases: true } });
+  let changed = 0, skipped = 0;
+  for (const p of projects) {
+    if (!canEditProject(me, p.managers.map((m) => m.userId))) { skipped++; continue; }
+    if (doClient && p.clientId !== clientId && (await db.project.findFirst({ where: { clientId, name: { equals: p.name, mode: "insensitive" } } }))) { skipped++; continue; }
+    await db.$transaction(async (tx) => {
+      if (doClient) await tx.project.update({ where: { id: p.id }, data: { clientId } });
+      if (doAccess) {
+        // Everyone clears the lists; "add" keeps the people already there, "overwrite" replaces them.
+        if (overwrite || access === "PUBLIC") {
+          await tx.projectLocationAccess.deleteMany({ where: { projectId: p.id } });
+          await tx.projectTeamAccess.deleteMany({ where: { projectId: p.id } });
+          await tx.projectUserAccess.deleteMany({ where: { projectId: p.id } });
+        }
+        if (access === "RESTRICTED") {
+          await tx.projectLocationAccess.createMany({ data: locs.map((locationId) => ({ projectId: p.id, locationId })), skipDuplicates: true });
+          await tx.projectTeamAccess.createMany({ data: teams.map((teamId) => ({ projectId: p.id, teamId })), skipDuplicates: true });
+          await tx.projectUserAccess.createMany({ data: users.map((userId) => ({ projectId: p.id, userId })), skipDuplicates: true });
+        }
+        await tx.project.update({ where: { id: p.id }, data: { access } });
+      }
+      if (doPhases) {
+        // New phases go after the existing ones, skipping any the project already has.
+        let sort = Math.max(-1, ...p.phases.filter((x) => x.sort < 999).map((x) => x.sort)) + 1;
+        for (const name of newPhases) {
+          if (p.phases.some((x) => x.name.toLowerCase() === name.toLowerCase())) continue;
+          await tx.phase.create({ data: { projectId: p.id, name, sort: sort++ } });
+        }
+      }
+    });
+    changed++;
+  }
+  if (changed) await logAction(me.id, `Bulk edit of ${changed} project${changed === 1 ? "" : "s"}: ${[doClient && "client", doAccess && "who can see it", doPhases && "phases"].filter(Boolean).join(", ")}`);
+  revalidatePath("/projects");
+  const tail = skipped ? ` ${skipped} skipped: you don't manage ${skipped === 1 ? "it" : "them"}, or the client already has a project with that name.` : "";
+  return { ok: true, message: `Changed ${changed} project${changed === 1 ? "" : "s"}.${tail}` };
 }

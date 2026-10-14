@@ -55,7 +55,7 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
 
   // The card stays while any period has expected hours: a month set to 0 (a sabbatical, say) still has last week and last month to compare.
   if (!target && !lwE && !lmE && !monthE) {
-    return <section className="panel full"><h3>Your numbers</h3><p className="empty">{me.role === "ADMIN" || me.role === "HUMAN_RESOURCE" ? "Admins and Human Resource are not counted in utilisation, so there are no numbers to compare your time with." : "Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change."}</p></section>;
+    return <section className="panel full"><h3>Your numbers</h3><p className="empty">{me.role === "ADMIN" ? "Admins are not counted in utilisation, so there are no numbers to compare your time with." : "Your expected hours per week are 0, so there is nothing to compare your time with. Ask your manager if that should change."}</p></section>;
   }
   return (
     <section className="panel full" aria-label="Your numbers">

@@ -130,10 +130,7 @@ const mondayOf=(d)=>{const x=new Date(d+'T00:00:00Z');return addDays(d,-((x.getU
   await p.click('button.chipbtn >> nth=0');await p.waitForSelector('dialog[open] h2');
   ok('chip opens read-only',(await p.textContent('dialog[open] h2'))==='Time entry'&&(await p.$eval('dialog[open] fieldset',f=>f.disabled)));
   await p.click('dialog[open] button:has-text("Close")');
-  // calendar still works with its own picker
-  await p.goto(BASE+'/calendar');await p.waitForLoadState('networkidle');
-  ok('calendar still shows the entry',(await p.$$('button.ev')).length>=1);
-  ok('no browser errors',p.errs.length===0,JSON.stringify(p.errs));
+    ok('no browser errors',p.errs.length===0,JSON.stringify(p.errs));
   await p.screenshot({path:'/tmp/claude-0/shots/timesheet-rows.png'}).catch(()=>{});
  }finally{
   sql(`delete from "AuditLog" where "userId"='${uid}' or "targetUserId"='${uid}'`);

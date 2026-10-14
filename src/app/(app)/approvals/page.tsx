@@ -115,7 +115,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           <div className="ch"><h2>Time off requests</h2><span className="cd">{requests.length} request{requests.length === 1 ? "" : "s"}</span></div>
           <p className="note" style={{ margin: "0 0 10px" }}>{me.role === "ADMIN"
             ? "Requests from everyone except yourself. Your own requests are for another Admin to decide."
-            : `Requests from people in the ${me.location.name} office. Requests from Admins, Location managers and Human Resource are for an Admin to decide.`}</p>
+            : `Requests from people in the ${me.location.name} office. Requests from Requests from Admins and Location managers are for an Admin to decide.`}</p>
           <div className="list">
             {requests.map((r) => {
               const a = toStr(r.startDate), b = toStr(r.endDate);

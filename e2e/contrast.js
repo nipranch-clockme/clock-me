@@ -147,7 +147,7 @@ async function withOverlays(p, path) {
   for (let i = 0; i < 5; i++) sql(`insert into "TimeEntry"(id,"userId","projectId","phaseId","tagIds",date,"startMin",minutes,description,custom,"createdAt") values('${ot}e${i}','${ot}','${opr}','${oph}','{${i >= 3 ? otTag : ''}}','${dt(-14 + i)}',540,540,'work','{}',now())`);
   sql(`insert into "Timesheet"(id,"userId","weekStart",status,"updatedAt") values('${ot}s','${ot}','${ow}','SUBMITTED',now())`);
   const review = `/reports?range=custom&from=${ow}&to=${dt(-8)}&person=${ot}&group=project&tab=detailed&ref=approvals`;
-  ROLES['admin@example.com'].push(review, `/timesheet?u=${ot}`, `/timesheet?view=cal&u=${ot}`);
+  ROLES['admin@example.com'].push(review, `/timesheet?u=${ot}`, `/timesheet?u=${ot}`);
   ROLES['daniel@example.com'] = ['/approvals', review];
   try {
     for (const theme of ['light', 'dark']) {

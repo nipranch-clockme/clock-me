@@ -19,7 +19,7 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
       noun: ["person", "people"], required: "Name and Email",
       columns: [
         ["Name", "Their name."], ["Email", "The email they sign in with. One account per email."],
-        ["Role", "Admin, Location manager, Team/Project Manager, Human Resource or Guest. Clockify's Team Manager and Project Manager both become Team/Project Manager. Blank means Team member. If several are listed, the highest one counts."],
+        ["Role", "Admin, Location manager, Team/Project Manager, Guest. Clockify's Team Manager and Project Manager both become Team/Project Manager. Blank means Team member. If several are listed, the highest one counts."],
         ["Projects Managed", "Projects they manage, by name (write Project:Client when two clients share a name). Only projects that already exist are linked."],
         ["Groups Managed", "For a Team/Project Manager with no Group: the first group listed becomes their team."],
         ["Employees Managed", "Not used: a Team/Project Manager looks after their whole team.", true],

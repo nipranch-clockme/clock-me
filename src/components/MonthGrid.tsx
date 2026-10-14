@@ -133,10 +133,9 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
       <div className="tablebox"><table className="mgrid">
         <thead><tr>
           {heads}
-          {statuses && <th scope="col">Status</th>}
           {months.map((m, i) => <th key={m} className={`num mo${i === now ? " now" : ""}${isPast(i) ? " past" : ""}`} scope="col">{MONTH_ABBR[i]}</th>)}
           {!contracts && <th className="num eh" scope="col">Average hours per week</th>}
-          {contracts && <><th className="num" scope="col">Per day</th><th scope="col">Work type</th>{drawings && <th scope="col">Drawing standard</th>}</>}
+          {contracts && <><th className="num" scope="col">Current Per day</th><th scope="col">Work type</th>{statuses && <th scope="col">Status</th>}{drawings && <th scope="col" className="dstd">Standard</th>}</>}
         </tr></thead>
         <tbody>
           {rows.map((r) => {
@@ -150,13 +149,6 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
             return (
               <tr key={r.id} className={inPlace(r) ? undefined : "out"}>
                 {r.lead}
-                {statuses && <td data-l="Status">
-                  {r.editable
-                    ? <select name={statusName} value={mt.status} onChange={(e) => setMeta("status", e.target.value)} aria-label={`${r.name} status`}>
-                        {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                      </select>
-                    : labelOf(statuses, mt.status) || <span className="note">–</span>}
-                </td>}
                 {months.map((m, i) => {
                   const diff = num(v[i]) !== r.usual, locked = isPast(i) && !unlocked;
                   return (
@@ -184,7 +176,14 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                         </details>
                       : picked.length ? picked.join(" + ") : <span className="note">–</span>}
                   </td>
-                  {drawings && <td data-l="Drawing standard">
+                  {statuses && <td data-l="Status">
+                    {r.editable
+                      ? <select name={statusName} value={mt.status} onChange={(e) => setMeta("status", e.target.value)} aria-label={`${r.name} status`}>
+                          {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        </select>
+                      : labelOf(statuses, mt.status) || <span className="note">–</span>}
+                  </td>}
+                  {drawings && <td data-l="Standard" className="dstd">
                     {r.editable
                       ? <select name={drawingName} value={mt.drawing} onChange={(e) => setMeta("drawing", e.target.value)} aria-label={`${r.name} drawing standard`}>
                           <option value="">Not set</option>

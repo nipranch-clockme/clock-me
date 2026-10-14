@@ -48,7 +48,7 @@ export default function PeopleClient(props: Props) {
               <td data-l="Role">{roleName(p.role)}</td>
               <td data-l="Office and team">{p.locationName}<div className="note">{p.teamName || "No team"}</div></td>
               <td className="num" data-l="Expected hours per week">{p.weeklyTarget} h</td>
-              <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION" && p.role !== "HUMAN_RESOURCE" && p.role !== "GUEST")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
+              <td className="act">{(props.admin || (p.role !== "ADMIN" && p.role !== "LOCATION" && p.role !== "GUEST")) && <button type="button" className="btn sm" onClick={() => setEditing(p)}>Edit</button>}</td>
             </tr>
           ))}
           {!shown.length && <tr><td colSpan={5} className="empty">Nobody matches.</td></tr>}

@@ -89,7 +89,7 @@ export async function checkPeople(me: Me, text: string, officeId: string) {
       : name.length > 100 ? "Name can be up to 100 characters"
       : !email ? "No email"
       : !EMAIL_RE.test(email) ? "That isn't a valid email address"
-      : roleP.unknown.length ? `Unknown role: ${roleP.unknown.join(", ")}. Use one of our roles (Admin, Location manager, Team/Project Manager, Human Resource, Guest), or leave it blank for Team member.`
+      : roleP.unknown.length ? `Unknown role: ${roleP.unknown.join(", ")}. Use one of our roles (Admin, Location manager, Team/Project Manager, Guest), or leave it blank for Team member.`
       : !loc ? (officeName ? `Unknown office: ${officeName}` : "Choose an office")
       : manageError(me, loc.id, roleP.role) ?? (
         roleP.role === "LEADER" && !teamName ? "Team/Project Managers need a team: add their Group"

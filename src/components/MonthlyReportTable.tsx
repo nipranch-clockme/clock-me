@@ -10,12 +10,12 @@ const num = (v: number | string | null) => (v === null ? "–" : typeof v === "n
 export default function MonthlyReportTable({ report, office, offices, years, keep, contracts = true }: {
   report: MonthlyReport;
   office: { id: string; name: string };
-  /** Offices to choose from (admins and Human Resource). */
+  /** Offices to choose from (admins). */
   offices?: { id: string; name: string }[];
   years: number[];
   /** The page's other settings, kept when the year or office changes. */
   keep: Record<string, string>;
-  /** Whether the contract fulfilment line and its explanation are shown (not for Human Resource). */
+  /** Whether the contract fulfilment line and its explanation are shown. */
   contracts?: boolean;
 }) {
   const lines = reportLines(report, contracts);

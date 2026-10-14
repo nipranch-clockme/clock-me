@@ -9,13 +9,13 @@ const switchOn=(p)=>p.getByRole('switch',{name:'Ignore phases'}).isChecked();
 (async()=>{const b=await start();
  const a=await login(b,'admin@example.com');
  await go(a,'/reports?range=lastmonth&tab=detailed');
- ok('four columns: Time entry, User, Time, Duration',(await heads(a))==='Time entry | User | Time | Duration',await heads(a));
+ ok('four columns: Time entry, User, Date, Duration',(await heads(a))==='Time entry | User | Date | Duration',await heads(a));
  const row=a.locator('.rtable tbody tr').first();
  const te=row.locator('td[data-l="Time entry"]');
  ok('a row shows its description',(await te.locator('.rdesc').count())===1&&(await te.locator('.rdesc').innerText()).trim().length>0);
- ok('a row shows its project line with a colour dot',(await te.locator('.rmeta .dot').count())===1&&(await te.locator('.rmeta').first().innerText()).trim().length>0,(await te.locator('.rmeta').first().innerText()).trim());
- const time=(await row.locator('td[data-l=Time]').innerText()).trim();
- ok('a row shows its time range, with the date under it',/^\d{2}:\d{2} – \d{2}:\d{2}/.test(time)&&/[A-Z][a-z]{2} \d{1,2}, \d{4}/.test(time),time.replace(/\s+/g,' '));
+ ok('a row shows its project line with a colour dot',(await te.locator('.rproj .dot').count())===1&&(await te.locator('.rproj').first().innerText()).trim().length>0,(await te.locator('.rproj').first().innerText()).trim());
+ const time=(await row.locator('td[data-l=Date]').innerText()).trim();
+ ok('a row shows its date',/[A-Z][a-z]{2} \d{1,2}, \d{4}/.test(time),time.replace(/\s+/g,' '));
  ok('a row shows its duration',/^\d[\d,.:]*/.test((await row.locator('td[data-l=Duration]').innerText()).trim()));
  const withPhases=await a.locator('.rtable tbody .rphase').count();
  ok('phases show on the entries that have one',withPhases>0,withPhases+' labels');
@@ -27,7 +27,7 @@ const switchOn=(p)=>p.getByRole('switch',{name:'Ignore phases'}).isChecked();
  ok('the switch puts nophase=1 in the URL',/[?&]nophase=1(&|$)/.test(a.url()),a.url());
  ok('the switch is on',await switchOn(a));
  ok('no phase labels in the rows',await a.locator('.rtable tbody .rphase').count()===0);
- ok('the four columns are still there',(await heads(a))==='Time entry | User | Time | Duration');
+ ok('the four columns are still there',(await heads(a))==='Time entry | User | Date | Duration');
  ok('the total does not change',Math.abs((await total(a))-before)<0.01,before+' → '+(await total(a)));
 
  // the Group by menu sits on the Summary tab, which keeps the switch
