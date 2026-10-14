@@ -69,7 +69,8 @@ const GENERIC="isn't in your list|can't change the hours";
   const vals=async(id)=>adm.$$eval(`input[data-cell^="m|${id}|"]`,(is)=>is.map((i)=>i.value));
   ok('contracts: the usual hours fill every month of a fixed client, and a no-commitment client is empty',(await vals(C1)).every((v)=>v==='10')&&(await vals(C2)).every((v)=>v===''));
   const rowOf=(name)=>adm.locator(`tr:has(td.cl a:text-is("${name}"))`);
-  ok('contracts: per day, with no year total and no per week column',(await rowOf(N1).locator('td.tot').count())===0&&(await rowOf(N1).locator('td').nth(2+12).innerText())===(10/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2})&&!(await adm.locator('table.mgrid thead').innerText()).includes('Year total')&&!(await adm.locator('table.mgrid thead').innerText()).includes('Per week'),(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(-60));
+  // cells: the client, twelve months, then Current Per day (the work type comes after it)
+  ok('contracts: per day, with no year total and no per week column',(await rowOf(N1).locator('td.tot').count())===0&&(await rowOf(N1).locator('td').nth(1+12).innerText())===(10/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2})&&!(await adm.locator('table.mgrid thead').innerText()).includes('Year total')&&!(await adm.locator('table.mgrid thead').innerText()).includes('Per week'),(await rowOf(N1).innerText()).replace(/\s+/g,' ').slice(-60));
   ok('contracts: each client has its own status',await adm.inputValue(`select[aria-label="${N1} status"]`)==='CONTRACTED'&&await adm.inputValue(`select[aria-label="${N2} status"]`)==='PROJECT_BASED');
   ok('contracts: the current month is marked in the heading',(await adm.locator('th.now').innerText())===['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mi]);
   ok('contracts: Save is off until something changes',await adm.locator('.mg-save button.primary').isDisabled());
@@ -77,7 +78,7 @@ const GENERIC="isn't in your list|can't change the hours";
   // change this month (the contract ends part-way: 6 h), next (ends: 0) and give the floating client a figure
   if(other<mi) await unlockPast(adm);
   await adm.fill(inp(C1,mi),'6');await adm.fill(inp(C1,other),'0');await adm.fill(inp(C2,mi),'20');
-  ok('contracts: changed boxes turn blue and per day follows as you type',await adm.locator(inp(C1,mi)).evaluate((e)=>e.classList.contains('chg'))&&(await rowOf(N1).locator('td').nth(2+12).innerText())===(6/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2}));
+  ok('contracts: changed boxes turn blue and per day follows as you type',await adm.locator(inp(C1,mi)).evaluate((e)=>e.classList.contains('chg'))&&(await rowOf(N1).locator('td').nth(1+12).innerText())===(6/workdaysIn(ym)).toLocaleString('en-US',{maximumFractionDigits:2}));
   const numOf=(s)=>Number(s.replace(/,/g,''));
   const perDayAll=numOf(await adm.locator('table.mgrid tfoot td').nth(13).innerText()), monthAll=numOf(await adm.locator('table.mgrid tfoot td').nth(1+mi).innerText());
   ok('contracts: the All clients row shows per day as this month over its working days',perDayAll>0&&Math.abs(perDayAll*workdaysIn(ym)-monthAll)<0.2,`${perDayAll} x ${workdaysIn(ym)} vs ${monthAll}`);
@@ -255,8 +256,9 @@ const GENERIC="isn't in your list|can't change the hours";
   ok('crafted: a team member cannot change their own hours',snapH()===beforeH);
   // admin
   await go(adm,'/people?view=hours');
-  const listed=count(`select count(*) from "User" where active and role<>'ADMIN'`);
-  ok('hours: the admin sees every office and everyone who is not an admin',await adm.locator('table.mgrid tbody tr').count()===listed&&await rowP(adm,'Mg Other').count()===1&&await rowP(adm,'Mg Admin').count()===0,`${await adm.locator('table.mgrid tbody tr').count()} vs ${listed}`);
+  // admins and guests are not a resource, so the hours table leaves them out
+  const listed=count(`select count(*) from "User" where active and role not in ('ADMIN','GUEST')`);
+  ok('hours: the admin sees every office and every resource (not admins or guests)',await adm.locator('table.mgrid tbody tr').count()===listed&&await rowP(adm,'Mg Other').count()===1&&await rowP(adm,'Mg Admin').count()===0,`${await adm.locator('table.mgrid tbody tr').count()} vs ${listed}`);
   ok('hours: the admin can change a manager and another office',await adm.locator(`input[data-cell^="m|${LM2}|"]`).count()===12&&await adm.locator(`input[data-cell^="m|${OM}|"]`).count()===12);
   r=await act(adm,'/people','saveHours',{year:String(y),[`m|${KA}|${ymAt(mi)}`]:'30'});
   ok('crafted: even an admin cannot give an admin expected hours (not a resource)',refused(r,'not a resource')&&snapH()===beforeH,r.text.slice(-140));
