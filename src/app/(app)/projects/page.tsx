@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { addedProjectsWhere, canCreateProject, canEditProject, clientColorFor, hidesClients, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
 import { PageHead, Pill } from "@/components/ui";
-import ProjectsClient from "./ProjectsClient";
+import ProjectsClient, { SelectAllProjects } from "./ProjectsClient";
 import ClientForm, { EditClient } from "./ClientForm";
 import { clientTypeName, contractOf, perMonth } from "@/lib/clients";
 import Link from "next/link";
@@ -74,9 +74,10 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         {/* The empty message sits outside the table so it doesn't scroll sideways with it on phones. */}
         {!projects.length ? <p className="empty">{!creator ? "You haven't been added to any projects yet." : sp.client ? "No projects for this client." : "No projects yet."}</p> : (
           <>
+          {creator && <div className="pselect"><SelectAllProjects /></div>}
           <div className="tablebox">
             <table className="ptable ctable">
-              <thead><tr>{creator && <th className="pick"><span className="sr-only">Select to edit in bulk</span></th>}<th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
+              <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
               <tbody>
                 {projects.map((p) => {
                   const u = used[p.id] ?? 0, pc = p.budgetHours ? u / p.budgetHours : 0;
@@ -84,9 +85,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                   const who = p.access === "PUBLIC" ? "Everyone" : `Restricted: ${accessText(p)}`;
                   return (
                     <tr key={p.id}>
-                      {creator && <td className="pick">{editable.some((e) => e.id === p.id) && <input type="checkbox" name="ids" value={p.id} aria-label={`Select ${p.name}`} />}</td>}
-                      {/* one line: the project, then its client beside it */}
-                      <td className="pone"><span className="dot" style={{ background: `var(--${clientColorFor(me, p.client.color)})` }} /><span className="prname">{p.name}</span>{!hidesClients(me) && <span className="prclient">{p.client.name}</span>} {p.archived && <Pill tone="locked">Archived</Pill>}</td>
+                      {/* one line: the tick box, the project, then its client beside it (the box is kept as a gap where there is none) */}
+                      <td className="pone">{creator && <span className="pkick">{editable.some((e) => e.id === p.id) && <input type="checkbox" name="ids" value={p.id} aria-label={`Select ${p.name}`} />}</span>}<span className="dot" style={{ background: `var(--${clientColorFor(me, p.client.color)})` }} /><span className="prname">{p.name}</span>{!hidesClients(me) && <span className="prclient">{p.client.name}</span>} {p.archived && <Pill tone="locked">Archived</Pill>}</td>
                       <td data-l="Who can see it" className="pone clip" title={who}>{p.access === "PUBLIC" ? <Pill tone="locked">Everyone</Pill> : <><Pill tone="locked">Restricted</Pill> <span className="note">{accessText(p)}</span></>}</td>
                       <td className="note pone clip" data-l="Managers" title={managers}>{managers || "–"}</td>
                       <td className="note pone clip" data-l="Phases" title={phases}>{phases}</td>

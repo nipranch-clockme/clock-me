@@ -70,6 +70,31 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
   );
 }
 
+/** Ticks every project the person can edit in one go. The box shows a dash while only some of them are ticked. */
+export function SelectAllProjects() {
+  const ref = useRef<HTMLInputElement>(null);
+  const [counts, setCounts] = useState({ total: 0, on: 0 });
+  const boxes = () => [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"][name="ids"]')];
+  useEffect(() => {
+    const read = () => setCounts({ total: boxes().length, on: boxes().filter((b) => b.checked).length });
+    read();
+    document.addEventListener("change", read);
+    return () => document.removeEventListener("change", read);
+  }, []);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = counts.on > 0 && counts.on < counts.total;
+  }, [counts]);
+  const all = counts.total > 0 && counts.on === counts.total;
+  return (
+    <label className="check">
+      <input ref={ref} type="checkbox" checked={all} disabled={counts.total === 0} onChange={(e) => {
+        boxes().forEach((b) => { if (b.checked !== e.target.checked) { b.checked = e.target.checked; b.dispatchEvent(new Event("change", { bubbles: true })); } });
+      }} />
+      Select all
+    </label>
+  );
+}
+
 /** Changes the same things on several projects. Each part is ticked on separately; projects the person doesn't manage are skipped. */
 function BulkEditor({ ids, form, onDone }: { ids: string[]; form: ProjectForm; onDone: () => void }) {
   const router = useRouter();
