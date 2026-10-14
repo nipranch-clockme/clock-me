@@ -21,6 +21,7 @@ export default function PeopleClient(props: Props) {
   const open = editing || inviting;
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
   const shown = people.filter((p) => (!place || p.locationId === place) && (status === "all" || p.active === (status === "active")) && (!q || `${p.name} ${p.email} ${p.employeeId} ${p.title} ${p.teamName} ${p.locationName}`.toLowerCase().includes(q.toLowerCase())));
+  const count = <span className="note">{shown.length} of {people.length} {people.length === 1 ? "person" : "people"}</span>; // says how many the filters leave
 
   return (
     <section className="panel full">
@@ -39,6 +40,7 @@ export default function PeopleClient(props: Props) {
               <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
               {props.locations.map((l) => <button key={l.id} type="button" aria-pressed={place === l.id} onClick={() => setPlace(l.id)}>{l.name}</button>)}
             </div>
+            {place && count}
           </div>
         )}
         <div role="group" aria-label="Status" className="row" style={{ gap: 10, alignItems: "center" }}>
@@ -48,8 +50,8 @@ export default function PeopleClient(props: Props) {
             <button type="button" aria-pressed={status === "archived"} onClick={() => setStatus("archived")}>Archived</button>
             <button type="button" aria-pressed={status === "all"} onClick={() => setStatus("all")}>All</button>
           </div>
+          {!place && status !== "active" && count}
         </div>
-        {(place || status !== "active") && <span className="note">{shown.length} of {people.length} {people.length === 1 ? "person" : "people"}</span>}
       </div>
       <div className="tablebox"><table className="ctable pptable">
         <thead><tr><th>Name</th><th>Role</th><th>Office and team</th><th className="num eh">Expected hours per week</th><th /></tr></thead>
