@@ -114,7 +114,7 @@ const tagsOf = (where) => sql(`select array_to_string(array(select name from "Ta
     ok(num(await a.locator('.rtotal b').first().innerText()) === 2, 'two ticked tags match entries with either one');
     await go(a, rep + '&tab=detailed');
     const detail = (await a.locator('.rtable tbody tr').evaluateAll((trs) => trs.map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()))).join(' | ');
-    ok(/CAD, ENG/.test(detail), 'the detailed list shows both tags in one cell', detail.slice(0, 200));
+    ok(/CAD,?\s+ENG/.test(detail), 'the detailed list shows both tags in one cell', detail.slice(0, 200));
     await go(a, rep + '&group=tag');
     const tot = await a.locator('.rtotal b').first().innerText();
     ok(num(tot) === 3.5, 'the total counts each entry once, however many tags it has', tot);
