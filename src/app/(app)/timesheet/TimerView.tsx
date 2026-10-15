@@ -6,33 +6,38 @@ import type { EntryOptions } from "@/components/entryTypes";
 import { draftEdit, useRestoreDraft, type EntryEdit } from "@/components/entryDraft";
 import type { SheetEntry } from "./TimesheetGrid";
 import { discardTimer, startTimer, stopTimer, type TimerResult } from "./timer-actions";
-import SearchSelect from "@/components/SearchSelect";
+import { saveEntry, type EntryResult } from "./actions";
+import BarProject from "./BarProject";
 import TagPicker from "@/components/TagPicker";
 import { ICONS } from "@/components/icons";
-import { DESCRIPTION_MAX } from "@/lib/format";
+import { DESCRIPTION_MAX, parseDuration } from "@/lib/format";
 
 export type RunningTimer = { projectId: string; phaseId: string | null; tagIds: string[]; description: string; startedAt: string };
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.round(m) % 60).padStart(2, "0")}`;
 const clock = (s: number) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((x) => String(x).padStart(2, "0")).join(":");
 const fmt = (m: number, f: "decimal" | "hhmm") => (f === "hhmm" ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : (m / 60).toFixed(2));
-// The time a timer started, in company time like the entries it adds, so the server and every browser show the same text.
-const startTime = (iso: string, timeZone: string) => {
-  const f = (tz: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }).format(new Date(iso));
+// Clock time in company time, like the entries it adds, so the server and every browser show the same text.
+const companyHM = (d: Date, timeZone: string) => {
+  const f = (tz: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }).format(d);
   try { return f(timeZone); } catch { return f("UTC"); }
 };
 
-/** Timesheet view 3: start and stop a timer on one project. Stopping adds the time as entries. */
+/** Timesheet view 3: start and stop a timer on one project, or type a time and add it. Stopping, or adding, makes entries. */
 export default function TimerView({ opts, meId, run, entries, dates, today, locked, blocked, timeZone }: {
   opts: EntryOptions; run: RunningTimer | null; entries: SheetEntry[]; dates: string[]; today: string; locked: (string | null)[]; blocked: string | null; timeZone: string; meId: string;
 }) {
   const router = useRouter();
   const [startState, startAction, starting] = useActionState<TimerResult, FormData>(startTimer, null);
   const [stopState, stopAction, stopping] = useActionState<TimerResult, FormData>(stopTimer, null);
+  const [addState, addAction, adding] = useActionState<EntryResult, FormData>(saveEntry, null);
+  const [lastAdd, setLastAdd] = useState(false);
   const [projectId, setProjectId] = useState(run?.projectId ?? "");
   const [phaseId, setPhaseId] = useState(run?.phaseId ?? "");
   const [desc, setDesc] = useState(run?.description ?? "");
   const [tagN, setTagN] = useState(run?.tagIds.length ?? 0);
+  const [typed, setTyped] = useState("");
+  const [clockErr, setClockErr] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const descRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLButtonElement>(null);
@@ -44,8 +49,8 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
   const focusHere = (el: HTMLElement | null) => { const a = document.activeElement; if (!a || a === document.body || formRef.current?.contains(a) || a.closest("dialog")) el?.focus(); };
   // Tags are plain tick boxes, so clear them by hand when the bar is emptied.
   const clearTags = () => { formRef.current?.querySelectorAll<HTMLInputElement>('input[name="tagIds"]').forEach((i) => { i.checked = false; }); setTagN(0); };
-  // Once time is added (by the timer or a manual entry), the bar is empty and ready for the next one.
-  const clearBar = () => { setProjectId(""); setPhaseId(""); setDesc(""); clearTags(); closeTags(); focusHere(descRef.current); };
+  // Once time is added (by the timer, Add Time or a manual entry), the bar is empty and ready for the next one.
+  const clearBar = () => { setProjectId(""); setPhaseId(""); setDesc(""); setTyped(""); clearTags(); closeTags(); focusHere(descRef.current); };
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryEdit | null>(null);
@@ -55,6 +60,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
   // Start turns into Stop once the running timer arrives: keep the keyboard on it.
   useEffect(() => { if (run && started.current) { started.current = false; focusHere(mainRef.current); } }, [run]);
   useEffect(() => { if (stopState?.ok) { setMsg(stopState.message ?? ""); clearBar(); router.refresh(); } }, [stopState, router]);
+  useEffect(() => { if (addState?.ok) { setMsg("Time added for today."); clearBar(); router.refresh(); } }, [addState, router]);
   // The Tags pop-up closes when a click or the keyboard goes somewhere else on the page.
   useEffect(() => {
     const away = (e: PointerEvent) => { const t = tagsRef.current; if (t?.open && !t.contains(e.target as Node)) t.open = false; };
@@ -62,16 +68,17 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
     return () => document.removeEventListener("pointerdown", away);
   }, []);
   // Only the result of the action on screen counts: a failed Stop is not shown once the timer has gone, and a Start error is not hidden by one.
-  const state = run ? stopState : startState;
+  const state = run ? stopState : lastAdd ? addState : startState;
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const secs = run && now ? Math.max(0, Math.floor((now - new Date(run.startedAt).getTime()) / 1000)) : 0;
-  const busy = starting || stopping;
+  const busy = starting || stopping || adding;
   // Sent from here rather than as a form action, which would reset the form afterwards and so blank the phase and tags the timer runs with.
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
     const fd = new FormData(e.currentTarget), act = run ? stopAction : startAction;
     closeTags();
+    setLastAdd(false);
     startTransition(() => act(fd));
   };
   const days = [...dates].reverse().filter((d) => entries.some((e) => e.date === d));
@@ -88,6 +95,20 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
     const fd = new FormData(formRef.current ?? undefined);
     setEdit({ projectId: projectId || undefined, projectName: project?.name, phaseId: phaseId || null, tagIds: fd.getAll("tagIds").map(String), description: desc, date: today, lockedReason: blocked });
   };
+  // Add Time: a time typed on the clock is added for today, ending now, with no pop-up. With the clock empty, or a timer running, it opens the form instead.
+  const addTime = () => {
+    const t = run ? "" : typed.trim().replace(/^(\d+):(\d{2}):00$/, "$1:$2");
+    if (!t) { manual(); return; }
+    if (adding) return;
+    const len = parseDuration(t) || 0, hhmm = companyHM(new Date(), timeZone);
+    const startMin = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)) - len;
+    if (startMin < 0) { setClockErr("That is more than has passed today. Clear the clock and press Add Time to set the start in a form."); return; }
+    setClockErr("");
+    const fd = new FormData(formRef.current ?? undefined);
+    fd.set("userId", meId); fd.set("date", today); fd.set("start", hm(startMin)); fd.set("duration", t);
+    setLastAdd(true);
+    startTransition(() => addAction(fd));
+  };
   const discard = () => startTransition(async () => { await discardTimer(); clearBar(); router.refresh(); });
   return (
     <>
@@ -95,8 +116,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
         <div className={`tmcard${run ? " on" : ""}`}>
           <input id="tm-desc" ref={descRef} name="description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" aria-label="Description" aria-required={opts.requireDescription || undefined} maxLength={DESCRIPTION_MAX} className={`tmdesc${bad("Description") ? " err" : ""}`} />
           <div className="tmproj">
-            <label htmlFor="tm-project" className="sr-only">Project</label>
-            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={pickProject} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects" minToSearch={0}
+            <BarProject value={projectId} onChange={pickProject} invalid={!!bad("projectId")}
               options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
           </div>
           <select id="tm-phase" name="phaseId" aria-label="Phase" value={phaseId} onChange={(e) => setPhaseId(e.target.value)} className={`tmphase${bad("Phase") ? " err" : ""}`}>
@@ -111,19 +131,23 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
               <TagPicker id="tm-tag" tags={opts.tags} selected={run?.tagIds ?? []} required={opts.requireTag} invalid={state?.fields?.includes("Tags")} />
             </div>
           </details>
-          <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
-          {/* One button that turns from Start into Stop, so the keyboard stays on it. While waiting it is only marked busy, as a disabled button would lose focus. */}
-          <button ref={mainRef} className="btn primary" disabled={!run && (!!blocked || !projectId)} aria-disabled={busy || undefined}>{run ? "Stop" : "Start"}</button>
+          {run
+            ? <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
+            : <input className="tmclock-in" name="duration" value={typed} placeholder="00:00:00" aria-label="Time to add, like 1:30 or 1.5. Leave empty to set the start in a form"
+                inputMode="decimal" autoComplete="off" onChange={(e) => { setTyped(e.target.value); setClockErr(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTime(); } }} />}
+          {/* One button that turns from Start Timer into Stop, so the keyboard stays on it. While waiting it is only marked busy, as a disabled button would lose focus. */}
+          <button ref={mainRef} className="btn primary" disabled={!run && (!!blocked || !projectId)} aria-disabled={busy || undefined}>{run ? "Stop" : "Start Timer"}</button>
           {run && <button type="button" className="btn" onClick={discard}>Discard</button>}
-          <button type="button" className="btn tmmanual" onClick={manual} disabled={!!blocked || !projectId} title={blocked ?? (projectId ? undefined : "Choose a project first")}>Manual entry</button>
+          <button type="button" className="btn tmadd" onClick={addTime} aria-disabled={adding || undefined} disabled={!!blocked || !projectId} title={blocked ?? (projectId ? undefined : "Choose a project first")}>Add Time</button>
         </div>
       </form>
-      {state?.error && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{state.error}</p>}
+      {(clockErr || state?.error) && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{clockErr || state?.error}</p>}
       {msg && !run && <p className="alert info" role="status" style={{ marginTop: 8 }}>{msg}</p>}
       <p className="note tmnote">
-        {blocked ? `${blocked} So the timer and Manual entry can't add time today.`
-          : run ? `Started ${startTime(run.startedAt, timeZone)}. Stopping adds the time as an entry. You can change the project and details while it runs.`
-          : "Pick a project and press Start. When you stop, the time is added as an entry for today."}
+        {blocked ? `${blocked} So the timer and Add Time can't add time today.`
+          : run ? `Started ${companyHM(new Date(run.startedAt), timeZone)}. Stopping adds the time as an entry. You can change the project and details while it runs.`
+          : "Pick a project and press Start Timer. When you stop, the time is added as an entry for today. Or type a time on the clock and press Add Time to add it for today, ending now."}
       </p>
       {days.map((d) => {
         const es = entries.filter((e) => e.date === d).sort((a, b) => b.startMin - a.startMin);
@@ -133,7 +157,9 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
             {es.map((e) => (
               <button key={e.id} type="button" className="tmrow" onClick={() => open(e)} aria-label={`${lockFor(d) ? "View" : "Edit"} entry: ${e.projectName}, ${fmt(e.minutes, opts.timeFormat)} hours`}>
                 <span className="dot" style={{ background: `var(--${e.clientColor})` }} />
-                <span className="tmn"><b>{e.projectName}</b><small><bdi>{[e.clientName, e.phaseName, e.tagName, e.description].filter(Boolean).join(" · ")}</bdi></small></span>
+                <span className="tmn">{e.description
+                  ? <><b title={e.description}><bdi>{e.description}</bdi></b><small><bdi>{[e.projectName, e.clientName, e.phaseName, e.tagName].filter(Boolean).join(" · ")}</bdi></small></>
+                  : <><b>{e.projectName}</b><small><bdi>{[e.clientName, e.phaseName, e.tagName].filter(Boolean).join(" · ")}</bdi></small></>}</span>
                 <span className="tmt">{hm(e.startMin)} to {hm(e.startMin + e.minutes)}</span>
                 <span className="tmh">{fmt(e.minutes, opts.timeFormat)}</span>
               </button>

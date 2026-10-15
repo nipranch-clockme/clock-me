@@ -101,8 +101,23 @@ nav.snav hr+.navend{margin-top:auto}
 .tmtags[open]>.tmtag-btn{color:var(--accent-ink);background:var(--accent-soft)}
 .tmtags[open] .tagpick{position:absolute;z-index:30;top:calc(100% + 6px);right:0;width:300px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:12px}
 .tmtags[open] .tagpick-list{max-height:260px}
+/* The project dropdown on the bar: its pop-up opens with a search box at the top, then the matching projects */
+.tmpick{position:relative;min-width:0}
+.tmpick>summary{display:block;height:34px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--field);border-radius:6px;background:var(--surface);font-size:14px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;list-style:none}
+.tmpick>summary::-webkit-details-marker{display:none}
+.tmpick.err>summary{border-color:var(--bad);background:var(--bad-soft)}
+.tmpick[open]>summary{border-color:var(--accent)}
+.tmpick-pop{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:300px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:10px}
+.tmpick-q{width:100%;box-sizing:border-box;margin-bottom:8px}
+.tmpick-list{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
+.tmpick-opt{display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:6px 8px;border:0;border-radius:6px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.tmpick-opt:hover,.tmpick-opt:focus-visible{background:var(--hover)}
+.tmpick-opt.on{background:var(--accent-soft);color:var(--accent-ink)}
+.tmpick-opt small{color:var(--muted);font-size:12px}
 .tmclock{font:600 20px/1 var(--body);font-variant-numeric:tabular-nums;min-width:6ch;text-align:right;padding:0 4px}
-.tmmanual{white-space:nowrap;margin-left:auto}
+/* the clock while no timer runs: typed time for Add Time, shaped like the clock */
+.tmclock-in{font:600 18px/1 var(--body);font-variant-numeric:tabular-nums;width:9ch;min-width:0;text-align:right;padding:0 8px}
+.tmadd{white-space:nowrap;margin-left:auto}
 .tmnote{margin:8px 2px 0}
 .tmday{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin:20px 2px 8px}
 /* One line per entry, like a row of the Reports table: the project, then its client, phase, tags and description (cut short with "…", full text on hover), then the times and hours */
@@ -113,8 +128,8 @@ nav.snav hr+.navend{margin-top:auto}
 .tmrow .tmn small{flex:1 1 auto;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .tmrow .tmn b,.tmrow .tmn small{white-space:nowrap}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
-@media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}.tmtags[open] .tagpick{left:0;right:auto;width:auto;max-width:calc(100vw - 64px)}}
-@media (max-width:560px){.tmrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"dot name hrs" "dot det tm";column-gap:10px;row-gap:2px;white-space:normal}.tmrow .dot{grid-area:dot}.tmrow .tmn{display:contents}.tmrow .tmn b{grid-area:name;max-width:none}.tmrow .tmn small{grid-area:det}.tmrow .tmt{grid-area:tm}.tmrow .tmh{grid-area:hrs}.tmcard .tmclock{flex:1 1 50%}.tmcard>.btn{flex:1 1 40%}} /* phones: Tags and the clock share a row, then Start and Manual entry side by side, full size */
+@media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmadd{margin-left:0}.tmtags[open] .tagpick{left:0;right:auto;width:auto;max-width:calc(100vw - 64px)}}
+@media (max-width:560px){.tmrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"dot name hrs" "dot det tm";column-gap:10px;row-gap:2px;white-space:normal}.tmrow .dot{grid-area:dot}.tmrow .tmn{display:contents}.tmrow .tmn b{grid-area:name;max-width:none}.tmrow .tmn small{grid-area:det}.tmrow .tmt{grid-area:tm}.tmrow .tmh{grid-area:hrs}.tmcard .tmclock,.tmcard .tmclock-in{flex:1 1 50%}.tmcard>.btn{flex:1 1 40%}} /* phones: Tags and the clock share a row, then Start Timer and Add Time side by side, full size */
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
