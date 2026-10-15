@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { addMonths, endOfMonth, localDate, longDate, toDate, today } from "@/lib/dates";
+import { addMonths, dateWithYear, endOfMonth, localDate, localMinutes, longDate, toDate, today } from "@/lib/dates";
 import { SHARE_PATH } from "@/lib/clientShare";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd } from "@/lib/productivity";
@@ -15,9 +15,11 @@ import { clientTeamOptions, teamLabelOf } from "@/lib/clientTeams";
 import { EditClient } from "../../projects/ClientForm";
 import { ContractMeter, PeriodPicker, ShareTable, periodNote } from "../parts";
 import ShareLink from "./ShareLink";
+import ClientNotes, { type NoteView } from "./ClientNotes";
 
 // One client: totals for the period, hours by month against the contract, and hours by project, phase and person.
 // Every total counts the whole company. Location managers only see their own office's people listed by name.
+const clock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 export default async function ClientPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const me = await requireTab("clients");
@@ -25,6 +27,11 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const f = (m: number) => fmtHours(m, settings.timeFormat);
   const client = await db.client.findUnique({ where: { id }, include: { team: { include: { location: true } }, contacts: { orderBy: { sort: "asc" } } } });
   if (!client) notFound();
+  const notes = await db.clientNote.findMany({ where: { clientId: id }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } });
+  const noteViews: NoteView[] = notes.map((n) => ({
+    id: n.id, body: n.body, author: n.author?.name ?? "Unknown", when: `${dateWithYear(localDate(n.createdAt))}, ${clock(localMinutes(n.createdAt))}`,
+    canDelete: me.role === "ADMIN" || n.authorId === me.id,
+  }));
   const cm = await loadContractMonths(id); // the months whose contract differs from the usual monthly hours
   const tags = await db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
   const tagOpts = me.role === "ADMIN" ? tags : [];
@@ -138,6 +145,11 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
           <h3>Hours by person</h3>
           {ownOffice && <p className="note" style={{ margin: "0 0 8px" }}>Only people in the {me.location.name} office are listed by name. Hours from other offices are added up in one line, and every total on this page counts the whole company.</p>}
           <ShareTable head="Person" rows={personRows} total={total} f={f} empty="No time in this period." />
+        </section>
+        <section className="panel full">
+          <h3>Notes</h3>
+          <p className="note" style={{ margin: "0 0 8px" }}>Visible to Admins and Location Managers. Anyone who can open this page can add a note; you can delete your own, and Admins can delete any.</p>
+          <ClientNotes clientId={client.id} notes={noteViews} />
         </section>
       </div>
     </>

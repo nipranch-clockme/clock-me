@@ -99,6 +99,7 @@ model User {
   audit          AuditLog[]
   timer          TimerRun?
   monthlyHours   UserMonth[]
+  clientNotes    ClientNote[]
   timeOff        TimeOff[]           @relation("TimeOffPerson")
   timeOffAdded   TimeOff[]           @relation("TimeOffAddedBy")
   timeOffDecided TimeOff[]           @relation("TimeOffDecidedBy")
@@ -126,9 +127,23 @@ model Client {
   contacts          ClientContact[]
   workTypeIds       String[]        @default([]) // the kinds of work done for this client (ids of Tags), kept for the record
   months            ClientMonth[]
+  notes             ClientNote[]
   shareToken        String?         @unique // the secret in the client's view-only report link; null while the link is off
   shareApprovedOnly Boolean         @default(false) // the shared report counts only time in approved timesheets
   shareViewedAt     DateTime? // when the link was last opened (updated at most once an hour)
+}
+
+// A note on a client, written by someone who can open the client's page. Shown newest first.
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([clientId, createdAt])
 }
 
 // People at the client who are the points of contact.

@@ -12,11 +12,6 @@ export const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug
 /** Field name for one cell of the table. */
 export const cellName = (rowId: string, ym: string) => `m|${rowId}|${ym}`;
 
-/** A box's text for a month: blank and 0 both mean nothing that month, and a month the same as the usual figure shows the usual figure. */
-export const cellText = (v: number, usual: number) => (v > 0 ? String(v) : usual > 0 ? "0" : "");
-/** A box's text as hours: blank, and anything that is not a number from 0 up, counts as 0. */
-export const cellNumber = (s: string) => { const n = s.trim() === "" ? 0 : Number(s); return Number.isFinite(n) && n >= 0 ? n : 0; };
-
 /** The cells a submitted table holds: row id, then "YYYY-MM", then what was typed. Anything that is not a well-formed cell is ignored. */
 export function readCells(form: FormData, months: string[]): Map<string, Map<string, string>> {
   const ok = new Set(months), out = new Map<string, Map<string, string>>();

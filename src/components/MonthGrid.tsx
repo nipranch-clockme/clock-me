@@ -1,8 +1,7 @@
 "use client";
 import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
 import TableFilter from "./TableFilter";
-import ContractEditor, { confirmUnlockPast } from "./ContractEditor";
-import { MONTH_ABBR, cellName, cellNumber as num, cellText as show, type GridResult } from "@/lib/monthGrid";
+import { MONTH_ABBR, cellName, type GridResult } from "@/lib/monthGrid";
 import { labelOf } from "@/lib/clientStatus";
 
 export type GridRow = {
@@ -24,8 +23,8 @@ export type GridRow = {
   /** The hours clocked on the row in each month, shown under the boxes when Show clocked hours is on (contract tables only). */
   clocked?: number[];
 };
-export type Option = { value: string; label: string };
-export type Tag = { id: string; name: string };
+type Option = { value: string; label: string };
+type Tag = { id: string; name: string };
 type Props = {
   action: (prev: GridResult, form: FormData) => Promise<GridResult>;
   /** "contracts": hours a month per client, with a year total, work types, status and drawing standard. "hours": hours a week per person, with a yearly average. */
@@ -52,6 +51,9 @@ type Props = {
   drawings?: Option[];
 };
 
+// A blank cell and a 0 both mean nothing that month. A month the same as the usual figure shows it; it is stored only when it differs (see monthGrid.ts).
+const show = (v: number, usual: number) => (v > 0 ? String(v) : usual > 0 ? "0" : "");
+const num = (s: string) => { const n = s.trim() === "" ? 0 : Number(s); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 const same = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
 type Cells = Record<string, string[]>;
@@ -94,7 +96,6 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
   const [place, setPlace] = useState(""); // "" is every location
   const [unlocked, setUnlocked] = useState(false);
   const [clockedOn, setClockedOn] = useState(false); // the hours clocked under each box, off until asked for
-  const [editing, setEditing] = useState<GridRow | null>(null); // the client whose Edit dialog is open (contract tables)
   // Saving locks the past months again, so a later change to one needs both warnings again.
   useEffect(() => { if (state?.ok) setUnlocked(false); }, [state]);
   const editable = rows.filter((r) => r.editable);
@@ -110,17 +111,19 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
   const sums = months.map((_, i) => shown.reduce((a, r) => a + num(valsOf(r)[i]), 0));
   const clockedSums = months.map((_, i) => shown.reduce((a, r) => a + (r.clocked?.[i] ?? 0), 0));
   const showClocked = contracts && clockedOn && rows.some((r) => r.clocked);
-  // Columns after the months: Per day and Work type, then Status and Standard when the table has them, then Edit for an admin.
-  const canEdit = contracts && rows.some((r) => r.editable);
-  const tailCols = 1 + (statuses ? 1 : 0) + (drawings ? 1 : 0) + (canEdit ? 1 : 0);
+  // Columns after the months: Current Per day and Work type, then Status and Standard when the table has them.
+  const tailCols = 1 + (statuses ? 1 : 0) + (drawings ? 1 : 0);
   const isPast = (i: number) => i < past;
   // Saved by hand, not by a form action, so the browser does not clear the search box (or anything else) when the save comes back.
   const save = (ev: React.FormEvent<HTMLFormElement>) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => formAction(fd)); };
   // A past month is already reported on the Clients page, so changing it takes two confirmations. Only the second one unlocks the boxes.
-  const unlock = () => { if (confirmUnlockPast()) setUnlocked(true); };
+  const unlock = () => {
+    if (!window.confirm("Past months are locked, because their hours are already reported on the Clients page. Change past months? (Warning 1 of 2)")) return;
+    if (!window.confirm("Warning 2 of 2: this changes figures already reported for past months. Only do this to correct a figure. Continue?")) return;
+    setUnlocked(true);
+  };
 
   return (
-    <>
     <form onSubmit={save}>
       <input type="hidden" name="year" value={year} />
       {unlocked && <input type="hidden" name="pastOk" value="1" />}
@@ -152,7 +155,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
           {heads}
           {months.map((m, i) => <th key={m} className={`num mo${i === now ? " now" : ""}${isPast(i) ? " past" : ""}`} scope="col">{MONTH_ABBR[i]}</th>)}
           {!contracts && <th className="num eh" scope="col">Average hours per week</th>}
-          {contracts && <><th className="num" scope="col">Per day</th><th scope="col">Work type</th>{statuses && <th scope="col">Status</th>}{drawings && <th scope="col" className="dstd">Standard</th>}{canEdit && <th scope="col" className="act"><span className="sr-only">Edit</span></th>}</>}
+          {contracts && <><th className="num" scope="col">Per day</th><th scope="col">Work type</th>{statuses && <th scope="col">Status</th>}{drawings && <th scope="col" className="dstd">Standard</th>}</>}
         </tr></thead>
         <tbody>
           {rows.map((r) => {
@@ -209,7 +212,6 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                         </select>
                       : labelOf(drawings, mt.drawing) || <span className="note">–</span>}
                   </td>}
-                  {canEdit && <td className="act">{r.editable && <button type="button" className="btn sm" onClick={() => setEditing(r)} aria-label={`Edit ${r.name}`}>Edit</button>}</td>}
                 </>}
               </tr>
             );
@@ -244,7 +246,5 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
         </div>
       )}
     </form>
-    {canEdit && <ContractEditor row={editing} action={action} year={year} months={months} past={past} tags={tags} statuses={statuses ?? []} drawings={drawings ?? []} onClose={() => setEditing(null)} />}
-    </>
   );
 }
