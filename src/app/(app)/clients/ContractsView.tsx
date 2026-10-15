@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { endOfMonth, today, workdays } from "@/lib/dates";
-import { clockedByMonth, contractFor, contractOf, loadContractMonths } from "@/lib/clients";
-import { hoursOf } from "@/lib/monthlyReport";
+import { clockedByMonth, contractFor, contractOf, hoursOf, loadContractMonths } from "@/lib/clients";
 import { teamLabelOf } from "@/lib/clientTeams";
 import { CLIENT_STATUS, DRAWING_STANDARDS, statusRank } from "@/lib/clientStatus";
 import { MONTH_ABBR, gridYear, yearMonths } from "@/lib/monthGrid";

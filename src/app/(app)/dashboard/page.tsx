@@ -14,8 +14,6 @@ import MyStats from "@/components/MyStats";
 import TrendChart from "@/components/TrendChart";
 import MonthBars from "@/components/MonthBars";
 import { PageHead, Ifld } from "@/components/ui";
-import MonthlyReportTable from "@/components/MonthlyReportTable";
-import { ALL_OFFICES, monthlyReport, reportYears } from "@/lib/monthlyReport";
 import { clientPeriod } from "@/lib/clients";
 import { PeriodPicker, periodNote } from "../clients/parts";
 import ClientOverview from "./ClientOverview";
@@ -26,7 +24,7 @@ const TEAMCOL = ["s1", "s2", "s8", "s3", "s6", "s7", "s5"]; // one colour per te
 type Row = { id: string; name: string; title: string; team: string; locationId: string; m: number; tg: number; prod: number };
 const sum = (rows: Row[]) => { const m = rows.reduce((a, r) => a + r.m, 0), tg = rows.reduce((a, r) => a + r.tg, 0); return { m, tg, prod: tg ? m / tg : 0, n: rows.length, avg: rows.length ? m / rows.length : 0 }; };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; ryear?: string; roffice?: string; crange?: string; tab?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string; rank?: string; crange?: string; tab?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("dashboard");
   const settings = await getSettings();
@@ -35,20 +33,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (me.role === "MEMBER") return <><PageHead title="Dashboard" sub="How your logged time compares with what is expected of you." /><div className="grid g2"><MyStats me={me} timeFormat={settings.timeFormat} /></div></>;
   const range = PERIODS.some((p) => p[0] === sp.range) ? sp.range! : "thismonth";
   const rank = sp.rank === "total" ? "total" : "prod";
-  // Location managers and admins have three tabs: Team overview (below), Client overview (each client's hours and utilisation, which used to be
-  // the Clients page's overview) and Detailed utilisation, the office's monthly report like the sheet they kept before. Location managers see
-  // their office; admins the office they pick. Human Resource is removed; company utilisation is for Admins (Team overview and Detailed utilisation, every
-  // office) without anything about clients. Each tab keeps the other's choices in its links.
+  // Location managers and admins have two tabs: Team overview (below) and Client overview (each client's hours and utilisation, which used to be
+  // the Clients page's overview). Admins see the company's team numbers, every office together, without anything about clients. Each tab keeps
+  // the other's period in its links.
   const company = SEES_COMPANY_UTILISATION.includes(me.role);
   const tabs = me.role === "LOCATION" || company;
   const clientTabs = me.role === "LOCATION" || me.role === "ADMIN";
   const keep = (o: Record<string, string | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString();
-  const shared = { range: sp.range, rank: sp.rank, crange: sp.crange, ryear: sp.ryear, roffice: sp.roffice };
-  const tabNav = (on: "overview" | "clients" | "detailed") => tabs && (
+  const shared = { range: sp.range, rank: sp.rank, crange: sp.crange };
+  const tabNav = (on: "overview" | "clients") => tabs && (
     <nav className="seg rtabs dtabs" aria-label="Dashboard view">
       <Link href={`/dashboard?${keep(shared)}`} aria-pressed={on === "overview"}>Team overview</Link>
       {clientTabs && <Link href={`/dashboard?${keep({ tab: "clients", ...shared })}`} aria-pressed={on === "clients"}>Client overview</Link>}
-      <Link href={`/dashboard?${keep({ tab: "detailed", ...shared })}`} aria-pressed={on === "detailed"}>Detailed utilisation</Link>
     </nav>
   );
   if (clientTabs && sp.tab === "clients") {
@@ -58,27 +54,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <PageHead title="Dashboard" actions={<PeriodPicker per={per} id="cl-range" name="crange" keep={{ tab: "clients" }} />} sub={periodNote(per)} />
         {tabNav("clients")}
         <div className="grid"><ClientOverview per={per} f={f} /></div>
-      </>
-    );
-  }
-  if (tabs && sp.tab === "detailed") {
-    const offices = company ? await db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [{ id: me.locationId, name: me.location.name }];
-    // Admins can also pick every office together (ALL_OFFICES): the company's numbers, the offices added up.
-    const choices = company ? [{ id: ALL_OFFICES, name: "All offices" }, ...offices] : offices;
-    const office = choices.find((o) => o.id === sp.roffice) ?? offices[0];
-    const locationId = office && office.id !== ALL_OFFICES ? office.id : null;
-    const years = office ? await reportYears(locationId) : [];
-    const year = years.includes(Number(sp.ryear)) ? Number(sp.ryear) : years[0];
-    return (
-      <>
-        <PageHead title="Dashboard" sub="Each office's, or all offices' together, month-by-month numbers for the year: inventory, hours logged, people, utilisation, contract fulfilment and hours by tag." />
-        {tabNav("detailed")}
-        <div className="grid g3">
-          {office
-            ? <MonthlyReportTable report={await monthlyReport(locationId, year)} office={office} offices={company ? choices : undefined} contracts years={years}
-                keep={Object.fromEntries(Object.entries({ tab: "detailed", range: sp.range, rank: sp.rank }).filter((e): e is [string, string] => !!e[1]))} />
-            : <p className="note full">No offices yet.</p>}
-        </div>
       </>
     );
   }
@@ -167,7 +142,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <PageHead title="Dashboard"
         actions={<AutoForm className="phd-a" key={range + rank}>
-          {sp.ryear && <input type="hidden" name="ryear" value={sp.ryear} />}{sp.roffice && <input type="hidden" name="roffice" value={sp.roffice} />}
           <Ifld id="ds-range" label="Period" name="range" defaultValue={range}>{PERIODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Ifld>
           <Ifld id="ds-rank" label="Rank performers by" name="rank" defaultValue={rank}><option value="prod">Utilisation</option><option value="total">Total hours</option></Ifld>
         </AutoForm>}

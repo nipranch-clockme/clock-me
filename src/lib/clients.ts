@@ -75,6 +75,9 @@ export async function minutesByClient(from: string, to: string, clientId?: strin
   return new Map(rows.map((r) => [r.clientId, Number(r.minutes)]));
 }
 
+/** Minutes as hours, to the hundredth. */
+export const hoursOf = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+
 /** Minutes logged on each client's projects in each month, by everyone in the company. Keyed "clientId|YYYY-MM". */
 export async function clockedByMonth(clientIds: string[], months: string[]): Promise<Map<string, number>> {
   if (!clientIds.length || !months.length) return new Map();
