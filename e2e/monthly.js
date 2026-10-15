@@ -209,7 +209,7 @@ const GENERIC="isn't in your list|can't change the hours";
   const rav=await signIn('ravi@example.com');
   await go(rav,'/clients?view=contracts');
   ok('location manager: sees the table with the figures but no boxes and no Save',await rav.locator('table.mgrid').count()===1&&await rav.locator('table.mgrid input.cell').count()===0&&await rav.locator('.mg-save').count()===0&&(await rav.locator(`tr:has(td.cl a:text-is("${N1}"))`).innerText()).includes('10'));
-  ok('location manager: is told admins change them',/Admins change these figures/.test(await rav.locator('.panel .note').last().innerText()));
+  ok('location manager: is told admins change them',/Admins change these figures/.test(await rav.locator('section.notes').innerText()));
   ok('location manager: has no Add client button',await rav.locator('button:has-text("Add client")').count()===0);
   r=await act(rav,'/clients','saveContracts',{year:String(y),[`m|${C2}|${ymAt(other)}`]:'7'});
   ok('location manager: a crafted save is refused',refused(r,'Only Admins can change contracts')&&snap()===before,r.text.slice(-120));
