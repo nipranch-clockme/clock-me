@@ -278,6 +278,11 @@ const GENERIC="isn't in your list|can't change the hours";
   // Inventory is each person's expected hours for the month: positive, and never more than a full month of their weekly hours (holidays and time off only take away)
   const invRav=await pt(rav,'Inventory'), fullMonth=Math.round(+sql(`select coalesce(sum(u."weeklyTarget"),0)*${workdaysIn(lastFull)}/5.0 from "User" u where u."locationId"='${KLH}' and u.role<>'ADMIN' and u.active and u."passwordHash" is not null`));
   ok('dashboard: Inventory for last month is the office\'s expected hours, at most a full month of weekly hours',invRav>0&&invRav<=fullMonth+1,`${invRav} vs at most ${fullMonth}`);
+  // Under each month: its inventory utilisation, Actual as a whole percent of Inventory. The last shown month is the one just finished.
+  const under=await rav.locator('section.panel:has(h3:has-text("Inventory vs actual")) svg text.cpct').allTextContents();
+  ok('dashboard: each month of the Inventory chart shows its utilisation as a whole percent',under.length>0&&under.every(t=>/^\d+%$/.test(t.trim())),`${under.length} shown, last ${under[under.length-1]}`);
+  const share=Math.round((await pt(rav,'Actual'))/invRav*100);
+  ok('dashboard: the last month reads Actual as a share of Inventory',Math.abs(parseInt(under[under.length-1])-share)<=1,`${under[under.length-1]} vs ${share}%`);
   const kpeople=async()=>rav.locator('section.panel:has(h3:has-text("KLH office")) .stat:has(span:text-is("people")) b').innerText();
   ok('dashboard: the office counts its people, not its admin',+(await kpeople())===count(`select count(*) from "User" where "locationId"='${KLH}' and role<>'ADMIN' and active and "passwordHash" is not null and ("weeklyTarget">0 or exists(select 1 from "UserMonth" um where um."userId"="User".id and um."weeklyHours">0))`),await kpeople());
   await go(adm,'/dashboard');

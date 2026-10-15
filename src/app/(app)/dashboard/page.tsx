@@ -106,13 +106,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   // Location managers and admins also see, for each office, its inventory against what it actually logged, month by month. Inventory is the
   // office's capacity: each person's expected hours for the month added up (see expected.ts), so it already allows for holidays and time off.
-  const inventory: { id: string; name: string; series: { id: string; name: string; color: string; dashed?: boolean; v: (number | null)[] }[] }[] = [];
+  const inventory: { id: string; name: string; under: (string | null)[]; series: { id: string; name: string; color: string; dashed?: boolean; v: (number | null)[] }[] }[] = [];
   if (me.role === "LOCATION" || company) {
     for (const l of locs) {
       const us = users.filter((u) => u.locationId === l.id);
       const inv = months.map((m) => us.reduce((t, u) => t + target(u, m + "-01", endOfMonth(m)), 0) / 60);
       const actual = months.map((m) => us.reduce((t, u) => t + (mm.get(`${u.id}|${m}`) ?? 0), 0) / 60);
-      inventory.push({ id: l.id, name: l.name, series: [
+      inventory.push({ id: l.id, name: l.name, under: actual.map((a, i) => (inv[i] ? pct(a / inv[i]) : null)), series: [
         { id: "actual", name: "Actual", color: "s1", v: actual.map((v, i) => (v || inv[i] ? v : null)) },
         { id: "inventory", name: "Inventory", color: "s4", dashed: true, v: inv.map((v) => v || null) },
       ] });
@@ -210,9 +210,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {inventory.map((o) => (
           <section className="panel full" key={o.id}>
             <h3>Inventory vs actual, last 12 full months, {o.name}</h3>
-            <MonthBars months={months} series={o.series} label={`Inventory and actual hours by month, ${o.name}`} />
+            <MonthBars months={months} series={o.series} under={o.under} label={`Inventory and actual hours by month, ${o.name}`} />
             <div className="legend">{o.series.map((x) => <span key={x.id}><i style={{ background: `var(--${x.color})` }} />{x.name}</span>)}</div>
-            <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; Admins are not counted). Actual is the hours the office&apos;s people logged that month.</p>
+            <p className="note" style={{ margin: "8px 0 0" }}>Inventory is the office&apos;s capacity: each person&apos;s expected hours for the month, added up (their weekly hours for that month, less public holidays and time off; Admins are not counted). Actual is the hours the office&apos;s people logged that month. Under each month is its inventory utilisation: Actual as a share of Inventory.</p>
           </section>
         ))}
         <section className="panel full">

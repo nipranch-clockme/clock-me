@@ -763,6 +763,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 @container (width<760px){.rchart .chart text{font-size:15.5px}}
 @container (width<640px){.rchart .chart{min-width:640px}}
 .chart .ctot{fill:var(--ink)}
+.chart .cpct{fill:var(--ink);font-weight:600}
 .chart-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding-bottom:30px;pointer-events:none}
 .chart-empty b{font:600 16px var(--body);color:var(--muted)}
 .chart-empty span{font-size:13px;color:var(--muted)}

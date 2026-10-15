@@ -7,8 +7,9 @@ export type MonthBar = { id: string; name: string; color: string; v: (number | n
 const hours = (v: number) => Math.round(v).toLocaleString("en-US");
 
 /** Side-by-side bars for each month, one bar per series, with the value on top of each bar (values are hours). In a box too narrow for the
- *  values to sit side by side (a tablet or phone), each month becomes a row of bars that run across, with the value at the end of each bar. */
-export default function MonthBars({ months, series, label }: { months: string[]; series: MonthBar[]; label: string }) {
+ *  values to sit side by side (a tablet or phone), each month becomes a row of bars that run across, with the value at the end of each bar.
+ *  `under` is an optional line of text for each month (such as a percentage), shown under the month's name. */
+export default function MonthBars({ months, series, label, under }: { months: string[]; series: MonthBar[]; label: string; under?: (string | null)[] }) {
   const [ref, W] = useChartWidth(900);
   const max = Math.max(0, ...series.flatMap((s) => s.v.filter((v): v is number => v != null)));
   const step = niceStep(max);
@@ -30,7 +31,8 @@ export default function MonthBars({ months, series, label }: { months: string[];
             const y0 = pt + i * pitch;
             return (
               <g key={m}>
-                <text x={lw - 8} y={y0 + group / 2 + 4} textAnchor="end">{monthLabel(m)}</text>
+                <text x={lw - 8} y={y0 + group / 2 + (under?.[i] != null ? -2 : 4)} textAnchor="end">{monthLabel(m)}</text>
+                {under?.[i] != null && <text className="cpct" x={lw - 8} y={y0 + group / 2 + 11} textAnchor="end">{under[i]}</text>}
                 {series.map((s, j) => {
                   const v = s.v[i];
                   if (v == null) return null;
@@ -50,7 +52,7 @@ export default function MonthBars({ months, series, label }: { months: string[];
     );
   }
 
-  const H = Math.max(220, Math.round((W * 260) / 900)), pl = 52, pr = 12, pt = 22, pb = 28, iw = W - pl - pr, ih = H - pt - pb;
+  const H = Math.max(220, Math.round((W * 260) / 900)), pl = 52, pr = 12, pt = 22, pb = under ? 44 : 28, iw = W - pl - pr, ih = H - pt - pb;
   const y = (v: number) => pt + ih - (v / top) * ih;
   const gw = iw / Math.max(1, months.length), bw = Math.min(26, (gw - 10) / series.length), gap = 3;
   return (
@@ -61,7 +63,8 @@ export default function MonthBars({ months, series, label }: { months: string[];
           const cx = pl + i * gw + gw / 2, group = series.length * bw + (series.length - 1) * gap;
           return (
             <g key={m}>
-              <text x={cx} y={H - 8} textAnchor="middle">{monthLabel(m)}</text>
+              <text x={cx} y={H - (under?.[i] != null ? 24 : 8)} textAnchor="middle">{monthLabel(m)}</text>
+              {under?.[i] != null && <text className="cpct" x={cx} y={H - 8} textAnchor="middle">{under[i]}</text>}
               {series.map((s, j) => {
                 const v = s.v[i];
                 if (v == null) return null;
