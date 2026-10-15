@@ -14,7 +14,8 @@ export default function BarProject({ value, options, onChange, invalid }: {
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => `${o.label} ${o.group}`.toLowerCase().includes(needle)) : options;
   const close = () => { if (ref.current) ref.current.open = false; };
-  const pick = (v: string) => { onChange(v); setQ(""); close(); };
+  // After a pick, focus returns to the button, so the keyboard stays on the bar.
+  const pick = (v: string) => { onChange(v); setQ(""); close(); ref.current?.querySelector("summary")?.focus(); };
   // The pop-up closes when a click goes somewhere else on the page.
   useEffect(() => {
     const away = (e: PointerEvent) => { const d = ref.current; if (d?.open && !d.contains(e.target as Node)) d.open = false; };
@@ -24,9 +25,9 @@ export default function BarProject({ value, options, onChange, invalid }: {
   const onKey = (e: KeyboardEvent<HTMLDetailsElement>) => {
     if (e.key === "Escape" && ref.current?.open) { e.preventDefault(); close(); ref.current.querySelector("summary")?.focus(); }
   };
-  // Enter picks the first match instead of submitting the bar; the arrow key moves into the list.
+  // Enter picks the first match once something is typed, and never submits the bar; the arrow key moves into the list.
   const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") { e.preventDefault(); if (shown[0]) pick(shown[0].value); }
+    if (e.key === "Enter") { e.preventDefault(); if (needle && shown[0]) pick(shown[0].value); }
     if (e.key === "ArrowDown") { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLElement>(".tmpick-opt")?.focus(); }
   };
   return (
@@ -35,7 +36,7 @@ export default function BarProject({ value, options, onChange, invalid }: {
       <details ref={ref} className={`tmpick${invalid ? " err" : ""}`} onKeyDown={onKey}
         onToggle={(e) => { if (e.currentTarget.open) qRef.current?.focus(); }}
         onBlur={(e) => { if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) e.currentTarget.open = false; }}>
-        <summary id="tm-project-btn">{chosen ? chosen.label : "+ Project"}</summary>
+        <summary id="tm-project-btn" aria-label={chosen ? `Project: ${chosen.label}` : "Project"}>{chosen ? chosen.label : "+ Project"}</summary>
         <div className="tmpick-pop">
           <input ref={qRef} type="search" className="tmpick-q" placeholder="Search projects" aria-label="Search projects" autoComplete="off"
             value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} />

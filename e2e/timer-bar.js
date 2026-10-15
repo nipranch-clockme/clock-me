@@ -108,6 +108,26 @@ const tickTag = async (p) => { await p.click('.tmtag-btn'); await p.locator('.ta
     await p.waitForSelector(`.tmrow:has-text("${typed3}")`, { timeout: 20000 }).catch(() => {});
     ok(sql(`select count(*)||'|'||coalesce(sum(minutes),0) from "TimeEntry" where "userId"='${uid}' and description='${typed3}'`) === '1|10', 'a time that is not a whole quarter hour is added as typed');
 
+    // a timer running: Add Time with the clock empty opens the form, and saving it leaves the running timer and its details on the bar
+    const runDesc = 'Running ' + run;
+    await p.click('#tm-project-btn');
+    await p.fill('.tmpick-q', firstLabel);
+    await p.keyboard.press('Enter');
+    await p.selectOption('#tm-phase', await p.locator('#tm-phase option').last().getAttribute('value'));
+    await p.fill('input.tmdesc', runDesc);
+    await tickTag(p);
+    await p.click('.tmcard button.btn.primary');
+    await p.waitForSelector('.tmcard.on', { timeout: 20000 }).catch(() => {});
+    await p.click('button.tmadd');
+    await p.waitForSelector('dialog[open] #e-phase');
+    await p.fill('dialog[open] #e-dur', '0.25');
+    await p.click('dialog[open] button:has-text("Add entry")');
+    await p.waitForFunction(() => !document.querySelector('dialog[open]'), null, { timeout: 20000 }).catch(() => {});
+    ok(await p.inputValue('#tm-desc') === runDesc && await p.locator('.tmcard.on').count() === 1, 'saving a manual entry while a timer runs leaves the timer and its details on the bar');
+    await p.click('.tmcard button:has-text("Discard")');
+    await p.waitForSelector('.tmcard.on', { state: 'detached', timeout: 20000 }).catch(() => {});
+    ok(sql(`select count(*) from "TimerRun" where "userId"='${uid}'`) === '0', 'Discard stops the timer without adding time');
+
     // a narrow screen keeps the bar inside the page
     await p.setViewportSize({ width: 390, height: 844 });
     await go(p, '/timesheet?view=timer');

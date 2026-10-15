@@ -103,11 +103,11 @@ nav.snav hr+.navend{margin-top:auto}
 .tmtags[open] .tagpick-list{max-height:260px}
 /* The project dropdown on the bar: its pop-up opens with a search box at the top, then the matching projects */
 .tmpick{position:relative;min-width:0}
-.tmpick>summary{display:block;height:34px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--field);border-radius:6px;background:var(--surface);font-size:14px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;list-style:none}
+.tmpick>summary{display:block;height:34px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--field);border-radius:6px;background:var(--surface);background-image:var(--chev);background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;font-size:14px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;list-style:none}
 .tmpick>summary::-webkit-details-marker{display:none}
-.tmpick.err>summary{border-color:var(--bad);background:var(--bad-soft)}
+.tmpick.err>summary{border-color:var(--bad);background-color:var(--bad-soft)}
 .tmpick[open]>summary{border-color:var(--accent)}
-.tmpick-pop{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:300px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:10px}
+.tmpick-pop{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:300px;max-width:calc(100vw - 58px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--pop);padding:10px}
 .tmpick-q{width:100%;box-sizing:border-box;margin-bottom:8px}
 .tmpick-list{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
 .tmpick-opt{display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:6px 8px;border:0;border-radius:6px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}

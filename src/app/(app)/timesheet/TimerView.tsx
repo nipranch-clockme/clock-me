@@ -23,6 +23,12 @@ const companyHM = (d: Date, timeZone: string) => {
   try { return f(timeZone); } catch { return f("UTC"); }
 };
 
+// The company's calendar date for a moment, to check that the page still shows today.
+const companyDay = (d: Date, timeZone: string) => {
+  const f = (tz: string) => new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: tz }).format(d);
+  try { return f(timeZone); } catch { return f("UTC"); }
+};
+
 /** Timesheet view 3: start and stop a timer on one project, or type a time and add it. Stopping, or adding, makes entries. */
 export default function TimerView({ opts, meId, run, entries, dates, today, locked, blocked, timeZone }: {
   opts: EntryOptions; run: RunningTimer | null; entries: SheetEntry[]; dates: string[]; today: string; locked: (string | null)[]; blocked: string | null; timeZone: string; meId: string;
@@ -50,7 +56,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
   // Tags are plain tick boxes, so clear them by hand when the bar is emptied.
   const clearTags = () => { formRef.current?.querySelectorAll<HTMLInputElement>('input[name="tagIds"]').forEach((i) => { i.checked = false; }); setTagN(0); };
   // Once time is added (by the timer, Add Time or a manual entry), the bar is empty and ready for the next one.
-  const clearBar = () => { setProjectId(""); setPhaseId(""); setDesc(""); setTyped(""); clearTags(); closeTags(); focusHere(descRef.current); };
+  const clearBar = () => { setProjectId(""); setPhaseId(""); setDesc(""); setTyped(""); setClockErr(""); setLastAdd(false); clearTags(); closeTags(); focusHere(descRef.current); };
   const project = opts.projects.find((p) => p.id === projectId);
   const [now, setNow] = useState<number | null>(null);
   const [edit, setEdit] = useState<EntryEdit | null>(null);
@@ -81,6 +87,8 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
     const fd = new FormData(e.currentTarget), act = run ? stopAction : startAction;
     closeTags();
     setLastAdd(false);
+    setMsg("");
+    setClockErr("");
     startTransition(() => act(fd));
   };
   const days = [...dates].reverse().filter((d) => entries.some((e) => e.date === d));
@@ -92,17 +100,19 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
     const e = d.id ? entries.find((x) => x.id === d.id) : undefined;
     setEdit({ ...(e ? entryForm(e) : { lockedReason: blocked }), ...draftEdit(d) });
   });
-  // A manual entry starts from what is on the bar: the project, phase, tags and description.
-  const manual = () => {
+  // A manual entry starts from what is on the bar: the project, phase, tags and description, and the time typed on the clock.
+  const manual = (minutes?: number) => {
     const fd = new FormData(formRef.current ?? undefined);
-    setEdit({ projectId: projectId || undefined, projectName: project?.name, phaseId: phaseId || null, tagIds: fd.getAll("tagIds").map(String), description: desc, date: today, lockedReason: blocked });
+    setEdit({ projectId: projectId || undefined, projectName: project?.name, phaseId: phaseId || null, tagIds: fd.getAll("tagIds").map(String), description: desc, minutes, date: today, lockedReason: blocked });
   };
-  // Add Time: a time typed on the clock is added for today, ending now, with no pop-up. With the clock empty, or a timer running, it opens the form instead.
+  // Add Time: a time typed on the clock is added for today, ending now, with no pop-up. With the clock empty, a timer running, or a required custom field (the bar cannot fill those in), it opens the form instead.
   const addTime = () => {
+    if (!projectId || blocked || busy) return;
+    if (companyDay(new Date(), timeZone) !== today) { setClockErr("This page is from another day. Reload it to add time."); return; }
     const t = run ? "" : typed.trim().replace(/^(\d+):(\d{2}):00$/, "$1:$2");
-    if (!t) { manual(); return; }
-    if (adding) return;
-    const len = parseDuration(t) || 0, hhmm = companyHM(new Date(), timeZone);
+    const mins = t ? parseDuration(t) : NaN;
+    if (!t || opts.fields.some((f) => f.required)) { manual(mins > 0 ? mins : undefined); return; }
+    const len = mins > 0 ? mins : 0, hhmm = companyHM(new Date(), timeZone);
     const startMin = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)) - len;
     if (startMin < 0) { setClockErr("That is more than has passed today. Clear the clock and press Add Time to set the start in a form."); return; }
     setClockErr("");
@@ -111,7 +121,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
     setLastAdd(true);
     startTransition(() => addAction(fd));
   };
-  const discard = () => startTransition(async () => { await discardTimer(); clearBar(); router.refresh(); });
+  const discard = () => { setMsg(""); startTransition(async () => { await discardTimer(); clearBar(); router.refresh(); }); };
   return (
     <>
       <form action={run ? stopAction : startAction} onSubmit={submit} ref={formRef}>
@@ -136,7 +146,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
           {run
             ? <span className="tmclock" role="timer" aria-label="Time on the timer">{clock(secs)}</span>
             : <input className="tmclock-in" name="duration" value={typed} placeholder="00:00:00" aria-label="Time to add, like 1:30 or 1.5. Leave empty to set the start in a form"
-                inputMode="decimal" autoComplete="off" onChange={(e) => { setTyped(e.target.value); setClockErr(""); }}
+                autoComplete="off"onChange={(e) => { setTyped(e.target.value); setClockErr(""); }}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTime(); } }} />}
           {/* One button that turns from Start Timer into Stop, so the keyboard stays on it. While waiting it is only marked busy, as a disabled button would lose focus. */}
           <button ref={mainRef} className="btn primary" disabled={!run && (!!blocked || !projectId)} aria-disabled={busy || undefined}>{run ? "Stop" : "Start Timer"}</button>
@@ -157,7 +167,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
           <div key={d}>
             <div className="tmday"><span>{dayLabel(d)}{d === today ? " · today" : ""}</span><span>{fmt(es.reduce((a, e) => a + e.minutes, 0), opts.timeFormat)} h</span></div>
             {es.map((e) => (
-              <button key={e.id} type="button" className="tmrow" onClick={() => open(e)} aria-label={`${lockFor(d) ? "View" : "Edit"} entry: ${e.projectName}, ${fmt(e.minutes, opts.timeFormat)} hours`}>
+              <button key={e.id} type="button" className="tmrow" onClick={() => open(e)} aria-label={`${lockFor(d) ? "View" : "Edit"} entry: ${e.description ? e.description + ", " : ""}${e.projectName}, ${fmt(e.minutes, opts.timeFormat)} hours`}>
                 <span className="dot" style={{ background: `var(--${e.clientColor})` }} />
                 <span className="tmn">{e.description
                   ? <><b title={e.description}><bdi>{e.description}</bdi></b><small><bdi>{[e.projectName, e.clientName, e.phaseName, e.tagName].filter(Boolean).join(" · ")}</bdi></small></>
@@ -169,8 +179,8 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
           </div>
         );
       })}
-      {/* Only a new manual entry starts from the bar, so only that clears it. Editing an entry from the list leaves the bar alone. */}
-      <EntryDialog opts={opts} value={edit} meId={meId} today={today} onClose={() => setEdit(null)} onSaved={edit && !edit.id ? clearBar : undefined} />
+      {/* Only a new manual entry starts from the bar, so only that clears it, and not while a timer runs: its details stay on the bar. Editing an entry from the list leaves the bar alone. */}
+      <EntryDialog opts={opts} value={edit} meId={meId} today={today} onClose={() => setEdit(null)} onSaved={edit && !edit.id && !run ? clearBar : undefined} />
     </>
   );
 }
