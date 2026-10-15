@@ -28,6 +28,7 @@ function durationError(raw: string, minutes: number) {
   if (isNaN(minutes)) return "Enter a duration like 1.5 or 1:30.";
   if (minutes <= 0) return "Enter a duration of at least 1 minute.";
   if (minutes > DAY_MAX_MINUTES) return "One entry can be at most 24 hours.";
+  if (minutes % 15) return "Time goes in 15-minute steps, like 1, 1.25, 1.5 or 1:45.";
   return null;
 }
 
