@@ -96,7 +96,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
           <input id="tm-desc" ref={descRef} name="description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" aria-label="Description" aria-required={opts.requireDescription || undefined} maxLength={DESCRIPTION_MAX} className={`tmdesc${bad("Description") ? " err" : ""}`} />
           <div className="tmproj">
             <label htmlFor="tm-project" className="sr-only">Project</label>
-            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={pickProject} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects" minToSearch={Infinity}
+            <SearchSelect id="tm-project" name="projectId" value={projectId} onChange={pickProject} className={bad("projectId")} placeholder="+ Project" searchLabel="Search projects" minToSearch={0}
               options={opts.projects.map((p) => ({ value: p.id, label: p.name, group: p.client }))} />
           </div>
           <select id="tm-phase" name="phaseId" aria-label="Phase" value={phaseId} onChange={(e) => setPhaseId(e.target.value)} className={`tmphase${bad("Phase") ? " err" : ""}`}>
@@ -133,7 +133,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
             {es.map((e) => (
               <button key={e.id} type="button" className="tmrow" onClick={() => open(e)} aria-label={`${lockFor(d) ? "View" : "Edit"} entry: ${e.projectName}, ${fmt(e.minutes, opts.timeFormat)} hours`}>
                 <span className="dot" style={{ background: `var(--${e.clientColor})` }} />
-                <span className="tmn"><b>{e.projectName}</b><small>{[e.clientName, e.phaseName, e.tagName].filter(Boolean).join(" · ")}</small>{e.description && <small><bdi className="clamp2" title={e.description}>{e.description}</bdi></small>}</span>
+                <span className="tmn"><b>{e.projectName}</b><small><bdi>{[e.clientName, e.phaseName, e.tagName, e.description].filter(Boolean).join(" · ")}</bdi></small></span>
                 <span className="tmt">{hm(e.startMin)} to {hm(e.startMin + e.minutes)}</span>
                 <span className="tmh">{fmt(e.minutes, opts.timeFormat)}</span>
               </button>

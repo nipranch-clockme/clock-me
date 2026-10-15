@@ -20,6 +20,8 @@ export type GridRow = {
   /** The row's status and drawing standard, as values from the lists the table is given ("" for none; contract tables only). */
   status?: string;
   drawing?: string;
+  /** The hours clocked on the row in each month, shown under the boxes when Show clocked hours is on (contract tables only). */
+  clocked?: number[];
 };
 type Option = { value: string; label: string };
 type Tag = { id: string; name: string };
@@ -93,6 +95,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
   }
   const [place, setPlace] = useState(""); // "" is every location
   const [unlocked, setUnlocked] = useState(false);
+  const [clockedOn, setClockedOn] = useState(false); // the hours clocked under each box, off until asked for
   // Saving locks the past months again, so a later change to one needs both warnings again.
   useEffect(() => { if (state?.ok) setUnlocked(false); }, [state]);
   const editable = rows.filter((r) => r.editable);
@@ -106,6 +109,10 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
   const shown = rows.filter(inPlace);
   const placeName = places?.find((p) => p.id === place)?.name;
   const sums = months.map((_, i) => shown.reduce((a, r) => a + num(valsOf(r)[i]), 0));
+  const clockedSums = months.map((_, i) => shown.reduce((a, r) => a + (r.clocked?.[i] ?? 0), 0));
+  const showClocked = contracts && clockedOn && rows.some((r) => r.clocked);
+  // Columns after the months: Current Per day and Work type, then Status and Standard when the table has them.
+  const tailCols = 1 + (statuses ? 1 : 0) + (drawings ? 1 : 0);
   const isPast = (i: number) => i < past;
   // Saved by hand, not by a form action, so the browser does not clear the search box (or anything else) when the save comes back.
   const save = (ev: React.FormEvent<HTMLFormElement>) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => formAction(fd)); };
@@ -120,13 +127,19 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
     <form onSubmit={save}>
       <input type="hidden" name="year" value={year} />
       {unlocked && <input type="hidden" name="pastOk" value="1" />}
-      {places && places.length > 0 && (
-        <div className="row" role="group" aria-label="Office" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
-          <div className="seg">
-            <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
-            {places.map((p) => <button key={p.id} type="button" aria-pressed={place === p.id} onClick={() => setPlace(p.id)}>{p.name}</button>)}
-          </div>
-          {place && <span className="note">{shown.length} of {rows.length} client{rows.length === 1 ? "" : "s"}</span>}
+      {(contracts || (places && places.length > 0)) && (
+        <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px" }}>
+          {places && places.length > 0 && (
+            <div className="row" role="group" aria-label="Office" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div className="seg">
+                <button type="button" aria-pressed={place === ""} onClick={() => setPlace("")}>All offices</button>
+                {places.map((p) => <button key={p.id} type="button" aria-pressed={place === p.id} onClick={() => setPlace(p.id)}>{p.name}</button>)}
+              </div>
+              {place && <span className="note">{shown.length} of {rows.length} client{rows.length === 1 ? "" : "s"}</span>}
+            </div>
+          )}
+          {contracts && <button type="button" className="btn sm" style={{ marginLeft: "auto" }} aria-pressed={clockedOn} onClick={() => setClockedOn((on) => !on)}
+            title="Under each month's contracted hours, show the hours clocked for that client">{clockedOn ? "Hide clocked hours" : "Show clocked hours"}</button>}
         </div>
       )}
       <TableFilter label={searchLabel} placeholder={`${searchLabel}…`} />
@@ -158,6 +171,7 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
                             onChange={(e) => cell(r, i, e.target.value)} aria-label={`${r.name}, ${MONTH_ABBR[i]} ${year}`}
                             title={locked ? "A past month is locked. Change past months above to edit it." : diff ? `Different from the usual ${fmt(r.usual)}` : undefined} />
                         : <span className={diff ? "chgtxt" : undefined}>{v[i] || "–"}</span>}
+                      {showClocked && r.clocked && <span className="clk" title={`Hours clocked for ${r.name} in ${MONTH_ABBR[i]} ${year}`}>{fmt(r.clocked[i])}</span>}
                     </td>
                   );
                 })}
@@ -197,13 +211,22 @@ export default function MonthGrid({ action, kind, year, months, heads, leadCols,
           })}
         </tbody>
         {rows.length > 0 && (
-          <tfoot><tr>
-            <td colSpan={leadCols} className="tl">{contracts ? (placeName ? `${placeName} total` : "All clients") : "Everyone listed"}</td>
-            {months.map((m, i) => <td key={m} className="num mo">{fmt(sums[i])}</td>)}
-            {contracts
-              ? <><td className="num">{refDays && sums[refMonth] ? fmt(sums[refMonth] / refDays) : "–"}</td><td colSpan={drawings ? 2 : 1} /></>
-              : <td className="num">{fmt(sums.reduce((a, b) => a + b, 0) / 12)}</td>}
-          </tr></tfoot>
+          <tfoot>
+            <tr>
+              <td colSpan={leadCols} className="tl">{contracts ? (placeName ? `${placeName} total` : "All clients") : "Everyone listed"}</td>
+              {months.map((m, i) => <td key={m} className="num mo">{fmt(sums[i])}</td>)}
+              {contracts
+                ? <><td className="num">{refDays && sums[refMonth] ? fmt(sums[refMonth] / refDays) : "–"}</td><td colSpan={tailCols} /></>
+                : <td className="num">{fmt(sums.reduce((a, b) => a + b, 0) / 12)}</td>}
+            </tr>
+            {showClocked && (
+              <tr className="clkrow">
+                <td colSpan={leadCols} className="tl">{placeName ? `${placeName} clocked` : "All clients clocked"}</td>
+                {months.map((m, i) => <td key={m} className="num mo">{fmt(clockedSums[i])}</td>)}
+                <td colSpan={tailCols + 1} />
+              </tr>
+            )}
+          </tfoot>
         )}
       </table></div>
       {editable.length > 0 && (

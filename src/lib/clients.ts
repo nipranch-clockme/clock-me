@@ -75,6 +75,16 @@ export async function minutesByClient(from: string, to: string, clientId?: strin
   return new Map(rows.map((r) => [r.clientId, Number(r.minutes)]));
 }
 
+/** Minutes logged on each client's projects in each month, by everyone in the company. Keyed "clientId|YYYY-MM". */
+export async function clockedByMonth(clientIds: string[], months: string[]): Promise<Map<string, number>> {
+  if (!clientIds.length || !months.length) return new Map();
+  const rows = await db.$queryRaw<{ clientId: string; m: string; minutes: bigint }[]>(Prisma.sql`
+    SELECT p."clientId", to_char(e.date, 'YYYY-MM') AS m, SUM(e.minutes)::bigint AS minutes FROM "TimeEntry" e JOIN "Project" p ON p.id = e."projectId"
+    WHERE p."clientId" IN (${Prisma.join(clientIds)}) AND e.date >= ${toDate(months[0] + "-01")} AND e.date <= ${toDate(endOfMonth(months[months.length - 1]))}
+    GROUP BY 1, 2`);
+  return new Map(rows.map((r) => [`${r.clientId}|${r.m}`, Number(r.minutes)]));
+}
+
 /** This month's hours on a fixed client against its contract spread over the month's working days so far (Mon to Fri,
  *  up to yesterday). Within 10% either way is on pace. Null before the month's first working day is over. */
 export function paceOf(monthlyHours: number, minutesSoFar: number) {

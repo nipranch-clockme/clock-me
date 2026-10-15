@@ -87,7 +87,7 @@ nav.snav hr+.navend{margin-top:auto}
 /* Timer view: the timer card (fields, big clock, Start / Stop) and the week's entries by day */
 .tmcard{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--tile);border:1px solid var(--border);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow)}
 .tmcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.tmcard .tmdesc{flex:1 1 240px;min-width:0}
+.tmcard .tmdesc{flex:1 1 200px;min-width:0}
 .tmcard .tmproj{flex:0 1 190px;min-width:150px}
 .tmcard .tmphase{flex:0 1 150px;min-width:120px}
 .tmtags{position:relative}
@@ -105,12 +105,16 @@ nav.snav hr+.navend{margin-top:auto}
 .tmmanual{white-space:nowrap;margin-left:auto}
 .tmnote{margin:8px 2px 0}
 .tmday{display:flex;justify-content:space-between;gap:12px;font-weight:600;margin:20px 2px 8px}
-.tmrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:0 0 6px;font:inherit;color:inherit;cursor:pointer}
+/* One line per entry, like a row of the Reports table: the project, then its client, phase, tags and description (cut short with "…", full text on hover), then the times and hours */
+.tmrow{display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left;background:var(--tile);border:1px solid var(--border);border-radius:8px;padding:7px 14px;margin:0 0 6px;font:inherit;color:inherit;cursor:pointer;white-space:nowrap}
 .tmrow:hover{border-color:var(--accent)}
-.tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}.tmrow .tmn small{color:var(--muted);overflow-wrap:anywhere}
+.tmrow .tmn{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:10px;overflow:hidden}
+.tmrow .tmn b{flex:0 1 auto;max-width:45%;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tmrow .tmn small{flex:1 1 auto;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.tmrow .tmn b,.tmrow .tmn small{white-space:nowrap}
 .tmrow .tmt{color:var(--muted);white-space:nowrap}.tmrow .tmh{font-weight:600;min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:760px){.tmcard .tmdesc{flex-basis:100%}.tmcard .tmproj,.tmcard .tmphase{flex:1 1 40%}.tmmanual{margin-left:0}.tmtags[open] .tagpick{left:0;right:auto;width:auto;max-width:calc(100vw - 64px)}}
-@media (max-width:560px){.tmrow{flex-wrap:wrap}.tmrow .tmt{order:3}.tmcard .tmclock{flex:1 1 50%}.tmcard>.btn{flex:1 1 40%}} /* phones: Tags and the clock share a row, then Start and Manual entry side by side, full size */
+@media (max-width:560px){.tmrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"dot name hrs" "dot det tm";column-gap:10px;row-gap:2px;white-space:normal}.tmrow .dot{grid-area:dot}.tmrow .tmn{display:contents}.tmrow .tmn b{grid-area:name;max-width:none}.tmrow .tmn small{grid-area:det}.tmrow .tmt{grid-area:tm}.tmrow .tmh{grid-area:hrs}.tmcard .tmclock{flex:1 1 50%}.tmcard>.btn{flex:1 1 40%}} /* phones: Tags and the clock share a row, then Start and Manual entry side by side, full size */
 /* The Timesheet's view toggle (timesheet or calendar): the same control a little bigger, with icons, beside the page title */
 .phd-tt{display:flex;align-items:center;gap:10px 16px}
 .phd-t:has(>.phd-tt){flex-basis:auto} /* the title and the toggle stay on one line together; only the submit button wraps under them */
@@ -549,7 +553,7 @@ fieldset.ctype{border:0;padding:0;margin:14px 0 6px;min-width:0} fieldset.ctype 
   .login{margin-top:40px}
   .fm+.fm::before{display:none}
   .mybar:nth-of-type(even) span{visibility:hidden}
-  .sheet td:first-child,.sheet th:first-child{position:sticky;left:0;z-index:1;background:var(--card);min-width:120px!important;box-shadow:1px 0 0 var(--line)}
+  .sheet td:first-child,.sheet th:first-child{position:sticky;left:0;z-index:1;background:var(--card);min-width:120px!important;width:120px;box-shadow:1px 0 0 var(--line)}
   .sheet td.dc,.sheet th.wknd,.sheet th.today,.sheet th:not(:first-child):not(:last-child){min-width:46px} /* a week is scrolled sideways inside its box on a phone; each day keeps room for its hours, Sat and Sun included */
   .cal .hrs,.cal .hd:first-child{position:sticky;left:0;z-index:3;background:var(--card);box-shadow:1px 0 0 var(--line)}
 }
@@ -572,8 +576,13 @@ nav.snav a{text-decoration:none}
 .cellbtn.lk{background:transparent;border-style:dashed;cursor:default}
 /* Timesheet: one chip per entry in each day cell; the rest of the cell is a button that adds time. */
 table.sheet td.sheetcell{padding:4px;vertical-align:top;min-width:78px}
+/* Columns: the project name takes a set width, the total hugs its figures, and the seven days share what is left */
+.sheet tr>th:first-child:not(.empty),.sheet tr>td:first-child:not(.empty){width:220px}
+.sheet tr>th:last-child:not(.empty),.sheet tr>td:last-child:not(.empty){width:1%;white-space:nowrap}
+/* each day's total ends where its entries end, so the figures line up with the time boxes and the day names above them */
+.sheet tfoot td:not(:first-child):not(:last-child){padding-right:4px}
 .cellstack{display:flex;flex-direction:column;gap:3px;min-height:34px;height:100%}
-.chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:100%}
+.chipbtn{font:13px var(--mono);text-align:right;padding:5px 7px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;width:auto;min-width:64px;max-width:100%;margin-left:auto}
 .chipbtn:hover{background:var(--accent-soft);border-color:var(--accent)}
 .sheetcell.open{cursor:pointer}
 .addcell:hover,.addcell:focus-visible,.sheetcell.open:hover .addcell{border-color:var(--line2);color:var(--accent-ink);background:var(--accent-soft)}
@@ -910,6 +919,9 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .mgrid tr.out{display:none} /* not at the chosen location (kept in the form, so unsaved figures still go) */
 .mgrid .past,.mgrid td.past input.cell:disabled{color:var(--muted)}
 .mgrid td.cur{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+/* Show clocked hours: the hours logged for a client in a month, under its box in grey so the contracted figure stays the main one */
+.mgrid .clk{display:block;width:58px;margin:2px auto 0;text-align:center;font-size:12px;line-height:1.3;color:var(--muted);font-variant-numeric:tabular-nums}
+.mgrid tr.clkrow td{font-weight:500;color:var(--muted)}
 .wtpick summary{cursor:pointer;font-size:13px;padding:4px 0;list-style:none} /* no marker in front, so the work type text lines up with its heading */
 .wtpick summary::-webkit-details-marker{display:none}
 .wtpick summary::after{content:"▾";margin-left:6px;font-size:10px;color:var(--muted)}
