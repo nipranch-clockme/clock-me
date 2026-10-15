@@ -1,4 +1,4 @@
-// Time goes in 15-minute steps: 1.25 (1h 15m) is accepted, while 1:10 and 1.1 are refused with the step rule.
+// A typed duration is kept as typed: 1:10 (70 minutes) is saved as 70 minutes, with no quarter-hour step rule.
 // Adds one entry for priya in her current week and removes it again at the end.
 const {execSync}=require('child_process');
 const {start,login,BASE}=require('./helpers');
@@ -8,7 +8,7 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
 
 (async()=>{
  const b=await start();
- const desc='Quarter step '+process.pid;
+ const desc='Typed minutes '+process.pid;
  try{
   const p=await login(b,'priya@example.com');
   await p.goto(BASE+'/timesheet');await p.waitForLoadState('networkidle');
@@ -20,24 +20,10 @@ const ok=(name,cond,detail='')=>{console.log(`${cond?'PASS':'FAIL'} ${name}${det
 
   await p.fill('#e-dur','1:10');
   await p.click('dialog[open] button:has-text("Add entry")');
-  await p.waitForSelector('#e-dur-err');
-  const alertText=await p.textContent('#e-dur-err');
-  ok('1:10 is refused with the 15-minute rule', /15-minute steps/.test(alertText), alertText);
-  ok('the dialog stays open after a refusal', await p.locator('dialog[open] #e-dur').count()===1);
-
-  await p.fill('#e-dur','1.1');
-  await p.click('dialog[open] button:has-text("Add entry")');
-  await p.waitForFunction(()=>/15-minute steps/.test(document.querySelector('#e-dur-err')?.textContent||''));
-  ok('1.1 (66 minutes) is refused too', true);
-
-  await p.fill('#e-dur','1.25');
-  await p.click('dialog[open] button:has-text("Add entry")');
-  await p.waitForSelector('dialog[open]',{state:'detached'}).catch(()=>{});
   await p.waitForFunction(()=>!document.querySelector('dialog[open]'),null,{timeout:20000});
   await p.waitForLoadState('networkidle');
   const saved=sql(`select minutes from "TimeEntry" where description='${desc}'`);
-  ok('1.25 is saved as 75 minutes', saved==='75', `saved: ${saved}`);
-  ok('the chip shows 1.25', (await p.locator('button.chipbtn').filter({hasText:'1.25'}).count())>=1);
+  ok('1:10 is saved as 70 minutes, not refused or rounded', saved==='70', `saved: ${saved}`);
   ok('no browser errors', (p.errs||[]).length===0, JSON.stringify(p.errs));
  } finally {
   sql(`delete from "TimeEntry" where description='${desc}'`);

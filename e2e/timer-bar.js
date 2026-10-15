@@ -95,7 +95,7 @@ const tickTag = async (p) => { await p.click('.tmtag-btn'); await p.locator('.ta
     ok(await p.locator('dialog[open]').count() === 0, 'no form opens for a time typed on the clock');
     ok(await p.inputValue('.tmclock-in') === '' && await p.inputValue('#tm-project') === '', 'after Add Time the clock and the bar are empty again');
 
-    // a duration that is not in 15-minute steps is refused, and nothing is added
+    // a time that is not a whole quarter hour is kept as typed: 0:10 adds ten minutes
     await p.click('#tm-project-btn');
     await p.fill('.tmpick-q', firstLabel);
     await p.keyboard.press('Enter');
@@ -105,9 +105,8 @@ const tickTag = async (p) => { await p.click('.tmtag-btn'); await p.locator('.ta
     await tickTag(p);
     await p.fill('.tmclock-in', '0:10');
     await p.click('button.tmadd');
-    await p.waitForSelector('.alert.bad', { timeout: 10000 }).catch(() => {});
-    ok((await p.locator('.alert.bad').first().textContent()).includes('15-minute'), 'a duration outside 15-minute steps is refused with the reason');
-    ok(sql(`select count(*) from "TimeEntry" where "userId"='${uid}' and description='${typed3}'`) === '0', 'the refused time is not added');
+    await p.waitForSelector(`.tmrow:has-text("${typed3}")`, { timeout: 20000 }).catch(() => {});
+    ok(sql(`select count(*)||'|'||coalesce(sum(minutes),0) from "TimeEntry" where "userId"='${uid}' and description='${typed3}'`) === '1|10', 'a time that is not a whole quarter hour is added as typed');
 
     // a narrow screen keeps the bar inside the page
     await p.setViewportSize({ width: 390, height: 844 });

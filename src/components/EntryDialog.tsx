@@ -204,7 +204,7 @@ function EntryForm({ opts, value, meId, today, onDone, onSaved, onDeleted }: { o
   const durField = (
     <div>
       <label htmlFor="e-dur">Duration<span className="req"> *</span></label>
-      <input id="e-dur" name="duration" defaultValue={value.restored ? value.restored.duration : dur(value.minutes, opts.timeFormat)} placeholder="1.25 or 1:15 (15-minute steps)" required className={bad("duration")} {...invalid("duration", "e-dur")} />
+      <input id="e-dur" name="duration" defaultValue={value.restored ? value.restored.duration : dur(value.minutes, opts.timeFormat)} placeholder="1.5 or 1:30" required className={bad("duration")} {...invalid("duration", "e-dur")} />
       {errLine("duration", "e-dur")}
     </div>
   );
