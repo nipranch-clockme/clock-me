@@ -9,6 +9,8 @@ const sql = (q) => execFileSync(bin, [...args, '-At', '-c', q]).toString().trim(
 let fails = 0;
 const ok = (c, m, d = '') => { console.log(`${c ? 'PASS' : 'FAIL'} ${m}${d ? ' — ' + d : ''}`); if (!c) fails++; };
 const go = async (p, u) => { await p.goto(BASE + u); await p.waitForLoadState('networkidle'); };
+// Tags are required, so a flow that adds time from the bar ticks one first
+const tickTag = async (p) => { await p.click('.tmtag-btn'); await p.locator('.tagpick-i input').first().check(); await p.click('.tmtag-btn'); };
 
 (async () => {
   const b = await start();
@@ -84,6 +86,7 @@ const go = async (p, u) => { await p.goto(BASE + u); await p.waitForLoadState('n
     await p.selectOption('#tm-phase', await p.locator('#tm-phase option').last().getAttribute('value'));
     const typed2 = 'Clock ' + run;
     await p.fill('input.tmdesc', typed2);
+    await tickTag(p);
     await p.fill('.tmclock-in', '00:45:00');
     await p.click('button.tmadd');
     await p.waitForSelector(`.tmrow:has-text("${typed2}")`, { timeout: 20000 }).catch(() => {});
@@ -99,6 +102,7 @@ const go = async (p, u) => { await p.goto(BASE + u); await p.waitForLoadState('n
     await p.selectOption('#tm-phase', await p.locator('#tm-phase option').last().getAttribute('value'));
     const typed3 = 'Odd ' + run;
     await p.fill('input.tmdesc', typed3);
+    await tickTag(p);
     await p.fill('.tmclock-in', '0:10');
     await p.click('button.tmadd');
     await p.waitForSelector('.alert.bad', { timeout: 10000 }).catch(() => {});

@@ -72,6 +72,8 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
   const bad = (k: string) => (state?.fields?.includes(k) ? "err" : undefined);
   const secs = run && now ? Math.max(0, Math.floor((now - new Date(run.startedAt).getTime()) / 1000)) : 0;
   const busy = starting || stopping || adding;
+  // The message names the field only ("Check this field: Duration."), so the reason for each field is added after it.
+  const addReason = !run && lastAdd && addState && !addState.ok ? Object.values(addState.fieldErrors ?? {}).join(" ") : "";
   // Sent from here rather than as a form action, which would reset the form afterwards and so blank the phase and tags the timer runs with.
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -142,7 +144,7 @@ export default function TimerView({ opts, meId, run, entries, dates, today, lock
           <button type="button" className="btn tmadd" onClick={addTime} aria-disabled={adding || undefined} disabled={!!blocked || !projectId} title={blocked ?? (projectId ? undefined : "Choose a project first")}>Add Time</button>
         </div>
       </form>
-      {(clockErr || state?.error) && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{clockErr || state?.error}</p>}
+      {(clockErr || state?.error) && <p className="alert bad" role="alert" style={{ marginTop: 8 }}>{clockErr || [state?.error, addReason].filter(Boolean).join(" ")}</p>}
       {msg && !run && <p className="alert info" role="status" style={{ marginTop: 8 }}>{msg}</p>}
       <p className="note tmnote">
         {blocked ? `${blocked} So the timer and Add Time can't add time today.`
