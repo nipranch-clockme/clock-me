@@ -392,9 +392,21 @@ a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);co
 .pfilter .pf-find input{width:100%}
 .pfilter .btn{min-height:34px}
 .pselect{padding:0 0 6px}
+/* Projects: the highlighted New project button, the filter toolbar and the bar above the list */
+.btn.cta{background:var(--coral);color:#1A1A1A;font-size:14px;min-height:38px;padding:8px 16px 8px 13px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.btn.cta:hover:not(:disabled):not([aria-disabled="true"]){background:color-mix(in srgb,var(--coral) 88%,#000)}
+.ptools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.ptools-find{flex:1 1 240px;display:flex;align-items:center;gap:8px;min-width:0;margin:0;padding-left:10px;background:var(--tile);border:1px solid var(--field);border-radius:6px;color:var(--muted)}
+.ptools-find:focus-within{border-color:var(--accent)}
+.ptools-find input{border:0;background:transparent;padding-left:0;min-height:32px}
+.ptools-find input:focus-visible{outline:none}
+.ptools .ifld select{max-width:220px}
+.pbar-l{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
+.pbar-l .check{margin:0;font-size:13.5px;white-space:nowrap}
+.psort .seg a[aria-current="true"]{background:var(--seg-on);color:var(--ink);font-weight:600}
 .psort{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px}
 .psort .pf-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:4px}
-.pbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0 0 8px}
+.pbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 8px;padding:0 0 10px;border-bottom:1px solid var(--line)}
 .pbar .psort{margin:0}
 .psize-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 /* People: a narrow Offices card beside a wide Teams card, whose teams sit in two columns, one group per office */
@@ -423,6 +435,8 @@ a.chip[aria-current]{background:var(--accent-soft);border-color:var(--accent);co
   .pfilter label select{flex:1 1 auto;min-width:0}
   .pfilter .pf-find{grid-column:1/-1;max-width:none}
   .pfilter .btn{grid-column:1/-1}
+  .ptools>*{flex:1 1 100%}
+  .ptools .ifld select{flex:1 1 auto;max-width:none}
 }
 @media (min-width:700px){
   .ptable td.pone{white-space:nowrap}

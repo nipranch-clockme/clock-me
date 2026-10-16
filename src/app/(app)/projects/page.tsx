@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { addedProjectsWhere, canCreateProject, canEditProject, clientColorFor, hidesClients, visibleProjectsWhere } from "@/lib/scope";
 import { canTab, roleName } from "@/lib/roles";
-import { PageHead, Pill } from "@/components/ui";
+import { Ifld, PageHead, Pill } from "@/components/ui";
 import ProjectsClient, { SelectAllProjects } from "./ProjectsClient";
 import ClientForm, { EditClient } from "./ClientForm";
 import PageSize from "./PageSize";
@@ -97,32 +97,46 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHead title="Projects" sub="Projects, phases and who can log time on them." />
+      <PageHead
+        title="Projects"
+        sub={creator ? "Projects, phases and who can log time on them." : "Projects you've been added to. Projects open to everyone aren't listed, but you can still log time on them."}
+        actions={<Suspense><ProjectsClient creator={creator} form={formData} editable={editable} admin={me.role === "ADMIN"} /></Suspense>}
+      />
     <div className="grid g2">
       <section className="panel full">
-        <Suspense><ProjectsClient creator={creator} canImport={canTab("import-export", me.role)} form={formData} editable={editable} count={total} admin={me.role === "ADMIN"} /></Suspense>
+        {creator && !clients.length && <p className="alert info">{me.role === "ADMIN" ? "Add a client below before creating a project." : "An Admin needs to add a client before projects can be created."}</p>}
+        {/* One tidy toolbar: the name search first, then the three drop-downs, then Apply. */}
         {creator && (
-          <form className="pfilter" method="get" role="search" aria-label="Filter projects">
-            <span className="pf-label">Filter</span>
-            <label>Active<select name="active" defaultValue={active}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></label>
-            <label>Client<select name="client" defaultValue={sp.client ?? ""}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-            <label>Access<select name="access" defaultValue={creator && sp.access ? sp.access : "all"}><option value="all">All</option><option value="everyone">Everyone</option><option value="restricted">Restricted</option></select></label>
-            <label className="pf-find"><span className="sr-only">Find by name</span><input type="search" name="q" placeholder="Find by name" defaultValue={needle} /></label>
-            <button className="btn primary">Apply filter</button>
+          <form className="ptools" method="get" role="search" aria-label="Filter projects">
+            <label className="ptools-find">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              <span className="sr-only">Find by name</span>
+              <input type="search" name="q" placeholder="Find a project by name" defaultValue={needle} />
+            </label>
+            <Ifld id="pf-active" label="Status" name="active" defaultValue={active}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></Ifld>
+            <Ifld id="pf-client" label="Client" name="client" defaultValue={sp.client ?? ""}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Ifld>
+            <Ifld id="pf-access" label="Access" name="access" defaultValue={creator && sp.access ? sp.access : "all"}><option value="all">All</option><option value="everyone">Everyone</option><option value="restricted">Restricted</option></Ifld>
+            <button className="btn">Apply filter</button>
           </form>
         )}
         {/* The empty message sits outside the table so it doesn't scroll sideways with it on phones. */}
         {!projects.length ? <p className="empty">{!creator ? "You haven't been added to any projects yet." : sp.client ? "No projects for this client." : "No projects yet."}</p> : (
           <>
+          {/* Above the list: Select all and the sort on the left; how many show, which ones, and the page arrows on the right. */}
           <div className="pbar">
-            <nav className="psort" aria-label="Sort projects">
-              <span className="pf-label">Sort</span>
-              {KEYS.map((k) => (
-                <Link key={k} href={sortHref(k)} scroll={false} className={`btn sm${k === key ? " primary" : ""}`} aria-current={k === key ? "true" : undefined}>
-                  {SORTS[k]}{k === key && <><span aria-hidden="true"> {dir === "asc" ? "↑" : "↓"}</span><span className="sr-only"> ({dir === "asc" ? "ascending" : "descending"})</span></>}
-                </Link>
-              ))}
-            </nav>
+            <div className="pbar-l">
+              {creator && <SelectAllProjects />}
+              <nav className="psort" aria-label="Sort projects">
+                <span className="pf-label">Sort by</span>
+                <span className="seg">
+                  {KEYS.map((k) => (
+                    <Link key={k} href={sortHref(k)} scroll={false} aria-current={k === key ? "true" : undefined}>
+                      {SORTS[k]}{k === key && <><span aria-hidden="true"> {dir === "asc" ? "↑" : "↓"}</span><span className="sr-only"> ({dir === "asc" ? "ascending" : "descending"})</span></>}
+                    </Link>
+                  ))}
+                </span>
+              </nav>
+            </div>
             <div className="psize-row">
               <PageSize value={size} options={PAGE_SIZES} params={listParams} />
               <span className="note">{from.toLocaleString("en-US")}–{to.toLocaleString("en-US")} of {total.toLocaleString("en-US")}</span>
@@ -135,7 +149,6 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               {current < pages ? <Link href={pageHref(current + 1)} scroll={false} className="btn sm">Next ›</Link> : <span className="btn sm" aria-disabled="true">Next ›</span>}
             </nav>
           )}
-          {creator && <div className="pselect"><SelectAllProjects /></div>}
           <div className="tablebox">
             <table className="ptable ctable">
               <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th>Date added</th><th className="act" /></tr></thead>

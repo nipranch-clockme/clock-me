@@ -15,7 +15,8 @@ export type EditableProject = {
 };
 const DEFAULT_PHASES = ["Submission 1", "Submission 2", "Submission 3", "Submission 4", "Submission 5"];
 
-export default function ProjectsClient({ creator, form, editable, count, admin }: { creator: boolean; canImport: boolean; form: ProjectForm; editable: EditableProject[]; count: number; admin: boolean }) {
+/** The page's main actions (Bulk edit and New project), shown at the top right, and the dialogs they open. */
+export default function ProjectsClient({ creator, form, editable, admin }: { creator: boolean; form: ProjectForm; editable: EditableProject[]; admin: boolean }) {
   const sp = useSearchParams();
   const router = useRouter();
   const path = usePathname();
@@ -47,19 +48,15 @@ export default function ProjectsClient({ creator, form, editable, count, admin }
 
   return (
     <>
-      <div className="row between" style={{ marginBottom: 6 }}>
-        <div>
-          <h3 style={{ margin: 0 }}>Projects</h3>
-          <p className="note" style={{ margin: "2px 0 0" }}>{count} project{count === 1 ? "" : "s"}{creator ? "" : " you've been added to. Projects open to everyone aren't listed, but you can still log time on them."}</p>
-        </div>
-        {creator && (
-          <div className="row" style={{ flex: "0 1 auto", gap: 8 }}>
-            {picked.length > 0 && <button type="button" className="btn" onClick={openBulk}>Bulk edit ({picked.length})</button>}
-            <button type="button" className="btn primary" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>New project</button>
-          </div>
-        )}
-      </div>
-      {creator && !form.clients.length && <p className="alert info">{admin ? "Add a client below before creating a project." : "An Admin needs to add a client before projects can be created."}</p>}
+      {creator && (
+        <>
+          {picked.length > 0 && <button type="button" className="btn" onClick={openBulk}>Bulk edit ({picked.length})</button>}
+          <button type="button" className="btn cta" onClick={() => router.push(newHref(), { scroll: false })} disabled={!form.clients.length}>
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            New project
+          </button>
+        </>
+      )}
       <dialog ref={ref} className="wide" onClose={close} aria-labelledby="proj-title">
         {open && <ProjectEditor key={open} form={form} project={open === "new" ? null : editable.find((p) => p.id === open)!} admin={admin} onDone={() => ref.current?.close()} />}
       </dialog>
