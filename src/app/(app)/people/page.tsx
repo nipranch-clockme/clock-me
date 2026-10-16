@@ -6,7 +6,7 @@ import { toStr, today } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
 import Link from "next/link";
 import PeopleClient from "./PeopleClient";
-import { OfficeForm, TeamForm } from "./SmallForms";
+import { NameRow, OfficeForm, TeamForm } from "./SmallForms";
 import HoursView from "./HoursView";
 import YearPicker from "@/components/YearPicker";
 import { gridYear } from "@/lib/monthGrid";
@@ -60,12 +60,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       />
       <section className="panel">
         <h3>Offices</h3>
-        <div className="list">{myLocations.map((l) => <div className="item" key={l.id}><div>{l.name}</div><span className="note">{l._count.users === 1 ? "1 person" : `${l._count.users} people`}</span></div>)}</div>
+        <div className="list">{myLocations.map((l) => <NameRow key={l.id} kind="office" id={l.id} name={l.name} canEdit={admin} meta={l._count.users === 1 ? "1 person" : `${l._count.users} people`} deleteQuestion={`Delete the ${l.name} office? Its teams and public holidays are deleted too.`} />)}</div>
         {admin && <OfficeForm />}
       </section>
       <section className="panel">
         <h3>Teams</h3>
-        <div className="list">{teams.map((t) => <div className="item" key={t.id}><div>{t.name}<div className="meta">{t.location.name}</div></div><span className="note">{t._count.users === 1 ? "1 person" : `${t._count.users} people`}</span></div>)}</div>
+        <div className="list">{teams.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin || me.role === "LOCATION"} meta={`${t.location.name} · ${t._count.users === 1 ? "1 person" : `${t._count.users} people`}`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div>
         <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
       </section>
     </div>

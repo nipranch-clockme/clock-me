@@ -157,3 +157,78 @@ export async function addTeam(_: PeopleResult, form: FormData): Promise<PeopleRe
   revalidatePath("/people");
   return { ok: true };
 }
+
+/** Renames an office. The name is kept in one place, so it changes everywhere at once (people, teams, reports, filters). */
+export async function renameOffice(id: string, newName: string): Promise<PeopleResult> {
+  const me = await requireTab("people");
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can rename offices." };
+  const name = String(newName ?? "").trim().replace(/\s+/g, " ");
+  if (!name) return { ok: false, error: "Name the office." };
+  if (name.length > 80) return { ok: false, error: "An office name can be up to 80 characters." };
+  const loc = await db.location.findUnique({ where: { id } });
+  if (!loc) return { ok: false, error: "That office no longer exists." };
+  if (await db.location.findFirst({ where: { id: { not: id }, name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: "Another office already has that name." };
+  if (loc.name === name) return { ok: true };
+  await db.location.update({ where: { id }, data: { name } });
+  await logAction(me.id, `Renamed office ${loc.name} to ${name}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * Deletes an office that nobody belongs to (archived people count, since their history stays with the office).
+ * Its teams, public holidays and project access go with it; clients looked after by one of its teams are left without a team.
+ */
+export async function deleteOffice(id: string): Promise<PeopleResult> {
+  const me = await requireTab("people");
+  if (me.role !== "ADMIN") return { ok: false, error: "Only Admins can delete offices." };
+  const loc = await db.location.findUnique({ where: { id }, include: { _count: { select: { users: true } } } });
+  if (!loc) return { ok: false, error: "That office no longer exists." };
+  if ((await db.location.count()) <= 1) return { ok: false, error: "This is the only office, so it can't be deleted." };
+  const n = loc._count.users;
+  if (n) return { ok: false, error: `${loc.name} still has ${n === 1 ? "1 person" : `${n} people`} (archived people included). Move them to another office on this page first.` };
+  await db.$transaction([
+    db.team.deleteMany({ where: { locationId: id } }),
+    db.location.delete({ where: { id } }),
+  ]);
+  await logAction(me.id, `Deleted office ${loc.name}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Admins rename any team, Location managers the teams in their own office. The name changes everywhere at once. */
+async function teamInReach(id: string) {
+  const me = await requireTab("people");
+  const team = await db.team.findUnique({ where: { id }, include: { location: true, _count: { select: { users: true, clients: true } } } });
+  if (!team) return { me, error: "That team no longer exists." } as const;
+  if (me.role !== "ADMIN" && !(me.role === "LOCATION" && me.locationId === team.locationId)) return { me, error: "Only Admins, or the Location manager of its office, can change a team." } as const;
+  return { me, team } as const;
+}
+
+export async function renameTeam(id: string, newName: string): Promise<PeopleResult> {
+  const r = await teamInReach(id);
+  if ("error" in r) return { ok: false, error: r.error };
+  const { me, team } = r;
+  const name = String(newName ?? "").trim().replace(/\s+/g, " ");
+  if (!name) return { ok: false, error: "Name the team." };
+  if (name.length > 80) return { ok: false, error: "A team name can be up to 80 characters." };
+  if (await db.team.findFirst({ where: { id: { not: id }, locationId: team.locationId, name: { equals: name, mode: "insensitive" } } })) return { ok: false, error: `${team.location.name} already has a ${name} team.` };
+  if (team.name === name) return { ok: true };
+  await db.team.update({ where: { id }, data: { name } });
+  await logAction(me.id, `Renamed team ${team.name} in ${team.location.name} to ${name}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Deletes a team nobody is assigned to (archived people included). Clients it looked after are left without a team. */
+export async function deleteTeam(id: string): Promise<PeopleResult> {
+  const r = await teamInReach(id);
+  if ("error" in r) return { ok: false, error: r.error };
+  const { me, team } = r;
+  const n = team._count.users;
+  if (n) return { ok: false, error: `${team.name} still has ${n === 1 ? "1 person" : `${n} people`} assigned (archived people included). Move them to another team first.` };
+  await db.team.delete({ where: { id } });
+  await logAction(me.id, `Deleted team ${team.name} in ${team.location.name}`);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
