@@ -3,9 +3,7 @@ export function BrandBand({ title, lines, right, className }: { title?: string; 
   return (
     <div className={`avband${className ? ` ${className}` : ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="bm-l" src="/brand/avdl-logo.png" alt="AV Design Labs" width={93} height={58} />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="bm-d" src="/brand/avdl-logo-white.png" alt="AV Design Labs" width={93} height={58} />
+      <img src="/brand/avdl-logo.png" alt="AV Design Labs" width={93} height={58} />
       {right ?? <div className="avband-r">{title && <b>{title}</b>}{lines?.map((l) => <span key={l}>{l}</span>)}</div>}
     </div>
   );
@@ -16,9 +14,7 @@ export function BrandFoot({ text, className }: { text: string; className?: strin
   return (
     <p className={`avfoot${className ? ` ${className}` : ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="bm-l" src="/brand/avdl-mark.png" alt="" width={7} height={16} />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="bm-d" src="/brand/avdl-mark-white.png" alt="" width={7} height={16} />
+      <img src="/brand/avdl-mark.png" alt="" width={7} height={16} />
       {text}
     </p>
   );

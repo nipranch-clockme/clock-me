@@ -1,9 +1,7 @@
 import { cache } from "react";
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/settings";
-import { THEME_COOKIE, themeOf } from "@/lib/themes";
 import { clientIp, takeAttempt } from "@/lib/throttle";
 import { DAYS, RANGES, addDays, dow, longDate, monday, shortDate, today, toDate } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -13,7 +11,6 @@ import AutoForm from "@/components/AutoForm";
 import ExportMenu from "@/components/ExportMenu";
 import FilterMenu from "@/components/FilterMenu";
 import ReportTable, { type RRow } from "@/components/ReportTable";
-import ThemeToggle from "@/components/ThemeToggle";
 import { BarChart, Donut, OTHER, PALETTE } from "@/components/ReportCharts";
 import { Dot, Ifld } from "@/components/ui";
 import { BrandBand, BrandFoot } from "@/components/BrandBand";
@@ -37,7 +34,6 @@ export default async function SharedReport({ params, searchParams }: { params: P
   }
   const settings = await getSettings(); // also sets the company time zone, which decides today's date
   const f = (m: number) => fmtHours(m, settings.timeFormat);
-  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
   const p = parseShareParams(await searchParams);
   try { await noteShareViewed(client.id); } catch { /* remembering the visit is best effort */ }
 
@@ -116,7 +112,7 @@ export default async function SharedReport({ params, searchParams }: { params: P
 
   return (
     <main className="shpg">
-      <BrandBand className="shbrand" right={<div className="avband-r"><span className="avband-pill">View-only report</span><ThemeToggle initial={theme} /></div>} />
+      <BrandBand className="shbrand" right={<div className="avband-r"><span className="avband-pill">View-only report</span></div>} />
       <header className="shhead">
         <div className="shtitle">
           <p className="shkicker">Time report</p>

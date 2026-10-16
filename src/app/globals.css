@@ -686,6 +686,7 @@ tr[hidden]{display:none}
 html[data-theme] body{background:var(--bg);color:var(--ink)}
 
 /* Dark: near-black slate, a calm blue accent, text at about 14:1 contrast so long days stay readable */
+@media screen{ /* printed pages always use the light colours */
 :root[data-theme="dark"]{
   color-scheme:dark; --on-accent:#111;
   --bg:#1E1E1E; --side:#252525; --card:#262626; --tile:#2E2E2E; --surface:#2E2E2E; --hover:#353535; --track:#444444;
@@ -698,7 +699,7 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
   --t1:#363636; --t1i:#EDEDED; --t2:#3A2019; --t2i:#FFB39E; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
   --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); --edge:rgba(0,0,0,.7);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
+}}
 
 /* Theme toggle in the top bar */
 .themebtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:none;border:1px solid var(--border);border-radius:999px;background:var(--tile);color:var(--ink);cursor:pointer;padding:0;margin-left:6px}
@@ -1059,7 +1060,7 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .pageload{display:grid;place-items:center;min-height:50vh}
 .pageload .logo{width:114px;height:114px}
 /* AV Design Labs letterhead on reports: the full-colour logo, report details on the right, a thin coral line underneath.
-   In the dark theme the logo's lettering turns white; on paper it is always the full-colour logo on white. */
+   Always on light colours: the client link page is light only, and on Reports it only shows on paper. */
 .avband{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:4px 0 14px;border-bottom:2px solid #FF8666;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .avband img{height:60px;width:auto;display:block;flex:none}
 .avband-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;font-size:12px;line-height:1.4;color:var(--muted);min-width:0}
@@ -1067,23 +1068,13 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 .shbrand{align-items:center}
 .shbrand .avband-r{flex-direction:row;align-items:center;gap:10px}
 .avband-pill{border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
-.avband .bm-d{display:none}
-:root[data-theme="dark"] .avband .bm-l{display:none}
-:root[data-theme="dark"] .avband .bm-d{display:block}
 .avfoot{display:flex;align-items:center;justify-content:center;gap:8px;margin:0;font-size:12px;color:var(--muted)}
 .avfoot img{height:16px;width:auto}
-.avfoot .bm-d{display:none}
-:root[data-theme="dark"] .avfoot .bm-l{display:none}
-:root[data-theme="dark"] .avfoot .bm-d{display:inline}
 .ponly{display:none!important}
 @media (max-width:600px){.avband img{height:46px}.avband-pill{display:none}}
+@page{margin:14mm 12mm}
 @media print{
   .ponly{display:flex!important}
   .avband{margin-bottom:18px}
-  .avband-r{color:#5B6470}.avband-r b{color:#1F2328}
-  :root[data-theme="dark"] .avband .bm-l{display:block}
-  :root[data-theme="dark"] .avband .bm-d{display:none}
   .avfoot{margin-top:18px}
-  :root[data-theme="dark"] .avfoot .bm-l{display:inline}
-  :root[data-theme="dark"] .avfoot .bm-d{display:none}
 }

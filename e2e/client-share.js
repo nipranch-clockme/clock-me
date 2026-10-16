@@ -118,16 +118,17 @@ const q = (s) => s.replace(/'/g, "''");
     await admin.locator('.shadmin .tog').click();
     await admin.waitForFunction(() => document.querySelector('.shadmin .tog input')?.checked === false);
 
-    // 7. Phone width and dark theme.
+    // 7. Phone width; always light with the company letterhead, even for someone who uses the dark theme in the app.
     await visitor.setViewportSize({ width: 390, height: 800 });
     await visitor.goto(`${BASE}/share/${token}`); await visitor.waitForLoadState('networkidle');
     ok(await visitor.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scroll on a phone');
     await visitor.screenshot({ path: '/tmp/claude-0/shots/share-phone.png', fullPage: true });
     await visitor.setViewportSize({ width: 1280, height: 1000 });
-    await visitor.click('.themebtn'); await visitor.waitForTimeout(300);
-    ok(await visitor.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'the theme button switches to dark');
-    await visitor.screenshot({ path: '/tmp/claude-0/shots/share-dark.png', fullPage: true });
-    await visitor.click('.themebtn');
+    ok(await visitor.evaluate(() => { const i = document.querySelector('.avband img'); return !!i && i.complete && i.naturalWidth > 0; }), 'the company logo shows at the top');
+    ok(await visitor.locator('.themebtn').count() === 0, 'there is no theme button');
+    await visitor.context().addCookies([{ name: 'tsink-theme', value: 'dark', url: BASE }]);
+    await visitor.reload(); await visitor.waitForLoadState('networkidle');
+    ok(await visitor.evaluate(() => document.documentElement.dataset.theme) === 'light', 'the page stays light for someone using the dark theme');
     await visitor.screenshot({ path: '/tmp/claude-0/shots/share-light.png', fullPage: true });
     ok(errs.length === 0, 'no page errors: ' + errs.join(' / '));
 

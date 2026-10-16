@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { THEME_COOKIE, themeOf } from "@/lib/themes";
 import "./globals.css";
 
@@ -12,7 +12,9 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variabl
 export const metadata: Metadata = { title: "The Time Sink", description: "Time tracking" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
+  // A client's shared report is always light, whatever theme the person opening it uses in the app.
+  const shared = ((await headers()).get("x-pathname") ?? "").startsWith("/share/");
+  const theme = shared ? "light" : themeOf((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <html lang="en" data-theme={theme} className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>{children}</body>
