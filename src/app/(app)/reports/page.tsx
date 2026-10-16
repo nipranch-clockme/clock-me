@@ -19,6 +19,7 @@ import ExportMenu from "@/components/ExportMenu";
 import PrintButton from "@/components/PrintButton";
 import { BrandBand, BrandFoot } from "@/components/BrandBand";
 import ReportTable, { type RRow } from "@/components/ReportTable";
+import PageSizeSelect from "./PageSizeSelect";
 import { BarChart, Donut, OTHER, PALETTE } from "@/components/ReportCharts";
 
 const STACK_FIELD: Record<string, string> = { project: "projectId", client: "projectId", person: "userId", team: "userId", location: "userId", tag: "tagIds", phase: "phaseId", description: "description" };
@@ -74,7 +75,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   ]);
   const phases = combos.length ? await db.phase.findMany({ where: { id: { in: [...new Set(combos.map((c) => c.phaseId).filter(Boolean))] as string[] } }, select: { id: true, name: true } }) : [];
   const U = new Map(people.map((u) => [u.id, u])), P = new Map(scopeProjects.map((x) => [x.id, x])), T = new Map(tags.map((t) => [t.id, t.name])), PH = new Map(phases.map((x) => [x.id, x.name]));
-  const dupProjectName = (name: string) => scopeProjects.filter((x) => x.name === name).length > 1;
   const dupPersonName = (name: string) => people.filter((x) => x.name === name).length > 1;
 
   // Review time (from Approvals) also marks the time tagged OT (overtime). It is for reviewing only, so the other reports never show it.
@@ -98,7 +98,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       case "description": return [c.description ?? "", c.description ? clipText(c.description, DESCRIPTION_MAX) : "No description"]; // an old, very long one is cut short
       case "day": { const d = toStr(c.date!); return [d, longDate(d)]; }
       case "month": { const k = toStr(c.date!).slice(0, 7); return [k, toDate(k + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })]; }
-      default: return [c.projectId ?? "?", pr ? (dupProjectName(pr.name) && !hidesClients(me) ? `${pr.name} (${pr.client.name})` : pr.name) : "Unknown"];
+      default: return [c.projectId ?? "?", pr ? (hidesClients(me) ? pr.name : `${pr.client.name} - ${pr.name}`) : "Unknown"];
     }
   };
   // An entry with several tags counts under each of them; every other grouping puts an entry in exactly one group.
@@ -129,7 +129,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const share = (m: number) => (total ? `${((m / total) * 100).toFixed(1)}%` : "0%");
   const usage = p.est && p.group === "project" ? await db.timeEntry.groupBy({ by: ["projectId"], _sum: { minutes: true } }) : [];
   const usedMin = new Map(usage.map((u) => [u.projectId, u._sum.minutes ?? 0]));
-  const tableRows: RRow[] = sorted.map(([k, n]) => {
+  // The Summary of projects shows a page at a time (50 by default, like the Projects list); the chart and the share of hours still use every project.
+  const PAGE_SIZES = [50, 200, 500];
+  const size = PAGE_SIZES.find((n) => String(n) === raw.pp) ?? PAGE_SIZES[0];
+  const paged = p.tab === "summary" && p.group === "project";
+  const pages = Math.max(1, Math.ceil(sorted.length / size));
+  const current = Math.min(Math.max(1, parseInt(typeof raw.page === "string" ? raw.page : "", 10) || 1), pages);
+  const shownRows = paged ? sorted.slice((current - 1) * size, current * size) : sorted;
+  const tableRows: RRow[] = shownRows.map(([k, n]) => {
     const budget = p.group === "project" ? P.get(k)?.budgetHours : null;
     const used = usedMin.get(k) ?? 0;
     return {
@@ -257,6 +264,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
           {tagOverlap && <p className="note" style={{ margin: "0 0 8px" }}>Time with several tags counts under each of its tags, so the tag rows and the coloured bars can add up to more than the total.</p>}
 
+          {paged && (
+            <div className="psize-row" style={{ margin: "0 0 8px" }}>
+              <PageSizeSelect value={size} options={PAGE_SIZES} query={reportQuery(p)} />
+              <span className="note">{sorted.length ? (current - 1) * size + 1 : 0}–{Math.min(current * size, sorted.length).toLocaleString("en-US")} of {sorted.length.toLocaleString("en-US")} projects</span>
+            </div>
+          )}
+          {paged && pages > 1 && (
+            <nav className="ppager" aria-label="Pages of projects">
+              {current > 1 ? <Link href={`/reports?${reportQuery(p, { page: String(current - 1), pp: String(size) })}`} className="btn sm">‹ Previous</Link> : <span className="btn sm" aria-disabled="true">‹ Previous</span>}
+              <span className="note">Page {current} of {pages}</span>
+              {current < pages ? <Link href={`/reports?${reportQuery(p, { page: String(current + 1), pp: String(size) })}`} className="btn sm">Next ›</Link> : <span className="btn sm" aria-disabled="true">Next ›</span>}
+            </nav>
+          )}
           {p.tab === "summary" && (
             <div className="rsplit">
               <ReportTable rows={tableRows} titleLabel={groupLabel} showPeople={p.group !== "person"} showEstimate={!!p.est} empty="No time in this range." />
@@ -277,7 +297,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                           {/* one line per entry: description, then the project with its tags and phase */}
                           <div className="rline">
                             {e.description ? <bdi className="rdesc" title={e.description}>{clipText(e.description, DESCRIPTION_MAX)}</bdi> : <span className="rdesc note">No description</span>}
-                            <span className="rproj"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{e.project.name}{!hidesClients(me) && ` - ${e.project.client.name}`}</span>
+                            <span className="rproj"><i className="dot" style={{ background: `var(--${clientColorFor(me, e.project.client.color)})` }} />{!hidesClients(me) && `${e.project.client.name} - `}{e.project.name}</span>
                             {tags.length > 0 && <span className="rtags">{tags.map((n, i) => <Fragment key={n}>{i > 0 && " "}<span className="rtag">{n}</span></Fragment>)}</span>}
                             {!p.nophase && e.phase && <span className="rphase">{e.phase.name}</span>}
                           </div>
