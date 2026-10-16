@@ -10,7 +10,7 @@ import { gridYear } from "@/lib/monthGrid";
 
 // Monthly contracts for location managers and admins. Contracts are company-wide. The client overview (hours and utilisation for each client)
 // is a tab on the Dashboard.
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ year?: string; status?: string }> }) {
   const sp = await searchParams;
   const me = await requireTab("clients");
   await getSettings(); // sets the company time zone, which decides the year's current month
@@ -20,7 +20,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     <>
       <PageHead title="Clients" actions={<><YearPicker year={gridYear(sp.year)} view="contracts" />{admin && <AddClientButton teams={teamOpts} tags={tagOpts} />}</>}
         sub="Contracted hours for each client, month by month. Contracts that change from month to month, or end part-way through one, are worked out month by month." />
-      <div className="grid"><ContractsView admin={admin} yearParam={sp.year} /></div>
+      <div className="grid"><ContractsView admin={admin} yearParam={sp.year} statusParam={sp.status} /></div>
     </>
   );
 }

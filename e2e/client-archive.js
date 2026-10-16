@@ -24,6 +24,10 @@ const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console
     ok(true, 'archiving shows the archived banner on the client page');
     await admin.goto(`${BASE}/clients`); await admin.waitForLoadState('networkidle');
     ok((await row(admin, quiet)) === 0, 'an archived client is not on the Clients list');
+    await admin.goto(`${BASE}/clients?status=archived`); await admin.waitForLoadState('networkidle');
+    ok((await row(admin, quiet)) === 1, 'the Archived filter lists the archived client');
+    await admin.goto(`${BASE}/clients?status=all`); await admin.waitForLoadState('networkidle');
+    ok((await row(admin, quiet)) === 1, 'the All filter lists the archived client too');
 
     // 2. Restore brings it back.
     await admin.goto(`${BASE}/clients/arq${tag}`); await admin.waitForLoadState('networkidle');
