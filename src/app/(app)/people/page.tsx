@@ -48,16 +48,29 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           <p style={{ margin: 0 }}>Next steps: add your other offices and teams above, add clients on the <Link href="/projects">Projects</Link> page, then invite people with <strong>Invite person</strong>. Company settings like the time format and lock date are under <Link href="/settings">Settings</Link>.</p>
         </section>
       )}
-      <section className="panel">
-        <h3>Offices</h3>
-        <div className="list">{myLocations.map((l) => <NameRow key={l.id} kind="office" id={l.id} name={l.name} canEdit={admin} meta={l._count.users === 1 ? "1 person" : `${l._count.users} people`} deleteQuestion={`Delete the ${l.name} office? Its teams and public holidays are deleted too.`} />)}</div>
-        {admin && <OfficeForm />}
-      </section>
-      <section className="panel">
-        <h3>Teams</h3>
-        <div className="list">{teams.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin} meta={`${t.location.name} · ${t._count.users === 1 ? "1 person" : `${t._count.users} people`}`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div>
-        <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
-      </section>
+      <div className="pcards">
+        <section className="panel">
+          <h3>Offices</h3>
+          <div className="list">{myLocations.map((l) => <NameRow key={l.id} kind="office" id={l.id} name={l.name} canEdit={admin} meta={l._count.users === 1 ? "1 person" : `${l._count.users} people`} deleteQuestion={`Delete the ${l.name} office? Its teams and public holidays are deleted too.`} />)}</div>
+          {admin && <OfficeForm />}
+        </section>
+        <section className="panel">
+          <h3>Teams</h3>
+          {/* The teams are grouped by office, two groups across on a wide screen. */}
+          <div className="tgrid">
+            {myLocations.map((l) => {
+              const here = teams.filter((t) => t.locationId === l.id);
+              return (
+                <div className="tgroup" key={l.id}>
+                  <h4>{l.name}</h4>
+                  {here.length ? <div className="list">{here.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin} meta={t._count.users === 1 ? "1 person" : `${t._count.users} people`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div> : <p className="note" style={{ margin: "0 0 8px" }}>No teams yet.</p>}
+                </div>
+              );
+            })}
+          </div>
+          <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
+        </section>
+      </div>
       <PeopleClient
         meId={me.id}
         admin={admin}
