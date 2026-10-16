@@ -169,7 +169,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <section className={`panel${i >= teamCards.length - ({ 2: 2, 1: 4 }[teamCards.length % 3] ?? 0) ? " w3" : ""}`} key={t}>
                     <div className="ch"><h3><span className="dot" style={{ background: `var(--${TEAMCOL[i % TEAMCOL.length]})` }} />{t === "No team" ? t : `${t} team`}</h3><span className="cd">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
                     <div className="stat" style={{ margin: "4px 0 10px" }}><b>{pct(o.prod)}</b><span>team utilisation</span></div>
-                    <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
+                    <div className="meter"><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : "mid"} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
                     <div className="stats spread sm" style={{ marginTop: 14 }}>
                       <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
                       <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
@@ -179,7 +179,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 );
               })}
             </div>
-            <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>
+            <p className="note" style={{ margin: "8px 0 0" }}>Bar colours: green is 75% or more of inventory, grey is 50% to 75%, orange is under 50%.</p>
           </div>
         )}
         {company && locs.length > 0 && (
@@ -191,7 +191,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <section className="panel" key={l.id}>
                   <div className="row between"><h3 style={{ margin: 0 }}><span className="dot" style={{ background: `var(--${colorOf(l.id)})` }} />{l.name} office</h3><span className="note">{o.n === 1 ? "1 person" : `${o.n} people`}</span></div>
                   <div className="stat" style={{ margin: "8px 0 6px" }}><b>{pct(o.prod)}</b><span>total utilisation</span></div>
-                  <div className="meter" style={{ height: 8 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : ""} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
+                  <div className="meter" style={{ height: 8 }}><i className={o.prod >= 0.75 ? "done" : o.prod < 0.5 ? "hi" : "mid"} style={{ width: `${Math.min(100, o.prod * 100)}%` }} /></div>
                   <div className="stats spread sm" style={{ marginTop: 10 }}>
                     <div className="stat"><b>{f(o.m)}</b><span>total hours</span></div>
                     <div className="stat"><b>{f(o.tg)}</b><span>inventory hours</span></div>
@@ -201,7 +201,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             })}
           </div>
         )}
-        {company && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, blue is 50% to 75%, orange is under 50%.</p>}
+        {company && locs.length > 0 && <p className="note full" style={{ margin: 0 }}>Bar colours: green is 75% or more of inventory, grey is 50% to 75%, orange is under 50%.</p>}
         <section className="panel full">
           <h3>Utilisation by month, last 12 full months{me.role === "LOCATION" ? `, by team in ${me.location.name}` : ""}</h3>
           <TrendChart months={months} series={series} label={me.role === "LOCATION" ? "Monthly utilisation by team" : "Monthly utilisation by office"} />

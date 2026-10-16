@@ -96,7 +96,7 @@ export default async function MyStats({ me, timeFormat, collapsible = false, clo
             </div>
           ))}
         </div></div>
-        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. The dashed line is your {f(target * 60)} inventory hours a week. Green: reached that week's expected hours (a week with a public holiday or time off expects less than the dashed line). Blue: below it. Striped: this week so far.</p>
+        <p className="note" style={{ margin: "2px 0 0" }}>Hours per week. The dashed line is your {f(target * 60)} inventory hours a week. Green: reached that week's expected hours (a week with a public holiday or time off expects less than the dashed line). Coral: below it. Striped: this week so far.</p>
       </div>
 
       <p className="mynext">

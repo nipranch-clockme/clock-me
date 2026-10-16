@@ -4,13 +4,14 @@
    Tables adapt to the width of their box (tighter, or rows as cards); the week grids scroll inside their own box on a phone */
 :root{
   color-scheme:light;
-  --bg:#FFFFFF; --side:#F8F9FB; --card:#F6F7F9; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#EDEFF2; --track:#DADDE1;
-  --ink:#1F2328; --muted:#5B6470; --line:#E0E3E7; --border:#DEE0E4; --line2:#C9CDD2; --field:#838C97;
-  --accent:#0168DA; --accent-hi:#0157B8; --link:#0168DA; --accent-soft:#DCE8FB; --accent-ink:#1F5FB8;
-  --btn2:#E6E8EB; --btn2-hi:#DADDE1; --seg-on:#DADDE1; --lilac:#EEE3FC; --lilac-ink:#6A3DAE;
+  --bg:#FFFFFF; --side:#FAFAFA; --card:#F7F7F7; --tile:#FFFFFF; --surface:#FFFFFF; --hover:#EFEFEF; --track:#DDDDDD;
+  --ink:#1A1A1A; --muted:#5F5F5F; --line:#E4E4E4; --border:#E1E1E1; --line2:#CCCCCC; --field:#8A8A8A;
+  --accent:#1A1A1A; --accent-hi:#000000; --link:#1A1A1A; --accent-soft:#F1F1F1; --accent-ink:#1A1A1A;
+  --coral:#FF8666; --coral-ink:#C9472A; --coral-soft:#FFE6DE; /* from the AV Design Labs logo: black, white, grey and coral */
+  --btn2:#E9E9E9; --btn2-hi:#DDDDDD; --seg-on:#DDDDDD; --lilac:#FFE6DE; --lilac-ink:#A23A1C;
   --ok:#276B3C; --ok-soft:#DFF3E4; --warn:#964A0B; --warn-soft:#FDE7D3; --bad:#B42335; --bad-soft:#FBE3E6; --bad-hi:#F7D2D7;
-  --s1:#0168DA; --s2:#D4730F; --s3:#0B3B75; --s4:#76808C; --nb:#C9CDD2; --on-s1:#FFFFFF; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
-  --t1:#DCE8FB; --t1i:#1F5FB8; --t2:#EEE3FC; --t2i:#6A3DAE; --t3:#FBE1EC; --t3i:#A3376B; --t4:#DFF3E4; --t4i:#276B3C; --t5:#FDE7D3; --t5i:#964A0B;
+  --s1:#E8603F; --s2:#D4730F; --s3:#808080; --s4:#76808C; --nb:#CCCCCC; --on-s1:#1A1A1A; --s5:#1696A8; --s6:#2F9E5B; --s7:#8A63D2; --s8:#D0558F;
+  --t1:#EDEDED; --t1i:#1A1A1A; --t2:#FFE6DE; --t2i:#A23A1C; --t3:#FBE1EC; --t3i:#A3376B; --t4:#DFF3E4; --t4i:#276B3C; --t5:#FDE7D3; --t5i:#964A0B;
   --shadow:0 1px 2px rgba(16,24,40,.06); --pop:0 16px 40px rgba(16,24,40,.18),0 2px 6px rgba(16,24,40,.08); --scrim:rgba(15,20,28,.42); --edge:rgba(16,24,40,.16);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%235B6470' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; --display:var(--body);
@@ -30,8 +31,8 @@ nav.snav{display:flex;flex-direction:column;gap:2px;flex:1 0 auto}
 nav.snav a,nav.snav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink);font:500 13.5px/1.2 var(--body);padding:8px 10px;border-radius:7px;cursor:pointer;text-align:left}
 nav.snav a svg,nav.snav button svg{width:16px;height:16px;flex:none;color:var(--muted)}
 nav.snav a:hover,nav.snav button:hover{background:var(--hover)}
-nav.snav a[aria-current="page"],nav.snav button[aria-current="page"]{background:var(--accent-soft);font-weight:600;box-shadow:inset 3px 0 0 var(--accent)}
-nav.snav a[aria-current="page"] svg,nav.snav button[aria-current="page"] svg{color:var(--accent)}
+nav.snav a[aria-current="page"],nav.snav button[aria-current="page"]{background:var(--accent-soft);font-weight:600;box-shadow:inset 3px 0 0 var(--coral)}
+nav.snav a[aria-current="page"] svg,nav.snav button[aria-current="page"] svg{color:var(--coral-ink)}
 nav.snav hr{border:0;border-top:1px solid var(--border);margin:8px 6px;width:auto}
 nav.snav .navend{margin-top:auto} /* Settings stays at the bottom */
 nav.snav hr+.navend{margin-top:auto}
@@ -257,7 +258,7 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 16px;margin:0;font-size:14px}
 .kv dt{font-size:12px;font-weight:500;color:var(--muted);padding-top:2px}
 .kv dd{margin:0;overflow-wrap:anywhere}
-/* Status pills: soft blue, green, orange and red; neutral ones are outlined white */
+/* Status pills: soft grey, green, orange and red; neutral ones are outlined white */
 .pill{display:inline-block;font:500 12px/1 var(--body);padding:4px 8px;border-radius:5px;white-space:nowrap;vertical-align:1px}
 .pill::first-letter{text-transform:uppercase}
 .p-draft,.p-info{background:var(--accent-soft);color:var(--accent-ink)}
@@ -265,7 +266,7 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .p-approved,.p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-rejected,.p-bad{background:var(--bad-soft);color:var(--bad)}
 .p-locked{background:var(--tile);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line2)}
-/* Overtime, shown only while a timesheet is reviewed: a lilac pill, a bar beside the approval card and the detailed rows */
+/* Overtime, shown only while a timesheet is reviewed: a soft coral pill, a bar beside the approval card and the detailed rows */
 .p-ot{background:var(--lilac);color:var(--lilac-ink);font-weight:600}
 .item.ot{box-shadow:inset 3px 0 0 var(--lilac-ink);padding-left:12px}
 .alert.ot{background:var(--lilac);color:var(--lilac-ink)}
@@ -273,7 +274,7 @@ td select{font-size:13px;min-height:32px;padding:5px 28px 5px 9px;background-pos
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px;flex:none}
 .meter{height:8px;background:var(--track);border-radius:99px;overflow:hidden;min-width:70px}
 .meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
-.meter i.hi{background:var(--s2)} .meter i.over{background:var(--bad)} .meter i.done{background:var(--ok)}
+.meter i.mid{background:var(--s3)} .meter i.hi{background:var(--s2)} .meter i.over{background:var(--bad)} .meter i.done{background:var(--ok)}
 .stats{display:flex;flex-wrap:wrap;gap:28px}
 .stats.wk-stats{justify-content:flex-end;text-align:right;gap:24px} /* the week's figures sit at the right edge, each label under its figure */
 .stats.wk-stats .stat span{white-space:nowrap}
@@ -686,14 +687,15 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 
 /* Dark: near-black slate, a calm blue accent, text at about 14:1 contrast so long days stay readable */
 :root[data-theme="dark"]{
-  color-scheme:dark; --on-accent:#fff;
-  --bg:#0F1216; --side:#14181D; --card:#171B20; --tile:#1F242A; --surface:#1F242A; --hover:#262C34; --track:#343B45;
-  --ink:#E6E9ED; --muted:#9AA4B0; --line:#2A3038; --border:#2A3038; --line2:#3C444F; --field:#6C7682;
-  --accent:#2B72DA; --accent-hi:#2563EB; --link:#7DB0FF; --accent-soft:#18294A; --accent-ink:#A3C6FF;
-  --btn2:#2A3038; --btn2-hi:#353C46; --seg-on:#3A424D; --lilac:#352A4D; --lilac-ink:#D7C4FA;
+  color-scheme:dark; --on-accent:#111;
+  --bg:#0E0E0E; --side:#141414; --card:#171717; --tile:#1F1F1F; --surface:#1F1F1F; --hover:#272727; --track:#363636;
+  --ink:#EDEDED; --muted:#A3A3A3; --line:#2A2A2A; --border:#2A2A2A; --line2:#3D3D3D; --field:#707070;
+  --accent:#F2F2F2; --accent-hi:#FFFFFF; --link:#F2F2F2; --accent-soft:#262626; --accent-ink:#F2F2F2;
+  --coral:#FF8666; --coral-ink:#FF9B80; --coral-soft:#3A2019;
+  --btn2:#2A2A2A; --btn2-hi:#353535; --seg-on:#3A3A3A; --lilac:#3A2019; --lilac-ink:#FFB39E;
   --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
-  --s1:#3B8AF0; --s2:#F59A3E; --s3:#A8C5F0; --s4:#7D8692; --nb:#4A5361; --on-s1:#0B1320; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
-  --t1:#18294A; --t1i:#A3C6FF; --t2:#352A4D; --t2i:#D7C4FA; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
+  --s1:#FF8666; --s2:#F59A3E; --s3:#8A8A8A; --s4:#7D8692; --nb:#4A4A4A; --on-s1:#1A0D08; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
+  --t1:#2A2A2A; --t1i:#EDEDED; --t2:#3A2019; --t2i:#FFB39E; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
   --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); --edge:rgba(0,0,0,.7);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
