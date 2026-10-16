@@ -18,4 +18,4 @@ export function middleware(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ["/((?!_next|favicon.ico|icon.svg).*)"] };
+export const config = { matcher: ["/((?!_next|favicon.ico|icon.svg|brand/).*)"] };

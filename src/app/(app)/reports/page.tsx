@@ -17,6 +17,7 @@ import { PageHead, Ifld, Pill } from "@/components/ui";
 import FilterMenu from "@/components/FilterMenu";
 import ExportMenu from "@/components/ExportMenu";
 import PrintButton from "@/components/PrintButton";
+import { BrandBand, BrandFoot } from "@/components/BrandBand";
 import ReportTable, { type RRow } from "@/components/ReportTable";
 import { BarChart, Donut, OTHER, PALETTE } from "@/components/ReportCharts";
 
@@ -177,6 +178,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
+      <BrandBand className="ponly" title="Time report" lines={[`${longDate(shownFrom)} to ${longDate(shownTo)}`, `Prepared ${longDate(today())}`]} />
       <PageHead title="Reports"
         actions={fromApprovals ? <Link className="btn" href="/approvals">Back to Approvals</Link> : undefined}
         sub={`Showing: ${scopeLabel(me)} · ${longDate(shownFrom)} to ${longDate(shownTo)}`} />
@@ -294,6 +296,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           )}
         </section>
       </AutoForm>
+      <BrandFoot className="ponly" text="AV Design Labs · The Time Sink" />
     </>
   );
 }

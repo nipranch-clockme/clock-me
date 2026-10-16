@@ -16,6 +16,7 @@ import ReportTable, { type RRow } from "@/components/ReportTable";
 import ThemeToggle from "@/components/ThemeToggle";
 import { BarChart, Donut, OTHER, PALETTE } from "@/components/ReportCharts";
 import { Dot, Ifld } from "@/components/ui";
+import { BrandBand, BrandFoot } from "@/components/BrandBand";
 
 const getClient = cache(clientByShareToken);
 
@@ -115,13 +116,13 @@ export default async function SharedReport({ params, searchParams }: { params: P
 
   return (
     <main className="shpg">
+      <BrandBand className="shbrand" right={<div className="avband-r"><span className="avband-pill">View-only report</span><ThemeToggle initial={theme} /></div>} />
       <header className="shhead">
         <div className="shtitle">
           <p className="shkicker">Time report</p>
           <h1><Dot color={client.color} />{client.name}</h1>
           <p className="sub">{longDate(shownFrom)} to {longDate(shownTo)}. {client.shareApprovedOnly ? "Counts approved time only." : "Counts all time logged."}</p>
         </div>
-        <ThemeToggle initial={theme} />
       </header>
 
       <AutoForm key={shareQuery(p)} manual className="rform">
@@ -168,6 +169,7 @@ export default async function SharedReport({ params, searchParams }: { params: P
         </section>
       </AutoForm>
       <p className="note shfoot">View only. Updated {longDate(today())}.</p>
+      <BrandFoot className="shbrandf" text="Shared by AV Design Labs" />
     </main>
   );
 }
