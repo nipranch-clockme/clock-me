@@ -30,7 +30,7 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   // They remembered their password, so any reset link they asked for is no longer needed.
   if (user.inviteToken) await db.user.update({ where: { id: user.id }, data: { inviteToken: null, inviteExpires: null } });
   await createSession(user.id, user.sessionVersion);
-  redirect(next ?? (user.role === "MEMBER" ? "/timesheet" : "/dashboard"));
+  redirect(next ?? "/dashboard");
 }
 
 /** Signs out on every device, so a copy of the sign-in cookie stops working too. */
@@ -55,7 +55,7 @@ export async function acceptInvite(_: string | null, form: FormData): Promise<st
   if (used.count !== 1) return "This link has expired or has already been used. Ask your Admin for a new one.";
   await clearAttempts(`login:${user.email}`);
   await createSession(user.id, user.sessionVersion + 1);
-  redirect(user.role === "MEMBER" ? "/timesheet" : "/dashboard");
+  redirect("/dashboard");
 }
 
 const RESET_MESSAGE = "If that email has an account, we've sent it a link to choose a new password. No email after a few minutes? Ask your Admin for a reset link.";
