@@ -17,7 +17,7 @@ export default async function ContractsView({ admin, yearParam }: { admin: boole
   const ref = now ?? (year < curYear ? 11 : 0);
   const past = year < curYear ? 12 : (now ?? 0);
   const [clients, cm, tags, places] = await Promise.all([
-    db.client.findMany({ orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
+    db.client.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
     loadContractMonths(),
     db.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),

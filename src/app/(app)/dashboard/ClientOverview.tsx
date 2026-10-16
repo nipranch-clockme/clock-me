@@ -12,7 +12,7 @@ import { ChangeText, ContractMeter } from "../clients/parts";
 export default async function ClientOverview({ per, f }: { per: ClientPeriod; f: (m: number) => string }) {
   const thisMonth = per.key === "thismonth";
   const [clients, now, before, soFar, cm] = await Promise.all([
-    db.client.findMany({ orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
+    db.client.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, include: { team: { include: { location: true } } } }),
     minutesByClient(per.from, per.to),
     minutesByClient(per.prevFrom, per.prevTo),
     thisMonth ? minutesByClient(per.from, completeEnd(per.to)) : new Map<string, number>(),

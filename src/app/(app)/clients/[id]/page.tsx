@@ -16,6 +16,7 @@ import { EditClient } from "../../projects/ClientForm";
 import { ContractMeter, PeriodPicker, ShareTable, periodNote } from "../parts";
 import ShareLink from "./ShareLink";
 import ClientNotes, { type NoteView } from "./ClientNotes";
+import ClientArchive from "./ClientArchive";
 
 // One client: totals for the period, hours by month against the contract, and hours by project, phase and person.
 // Every total counts the whole company. Location managers only see their own office's people listed by name.
@@ -93,8 +94,9 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
     <>
       <p className="back"><Link href={`/dashboard?tab=clients&crange=${per.key}`} className="linkbtn">‹ Back to Client overview</Link></p>
       <PageHead title={<><Dot color={client.color} />{client.name}</>}
-        actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} tags={tagOpts} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, workTypeIds: client.workTypeIds, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
+        actions={<><PeriodPicker per={per} id="cd-range" />{me.role === "ADMIN" && <ClientArchive id={client.id} name={client.name} archived={!!client.archivedAt} projectCount={projects.length} />}{me.role === "ADMIN" && <EditClient teams={await clientTeamOptions()} tags={tagOpts} client={{ id: client.id, name: client.name, type: client.type, monthlyHours: client.monthlyHours, teamId: client.teamId, workTypeIds: client.workTypeIds, contacts: client.contacts.map((x) => ({ name: x.name, email: x.email, phone: x.phone })) }} />}</>}
         sub={`${monthly ? `${clientTypeName("FIXED")}, ${monthly}` : clientTypeName("FLOATING")}.${workTypes.length ? ` Work types: ${workTypes.join(" + ")}.` : ""} ${periodNote(per, !!monthly)}`} />
+      {client.archivedAt && <p className="alert warn">Archived. This client is hidden from the client lists and project pickers. Its history stays in the reports. {me.role === "ADMIN" ? "Restore it to bring it back, or delete it once its projects are gone." : ""}</p>}
       <div className="grid g2">
         <section className="panel full">
           {monthly ? <>
