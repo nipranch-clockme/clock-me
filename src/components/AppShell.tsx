@@ -44,8 +44,9 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
   }, []);
   const labels: Record<string, string> = { dashboard: "Dashboard", timesheet: "Timesheet", "time-off": "Time off", approvals: "Approvals", reports: "Reports", clients: "Clients", projects: "Projects", people: "People", "import-export": "Import & export", settings: "Settings" };
   const link = (k: string, cls?: string) => {
-    // The Timesheet link opens its Timer tab; the week grid is one tap away on the page.
-    const t: Tab = { href: k === "timesheet" ? "/timesheet?view=timer" : "/" + k, label: labels[k], icon: ICONS[ICON_FOR[k]] };
+    // The Timesheet link opens its Timer tab, and the Reports link opens this week only (a short range loads fast); the other ranges are on the page.
+    const to = k === "timesheet" ? "/timesheet?view=timer" : k === "reports" ? "/reports?range=thisweek" : "/" + k;
+    const t: Tab = { href: to, label: labels[k], icon: ICONS[ICON_FOR[k]] };
     const here = path.startsWith("/" + k) || (k === "timesheet" && path.startsWith("/calendar"));
     return <Link key={k} href={t.href} className={cls} aria-current={here ? "page" : undefined}><Svg d={t.icon} /><span>{t.label}</span></Link>;
   };
