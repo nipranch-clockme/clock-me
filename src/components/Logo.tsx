@@ -2,16 +2,20 @@
  * The Time Sink logo: a faceted grey and coral clock face with white hands. Drawn as SVG so it stays sharp at any size,
  * and the hands are separate so the loading animation can turn them. `id` keeps the clip and gradient names unique when
  * the logo appears more than once on a page (the sidebar and the phone top bar are both in the page at once).
+ * A soft coral glow round the edge (the "neon" look) needs room, so the drawing area is larger than the circle.
  * src/app/icon.svg (the browser tab icon) is the same drawing; change both together.
  */
 export default function Logo({ id, spin, className, label }: { id: string; spin?: boolean; className?: string; label?: string }) {
-  const clip = `${id}-clip`, coral = `${id}-coral`;
+  const clip = `${id}-clip`, coral = `${id}-coral`, glow = `${id}-glow`, rim = `${id}-rim`;
   return (
-    <svg className={`logo${spin ? " spin" : ""}${className ? ` ${className}` : ""}`} viewBox="168 65 464 464" role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    <svg className={`logo${spin ? " spin" : ""}${className ? ` ${className}` : ""}`} viewBox="122 19 556 556" role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <defs>
         <clipPath id={clip}><circle cx="400" cy="297" r="232" /></clipPath>
         <linearGradient id={coral} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#e0603f" /><stop offset="1" stopColor="#f5755a" /></linearGradient>
+        <filter id={glow} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14" /></filter>
+        <filter id={rim} x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3" /></filter>
       </defs>
+      <circle cx="400" cy="297" r="240" fill="#ff8666" fillOpacity=".85" filter={`url(#${glow})`} />
       <circle cx="400" cy="297" r="232" fill="#141414" />
       <g clipPath={`url(#${clip})`}>
         <path d="M168 65H420L250 190 168 262Z" fill="#0a0a0a" />
@@ -27,6 +31,7 @@ export default function Logo({ id, spin, className, label }: { id: string; spin?
         <path d="M420 430 640 392V540H470Z" fill="#ff9478" />
         <path d="M365 362 476 540H330Z" fill="#ff8666" fillOpacity=".6" />
       </g>
+      <circle cx="400" cy="297" r="230" fill="none" stroke="#ff8666" strokeOpacity=".6" strokeWidth="5" filter={`url(#${rim})`} />
       <g transform="translate(400 297)" fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="38">
         <g className="hh"><path d="M0 0-78-78" /></g>
         <g className="hm"><path d="M0 0 138-115" /></g>

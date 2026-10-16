@@ -23,8 +23,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);-
 .app{display:grid;grid-template-columns:212px minmax(0,1fr);min-height:100vh}
 .side{background:var(--side);border-right:1px solid var(--border);z-index:40}
 .sidein{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:16px 10px 12px;overflow-y:auto}
-.sbrand{display:flex;align-items:center;gap:9px;padding:2px 8px 14px;font:700 17px/1 var(--body);letter-spacing:-.02em;color:var(--ink)}
-.mark{width:32px;height:32px;flex:none;display:block}
+.sbrand{display:flex;align-items:center;gap:5px;padding:2px 8px 14px;font:700 17px/1 var(--body);letter-spacing:-.02em;color:var(--ink)}
+.mark{width:38px;height:38px;flex:none;display:block}
 
 nav.snav{display:flex;flex-direction:column;gap:2px;flex:1 0 auto}
 nav.snav a,nav.snav button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink);font:500 13.5px/1.2 var(--body);padding:8px 10px;border-radius:7px;cursor:pointer;text-align:left}
@@ -46,7 +46,7 @@ nav.snav hr+.navend{margin-top:auto}
 .menubtn svg,.iconbtn svg{width:20px;height:20px}
 .menubtn,.tbrand,.sbrand .sclose{display:none}
 .sbrand .sclose{margin:-6px -4px -6px auto}
-.tbrand{align-items:center;gap:8px;font:700 16px/1 var(--body);letter-spacing:-.02em}
+.tbrand{align-items:center;gap:4px;font:700 16px/1 var(--body);letter-spacing:-.02em}
 /* the prototype-only role switch: clearly marked, never part of the real app */
 .proto{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 4px 4px 6px;border:1px dashed var(--line2);border-radius:10px;min-width:0;max-width:100%}
 .ptag{font:600 11px/1 var(--body);color:var(--lilac-ink);background:var(--lilac);padding:5px 7px;border-radius:5px;letter-spacing:.01em}
@@ -646,7 +646,7 @@ table.clients .meter{min-width:120px}
 table.clients td:nth-child(-n+2){white-space:nowrap}
 .t-bad{color:var(--bad);font-weight:600} .t-ok{color:var(--ok)} .t-warn{color:var(--warn)}
 .legend i.dash{background:none;width:16px;height:0;border-top:2px dashed var(--muted);border-radius:0;vertical-align:3px}
-.brand{display:flex;align-items:center;gap:10px}.brandlogo{width:46px;height:46px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
+.brand{display:flex;align-items:center;gap:6px}.brandlogo{width:54px;height:54px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
 a.btn,a.btn:hover{text-decoration:none}
 
 /* Profile page */
@@ -1055,4 +1055,4 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 @keyframes logo-turn{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.logo.spin .hm{animation-duration:20s}.logo.spin .hh{animation-duration:240s}}
 .pageload{display:grid;place-items:center;min-height:50vh}
-.pageload .logo{width:96px;height:96px}
+.pageload .logo{width:114px;height:114px}
