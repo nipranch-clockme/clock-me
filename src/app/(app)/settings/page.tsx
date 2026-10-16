@@ -6,10 +6,12 @@ import { PERMISSIONS, ROLES } from "@/lib/roles";
 import { GeneralForm, TagForm, TemplateForm, FieldForm, Confirm } from "./SettingsForms";
 import { removeField, removeTag, removeTemplate, toggleFieldRequired } from "./actions";
 import DemoData from "./DemoData";
+import HistoryImport from "./HistoryImport";
 import ChangeLog from "./ChangeLog";
 import { demoStatus } from "@/lib/demoData";
+import { historyStatus } from "@/lib/historyImport";
 
-// Adding the demo data works through the page in short steps; this lets each step run for up to a minute.
+// Adding demo data or imported history works through the page in short steps; this lets each step run for up to a minute.
 export const maxDuration = 60;
 
 export default async function SettingsPage() {
@@ -21,7 +23,7 @@ export default async function SettingsPage() {
     db.customField.findMany({ orderBy: { sort: "asc" } }),
     db.$queryRaw<{ id: string; n: bigint }[]>`SELECT t AS id, COUNT(*)::bigint AS n FROM "TimeEntry", unnest("tagIds") AS t GROUP BY t`, // entries that carry each tag
   ]);
-  const demo = await demoStatus();
+  const [demo, history, offices] = await Promise.all([demoStatus(), historyStatus(), db.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })]);
   const used = new Map(tagUse.map((t) => [t.id, Number(t.n)]));
   const mark = (v: string) => (v === "y" ? <span className="yes">✓</span> : v === "n" ? <span className="no">–</span> : <span className="part">{v}</span>);
   return (
@@ -61,6 +63,7 @@ export default async function SettingsPage() {
         <FieldForm />
       </section>
       <DemoData initial={demo} />
+      <HistoryImport initial={history} offices={offices} />
       <section className="panel full">
         <h3>What each role can do</h3>
         <div className="tablebox"><table className="matrix">
