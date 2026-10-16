@@ -74,11 +74,11 @@ const ok = (c, m) => { if (!c) { fails++; console.log("FAIL", m); } else console
   ok(q(`select count(*) from "Team" where id='t-empty'`) === "0", "an empty team is deleted");
   q(`update "User" set "teamId"='${archTeam}', active=true where id='${arch}'`); q(`delete from "Team" where id='t-arch'`);
 
-  // Only admins (Location managers: their own office's teams)
+  // Only admins
   const m = await login(b, "oliver@example.com");
   await m.goto(BASE + "/people"); await m.waitForLoadState("networkidle");
   ok((await m.locator('section:has(h3:text-is("Offices")) button:has-text("Rename")').count()) === 0, "a Location manager can't rename or delete offices");
-  ok((await m.locator('section:has(h3:text-is("Teams")) button:has-text("Rename")').count()) > 0, "a Location manager can rename their office's teams");
+  ok((await m.locator('section:has(h3:text-is("Teams")) button:has-text("Rename")').count()) === 0, "a Location manager can't rename or delete teams");
   const mem = await login(b, "priya@example.com");
   await mem.goto(BASE + "/people"); await mem.waitForLoadState("networkidle");
   ok((await mem.locator('button:has-text("Rename")').count()) === 0, "others get no Rename");

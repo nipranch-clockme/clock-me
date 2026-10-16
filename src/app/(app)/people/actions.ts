@@ -196,12 +196,12 @@ export async function deleteOffice(id: string): Promise<PeopleResult> {
   return { ok: true };
 }
 
-/** Admins rename any team, Location managers the teams in their own office. The name changes everywhere at once. */
+/** Only Admins rename or delete teams. A rename changes the name everywhere at once. */
 async function teamInReach(id: string) {
   const me = await requireTab("people");
   const team = await db.team.findUnique({ where: { id }, include: { location: true, _count: { select: { users: true, clients: true } } } });
   if (!team) return { me, error: "That team no longer exists." } as const;
-  if (me.role !== "ADMIN" && !(me.role === "LOCATION" && me.locationId === team.locationId)) return { me, error: "Only Admins, or the Location manager of its office, can change a team." } as const;
+  if (me.role !== "ADMIN") return { me, error: "Only Admins can rename or delete teams." } as const;
   return { me, team } as const;
 }
 

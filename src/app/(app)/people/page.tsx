@@ -65,7 +65,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       </section>
       <section className="panel">
         <h3>Teams</h3>
-        <div className="list">{teams.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin || me.role === "LOCATION"} meta={`${t.location.name} · ${t._count.users === 1 ? "1 person" : `${t._count.users} people`}`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div>
+        <div className="list">{teams.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin} meta={`${t.location.name} · ${t._count.users === 1 ? "1 person" : `${t._count.users} people`}`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div>
         <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
       </section>
     </div>
