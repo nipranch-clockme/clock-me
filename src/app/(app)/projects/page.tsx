@@ -6,10 +6,17 @@ import { PageHead, Pill } from "@/components/ui";
 import ProjectsClient, { SelectAllProjects } from "./ProjectsClient";
 import ClientForm, { EditClient } from "./ClientForm";
 import { clientTypeName, contractOf, perMonth } from "@/lib/clients";
+import { dateWithYear, localDate } from "@/lib/dates";
 import Link from "next/link";
 import { Suspense } from "react";
 
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ client?: string; active?: string; access?: string; q?: string }> }) {
+// The sort buttons above the list, and the direction each starts in. Pressing the button that is already in use flips it.
+const SORTS = { client: "Client", name: "Name", added: "Date added", budget: "Budget" } as const;
+type SortKey = keyof typeof SORTS;
+const KEYS = Object.keys(SORTS) as SortKey[];
+const FIRST_DIR: Record<SortKey, "asc" | "desc"> = { client: "asc", name: "asc", added: "desc", budget: "desc" };
+
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ client?: string; active?: string; access?: string; q?: string; sort?: string; dir?: string }> }) {
   const sp = await searchParams;
   const me = await requireUser();
   const creator = canCreateProject(me);
@@ -55,6 +62,29 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     locs: p.locations.map((x) => x.locationId), teams: p.teams.map((x) => x.teamId), users: p.users.map((x) => x.userId), managers: p.managers.map((x) => x.userId),
   }));
 
+  // The list is sorted here, over every project, so each sort covers the whole list. Archived projects always come last,
+  // and a project without a budget comes after the ones with one.
+  type Row = (typeof projects)[number];
+  const key = KEYS.find((k) => k === sp.sort) ?? "client";
+  const dir: "asc" | "desc" = sp.dir === "desc" ? "desc" : sp.dir === "asc" ? "asc" : FIRST_DIR[key];
+  const by: Record<SortKey, (a: Row, b: Row) => number> = {
+    client: (a, b) => a.client.name.localeCompare(b.client.name),
+    name: (a, b) => a.name.localeCompare(b.name),
+    added: (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    budget: (a, b) => (a.budgetHours ?? 0) - (b.budgetHours ?? 0),
+  };
+  const mul = dir === "asc" ? 1 : -1;
+  const sorted = [...projects].sort((a, b) => {
+    if (a.archived !== b.archived) return a.archived ? 1 : -1;
+    if (key === "budget" && (a.budgetHours == null) !== (b.budgetHours == null)) return a.budgetHours == null ? 1 : -1;
+    return mul * by[key](a, b) || a.name.localeCompare(b.name);
+  });
+  const sortHref = (k: SortKey) => {
+    const next = k === key ? (dir === "asc" ? "desc" : "asc") : FIRST_DIR[k];
+    const params = { client: sp.client, active: sp.active, access: sp.access, q: sp.q, sort: k, dir: next };
+    return `/projects?${new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]))}`;
+  };
+
   return (
     <>
       <PageHead title="Projects" sub="Projects, phases and who can log time on them." />
@@ -74,12 +104,20 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         {/* The empty message sits outside the table so it doesn't scroll sideways with it on phones. */}
         {!projects.length ? <p className="empty">{!creator ? "You haven't been added to any projects yet." : sp.client ? "No projects for this client." : "No projects yet."}</p> : (
           <>
+          <nav className="psort" aria-label="Sort projects">
+            <span className="pf-label">Sort</span>
+            {KEYS.map((k) => (
+              <Link key={k} href={sortHref(k)} scroll={false} className={`btn sm${k === key ? " primary" : ""}`} aria-current={k === key ? "true" : undefined}>
+                {SORTS[k]}{k === key && <><span aria-hidden="true"> {dir === "asc" ? "↑" : "↓"}</span><span className="sr-only"> ({dir === "asc" ? "ascending" : "descending"})</span></>}
+              </Link>
+            ))}
+          </nav>
           {creator && <div className="pselect"><SelectAllProjects /></div>}
           <div className="tablebox">
             <table className="ptable ctable">
-              <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th /></tr></thead>
+              <thead><tr><th>Project</th><th>Who can see it</th><th>Managers</th><th>Phases</th><th>Budget</th><th>Date added</th><th /></tr></thead>
               <tbody>
-                {projects.map((p) => {
+                {sorted.map((p) => {
                   const u = used[p.id] ?? 0, pc = p.budgetHours ? u / p.budgetHours : 0;
                   const phases = p.phases.filter((x) => x.sort < 999).map((x) => x.name).join(", "), managers = p.managers.map((m) => m.user.name).join(", ");
                   const who = p.access === "PUBLIC" ? "Everyone" : `Restricted: ${accessText(p)}`;
@@ -91,6 +129,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
                       <td className="note pone clip" data-l="Managers" title={managers}>{managers || "–"}</td>
                       <td className="note pone clip" data-l="Phases" title={phases}>{phases}</td>
                       <td data-l="Budget" className="pone">{p.budgetHours ? <span className="pbud"><span className="meter"><i className={pc > 1 ? "over" : pc > 0.85 ? "hi" : ""} style={{ width: `${Math.min(100, pc * 100)}%` }} /></span><span className="note">{Math.round(u)} of {p.budgetHours} h</span></span> : <span className="note">No budget</span>}</td>
+                      <td data-l="Date added" className="note pone">{dateWithYear(localDate(p.createdAt))}</td>
                       <td className="act">{editable.some((e) => e.id === p.id) && <Link className="btn sm" scroll={false} href={`/projects?${new URLSearchParams({ ...(sp.client ? { client: sp.client } : {}), edit: p.id })}`}>Edit</Link>}</td>
                     </tr>
                   );
