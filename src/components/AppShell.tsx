@@ -44,8 +44,9 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
   }, []);
   const labels: Record<string, string> = { dashboard: "Dashboard", timesheet: "Timesheet", "time-off": "Time off", approvals: "Approvals", reports: "Reports", clients: "Clients", projects: "Projects", people: "People", "import-export": "Import & export", settings: "Settings" };
   const link = (k: string, cls?: string) => {
-    const t: Tab = { href: "/" + k, label: labels[k], icon: ICONS[ICON_FOR[k]] };
-    const here = path.startsWith(t.href) || (k === "timesheet" && path.startsWith("/calendar"));
+    // The Timesheet link opens its Timer tab; the week grid is one tap away on the page.
+    const t: Tab = { href: k === "timesheet" ? "/timesheet?view=timer" : "/" + k, label: labels[k], icon: ICONS[ICON_FOR[k]] };
+    const here = path.startsWith("/" + k) || (k === "timesheet" && path.startsWith("/calendar"));
     return <Link key={k} href={t.href} className={cls} aria-current={here ? "page" : undefined}><Svg d={t.icon} /><span>{t.label}</span></Link>;
   };
   // The skip link moves focus to the page itself (made focusable only for that moment), not just the Tab starting point.
