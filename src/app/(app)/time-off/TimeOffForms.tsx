@@ -106,30 +106,26 @@ export function HolidayForm({ offices, today }: { offices: { id: string; name: s
   return (
     <form ref={form} onSubmit={(ev) => { ev.preventDefault(); const fd = new FormData(ev.currentTarget); startTransition(() => action(fd)); }} style={{ margin: "0 0 16px" }}>
       <h3 style={{ margin: "0 0 8px" }}>Add a public holiday</h3>
-      <div className="row">
-        <div style={{ flex: "0 1 170px" }}><label htmlFor="ho-date">Date</label><input id="ho-date" type="date" name="date" defaultValue={today} /></div>
-        <div style={{ flex: "2 1 220px" }}><label htmlFor="ho-name">Name</label><input id="ho-name" name="name" maxLength={80} placeholder="For example: Diwali" /></div>
-        <div style={{ flex: "0 1 auto", alignSelf: "flex-end" }}><label className="check"><input type="checkbox" name="half" /> Half day</label></div>
+      <div className="row" style={{ alignItems: "flex-end", gap: 12 }}>
+        <div style={{ flex: "0 0 150px" }}><label htmlFor="ho-date">Date</label><input id="ho-date" type="date" name="date" defaultValue={today} /></div>
+        <div style={{ flex: "0 1 240px", minWidth: 160 }}><label htmlFor="ho-name">Name</label><input id="ho-name" name="name" maxLength={80} placeholder="e.g. Diwali" /></div>
+        <fieldset style={{ margin: 0, padding: 0, border: 0, flex: "1 1 300px", minWidth: 0 }}>
+          <legend style={{ marginBottom: 6 }}>For these offices <button type="button" className="btn sm" style={{ marginLeft: 6 }} onClick={() => setPicked(new Set(offices.map((o) => o.id)))}>All</button> <button type="button" className="btn sm" onClick={() => setPicked(new Set())}>None</button></legend>
+          <div className="row" style={{ gap: 12, minHeight: 36, alignItems: "center" }}>
+            {offices.map((o) => (
+              <label key={o.id} className="check"><input type="checkbox" name="locationId" value={o.id} checked={picked.has(o.id)} onChange={() => toggle(o.id)} /> {o.name}</label>
+            ))}
+          </div>
+        </fieldset>
       </div>
-      <fieldset style={{ margin: "12px 0 0", padding: 0, border: 0 }}>
-        <legend style={{ marginBottom: 6 }}>For these offices</legend>
-        <div className="row" style={{ gap: 8, marginBottom: 6 }}>
-          <button type="button" className="btn sm" onClick={() => setPicked(new Set(offices.map((o) => o.id)))}>All offices</button>
-          <button type="button" className="btn sm" onClick={() => setPicked(new Set())}>None</button>
-        </div>
-        <div className="row" style={{ gap: 14 }}>
-          {offices.map((o) => (
-            <label key={o.id} className="check"><input type="checkbox" name="locationId" value={o.id} checked={picked.has(o.id)} onChange={() => toggle(o.id)} /> {o.name}</label>
-          ))}
-        </div>
-      </fieldset>
       <details style={{ marginTop: 10 }}>
         <summary className="linkbtn" style={{ cursor: "pointer" }}>Add several at once</summary>
         <label htmlFor="ho-bulk" style={{ marginTop: 8 }}>One holiday per line: the date, a comma, then the name. Add (half) at the end of a line for a half day. The offices ticked above get every line.</label>
         <textarea id="ho-bulk" name="bulk" rows={6} placeholder={"2026-10-20, Diwali\n2026-12-25, Christmas Day\n2026-12-24, Christmas Eve (half)"} />
       </details>
-      <div className="row" style={{ marginTop: 12 }}>
+      <div className="row" style={{ marginTop: 10, gap: 14, alignItems: "center" }}>
         <button className="btn primary" disabled={pending || picked.size === 0}>{pending ? "Adding…" : "Add holiday"}</button>
+        <label className="check"><input type="checkbox" name="half" /> Half day</label>
         {picked.size === 0 && <span className="note">Tick at least one office.</span>}
       </div>
       {state?.error && <p className="err-text" role="alert" style={{ margin: "8px 0 0" }}>{state.error}</p>}

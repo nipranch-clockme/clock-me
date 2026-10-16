@@ -131,7 +131,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <thead><tr><th className="num">#</th><th>Person</th>{showOffice && <th>Office</th>}<th className="num">Utilisation</th><th className="num">Hours</th></tr></thead>
         <tbody>
           {shown.map((r) => (
-            <tr key={r.id}><td className="num">{up.indexOf(r) + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link><div className="note">{r.title} · {r.team}</div></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
+            <tr key={r.id}><td className="num">{up.indexOf(r) + 1}</td><td><Link href={`/profile/${r.id}`}>{r.name}</Link> <span className="note">· {r.team}</span></td>{showOffice && <td>{locs.find((l) => l.id === r.locationId)?.name}</td>}<td className="num">{r.tg ? pct(r.prod) : "–"}</td><td className="num">{f(r.m)}</td></tr>
           ))}
         </tbody>
       </table></div>
@@ -228,7 +228,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           return (
             <section className="panel" key={l.id}>
               <h3>Top 5 in {l.name}</h3>{topTable(office, false)}
-              <h3 style={{ marginTop: 18 }}>Bottom 5 in {l.name}</h3>{topTable(office, false, true)}
+              <h3 style={{ marginTop: 12 }}>Bottom 5 in {l.name}</h3>{topTable(office, false, true)}
             </section>
           );
         })}
