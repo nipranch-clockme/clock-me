@@ -2,10 +2,11 @@ import { csvObjects } from "./csv";
 import { nameKey } from "./importParse";
 import { TEMPLATES, type ImportKind } from "./importTemplates";
 
-/** What makes a row "the same row" as one in the template: the person, the project and client, or the person's time on a project. */
+/** What makes a row "the same row" as one in the template: the person, the project and client, the client, or the person's time on a project. */
 const keyOf = (kind: ImportKind, r: Record<string, string>) =>
   kind === "people" ? r["email"]?.toLowerCase()
   : kind === "projects" ? `${nameKey(r["client"] ?? "")}|${nameKey(r["project"] ?? "")}`
+  : kind === "contracts" ? nameKey(r["client"] ?? "")
   : `${r["email"]?.toLowerCase()}|${nameKey(r["project"] ?? "")}|${nameKey(r["description"] ?? "")}`;
 
 /**

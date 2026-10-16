@@ -65,6 +65,22 @@ const KINDS: Record<ImportKind, { title: string; blurb: string; icon: string; in
       extras: "any custom field you have set up, by its name. Date, Phase, Tag, Start and Hours also work as column names",
     },
   },
+  contracts: {
+    title: "Client contracts", icon: "clients", blurb: "Each client's team, status, work types and hours for every month.",
+    info: {
+      noun: ["client", "clients"], required: "Client, Year and a column for each month, January to December",
+      columns: [
+        ["Client", "The client's name, as it is in the app. A name the app doesn't have yet becomes a new client."],
+        ["Team", "The team that looks after the client. Unassigned means no team; blank leaves the team as it is."],
+        ["Office", "The team's office (AMD, PNQ...). A team that doesn't exist in that office yet is created."],
+        ["Status", "Contracted, Project based (or Non-contracted) or Lost (or Ended). Blank leaves it as it is."],
+        ["Year", "The year the months belong to, like 2026."],
+        ["January to December", "Contracted hours for each month. Blank means 0. Months already past are changed too."],
+        ["Work types", "Tags that already exist, like CAD + ENG or CAD/ENG. Blank leaves them as they are."],
+      ],
+      extras: "Location works as another name for Office, Contract for Status, and Jan to Dec for the months. Year Total, Per Day and Per Week are skipped",
+    },
+  },
 };
 
 export default async function ImportExportPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -72,7 +88,7 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const canPeople = me.role === "ADMIN" || me.role === "LOCATION";
-  const kinds = (["people", "projects", "time"] as ImportKind[]).filter((k) => k !== "people" || canPeople);
+  const kinds = (["people", "projects", "time", "contracts"] as ImportKind[]).filter((k) => (k !== "people" || canPeople) && (k !== "contracts" || me.role === "ADMIN"));
   const kind = kinds.find((k) => k === one("import")) ?? kinds[0];
   const tab = one("tab") === "export" ? "export" : "import";
   const offices = me.role === "ADMIN" ? await db.location.findMany({ orderBy: { name: "asc" } }) : [me.location];
@@ -99,7 +115,7 @@ export default async function ImportExportPage({ searchParams }: { searchParams:
           <section className="panel">
             <ImportDesk key={kind} kind={kind} info={k.info} templateHref={`/import-export/template/${kind}`} templateFile={t.file}
               offices={offices.map((o) => ({ id: o.id, name: o.name }))} defaultOffice={me.locationId} canCreate={me.role === "ADMIN"} emailOn={emailConfigured()}
-              viewHref={kind === "people" ? "/people" : kind === "projects" ? "/projects" : "/reports"} />
+              viewHref={kind === "people" ? "/people" : kind === "projects" ? "/projects" : kind === "contracts" ? "/clients" : "/reports"} />
           </section>
         </>
       ) : (

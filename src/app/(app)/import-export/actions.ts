@@ -10,12 +10,13 @@ import { emailConfigured, sendEmail } from "@/lib/email";
 import { checkPeople, savePeople, type PersonDraft } from "@/lib/importPeople";
 import { checkProjects, saveProjects, type ProjectDraft } from "@/lib/importProjects";
 import { checkTime, saveTime, type EntryDraft } from "@/lib/importTime";
+import { checkContracts, saveContracts, type ContractDraft } from "@/lib/importContracts";
 import { PhaseInUseError } from "@/lib/entries";
 import { sampleRows } from "@/lib/importSample";
 import { MAX_IMPORT_BYTES, PREVIEW_ROWS, summarise, type ImportKind, type ImportResult, type PreviewRow } from "@/lib/importTypes";
 
 export type { ImportResult } from "@/lib/importTypes";
-const KINDS: ImportKind[] = ["people", "projects", "time"];
+const KINDS: ImportKind[] = ["people", "projects", "time", "contracts"];
 const MAX_EMAILS = 50;
 
 const failed = (kind: ImportKind, error: string): NonNullable<ImportResult> =>
@@ -102,6 +103,28 @@ export async function previewImport(_: ImportResult, form: FormData): Promise<Im
     await logAction(me.id, `Imported ${imported} ${imported === 1 ? "project" : "projects"} from CSV${c.newClients.length ? ` (new clients: ${c.newClients.join(", ")})`.slice(0, 400) : ""}${c.newTags.length ? ` (new tags: ${c.newTags.join(", ")})`.slice(0, 300) : ""}`);
     revalidatePath("/", "layout");
     return { ...view, imported, done: [`${imported} project${imported === 1 ? "" : "s"} added.`, ...c.adds] };
+  }
+
+  if (kind === "contracts") {
+    if (me.role !== "ADMIN") return failed(kind, "Only Admins can change contracts.");
+    const c = await checkContracts(text);
+    if (c.error !== undefined) return failed(kind, c.error);
+    const view = shown(kind, c, text);
+    if (!commit) return view;
+    const drafts = c.out.map((o) => o.data).filter((d): d is ContractDraft => !!d);
+    if (!drafts.length) return { ...view, error: "None of the rows can be imported. Fix the problems in the file and check it again." };
+    let imported: number;
+    try { imported = await saveContracts(drafts); }
+    catch (e) { console.error("Contracts import failed", e); return { ...view, error: SAVE_FAILED }; }
+    const years = [...new Set(drafts.map((d) => d.year))].sort().join(", ");
+    await db.auditLog.createMany({
+      data: [
+        { userId: me.id, action: `Imported contracts for ${imported} ${imported === 1 ? "client" : "clients"} (${years}) from CSV${c.adds.length ? ` (${c.adds.join("; ")})`.slice(0, 500) : ""}` },
+        ...drafts.map((d) => ({ userId: me.id, action: `Set contract for client ${d.clientName}, ${d.year} from CSV: ${d.hours.join(", ")} h`.slice(0, 500) })),
+      ],
+    });
+    revalidatePath("/", "layout");
+    return { ...view, imported, done: [`Contracts saved for ${imported} client${imported === 1 ? "" : "s"}.`, ...c.adds] };
   }
 
   const c = await checkTime(me, text, form.get("create") === "1");

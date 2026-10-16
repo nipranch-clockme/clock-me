@@ -11,7 +11,7 @@ export type DeskInfo = {
   extras: string; // optional columns the template doesn't have
 };
 type Props = {
-  kind: "people" | "projects" | "time";
+  kind: "people" | "projects" | "time" | "contracts";
   info: DeskInfo;
   templateHref: string;
   templateFile: string;
@@ -255,7 +255,7 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                     {res.sample ? (
                       <div className="alert warn">
                         <b>{plural(res.sample, ["row is", "rows are"])} still the template&apos;s example {res.sample === 1 ? "row" : "rows"}</b>
-                        <p style={{ margin: "2px 0 8px" }}>The examples are made-up {kind === "people" ? "people (some are Admins)" : kind === "projects" ? "projects and clients" : "time entries"}. Delete them from your file and check it again, unless you really want them.</p>
+                        <p style={{ margin: "2px 0 8px" }}>The examples are made-up {kind === "people" ? "people (some are Admins)" : kind === "projects" ? "projects and clients" : kind === "contracts" ? "clients" : "time entries"}. Delete them from your file and check it again, unless you really want them.</p>
                         <label className="icheck"><input type="checkbox" checked={sampleOk} onChange={(e) => setSampleOk(e.target.checked)} /><span>Yes, import the example rows too</span></label>
                       </div>
                     ) : null}
@@ -301,7 +301,7 @@ export default function ImportDesk({ kind, info, templateHref, templateFile, off
                     </table></div>
                   </div>
                 )}
-                {done && <div className="row" style={{ marginTop: 12 }}><a className="btn" href={viewHref}>{kind === "people" ? "See the people" : kind === "projects" ? "See the projects" : "See the time in Reports"}</a><button type="button" className="btn" onClick={another}>Import another file</button></div>}
+                {done && <div className="row" style={{ marginTop: 12 }}><a className="btn" href={viewHref}>{kind === "people" ? "See the people" : kind === "projects" ? "See the projects" : kind === "contracts" ? "See Monthly contracts" : "See the time in Reports"}</a><button type="button" className="btn" onClick={another}>Import another file</button></div>}
               </div>
             )}
           </div>
