@@ -1046,13 +1046,13 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
   summary.linkbtn{padding-block:5px}
 }
 
-/* The clock logo (components/Logo.tsx). While something loads, the short hand is hidden and the long hand turns about
-   once a second. Slower for people who ask for less motion. */
+/* The clock logo (components/Logo.tsx). While something loads its hands turn like a clock on fast-forward: the long
+   hand every 2 seconds, the short hand once every 24 seconds (one full loop). Slower for people who ask for less motion. */
 .logo{display:block;flex:none}
 .logo .hh,.logo .hm{transform-origin:0 0}
-.logo.spin .hm{animation:logo-turn 1.2s linear infinite}
-.logo.spin .hh{display:none}
+.logo.spin .hm{animation:logo-turn 2s linear infinite}
+.logo.spin .hh{animation:logo-turn 24s linear infinite}
 @keyframes logo-turn{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.logo.spin .hm{animation-duration:12s}}
+@media (prefers-reduced-motion:reduce){.logo.spin .hm{animation-duration:20s}.logo.spin .hh{animation-duration:240s}}
 .pageload{display:grid;place-items:center;min-height:50vh}
 .pageload .logo{width:96px;height:96px}
