@@ -1,5 +1,6 @@
 "use client";
 import "./globals.css";
+import Logo from "@/components/Logo";
 
 /** Shown when even the outer page frame fails. It replaces the root layout, so it brings its own html and body. */
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -8,7 +9,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
       <body>
         <title>Something went wrong · The Time Sink</title>
         <div className="login">
-          <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
+          <div className="brand" style={{ marginBottom: 20 }}><Logo id="logo-brand" className="brandlogo" /><h1>The Time Sink</h1></div>
           <section className="panel">
             <h2>Something went wrong</h2>
             <p className="sub">The Time Sink didn&apos;t load properly. Try again, or go to your timesheet. If it keeps happening, tell your Admin.</p>

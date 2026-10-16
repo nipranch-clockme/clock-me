@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { emailConfigured } from "@/lib/email";
 import ForgotForm from "./ForgotForm";
+import Logo from "@/components/Logo";
 
 // Checks the email setting on each visit, so adding RESEND_API_KEY in Vercel turns self-service resets on.
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export default function ForgotPage() {
   const email = emailConfigured();
   return (
     <div className="login">
-      <div className="brand" style={{ marginBottom: 20 }}><h1>The Time Sink</h1></div>
+      <div className="brand" style={{ marginBottom: 20 }}><Logo id="logo-brand" className="brandlogo" /><h1>The Time Sink</h1></div>
       <section className="panel">
         <h2>Forgot your password?</h2>
         {email ? (

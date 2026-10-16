@@ -646,7 +646,7 @@ table.clients .meter{min-width:120px}
 table.clients td:nth-child(-n+2){white-space:nowrap}
 .t-bad{color:var(--bad);font-weight:600} .t-ok{color:var(--ok)} .t-warn{color:var(--warn)}
 .legend i.dash{background:none;width:16px;height:0;border-top:2px dashed var(--muted);border-radius:0;vertical-align:3px}
-.brand{display:flex;align-items:baseline;gap:10px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
+.brand{display:flex;align-items:center;gap:10px}.brandlogo{width:34px;height:34px}.brand h1{font:700 26px/1 var(--body);margin:0;letter-spacing:-.02em}
 a.btn,a.btn:hover{text-decoration:none}
 
 /* Profile page */
@@ -1045,3 +1045,14 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
   button.linkbtn,button.plink,.rtable th .sorter{min-height:24px}
   summary.linkbtn{padding-block:5px}
 }
+
+/* The clock logo (components/Logo.tsx). While something loads its hands turn: the long hand once a second or so, the
+   short hand twelve times slower, like a clock on fast-forward. Calmer for people who ask for less motion. */
+.logo{display:block;flex:none}
+.logo .hh,.logo .hm{transform-origin:0 0}
+.logo.spin .hm{animation:logo-turn 1.2s linear infinite}
+.logo.spin .hh{animation:logo-turn 14.4s linear infinite}
+@keyframes logo-turn{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.logo.spin .hm{animation-duration:12s}.logo.spin .hh{animation-duration:144s}}
+.pageload{display:grid;place-items:center;min-height:50vh}
+.pageload .logo{width:72px;height:72px}

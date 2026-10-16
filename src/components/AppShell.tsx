@@ -3,14 +3,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ICONS } from "./icons";
+import Logo from "./Logo";
 
 type Tab = { href: string; label: string; icon: string };
 const GROUPS: string[][] = [["dashboard", "timesheet", "time-off"], ["approvals", "reports"], ["clients", "projects", "people", "import-export"]];
 const ICON_FOR: Record<string, string> = { dashboard: "dash", timesheet: "sheet", "time-off": "off", approvals: "approve", reports: "reports", clients: "clients", projects: "projects", people: "people", "import-export": "io", settings: "settings" };
 
-const Mark = () => (
-  <svg className="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="13" r="9.5" fill="var(--accent)" /><path d="M11 8v5l3.2 2.1" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="19.6" cy="4.6" r="3.1" fill="var(--s2)" /></svg>
-);
 const Svg = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 
 /** The sidebar (a drawer on phones), the top bar and the page area. */
@@ -65,7 +63,7 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
       <a href="#view" className="skiplink" inert={open} onClick={skip}>Skip to main content</a>
       <div className="app">
         <aside ref={sideRef} className="side" id="side" aria-label="Menu"><div className="sidein">
-          <div className="sbrand"><Mark /><span>The Time Sink</span>
+          <div className="sbrand"><Logo id="logo-side" className="mark" /><span>The Time Sink</span>
             <button className="iconbtn sclose" aria-label="Close menu" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
           <nav className="snav" id="tabs" aria-label="Main">
             {groups.map((g, i) => <span key={i} style={{ display: "contents" }}>{i > 0 && <hr />}{g.map((k) => link(k))}</span>)}
@@ -76,7 +74,7 @@ export default function AppShell({ allowed, who, children }: { allowed: string[]
         <div className="main" id="mainc" inert={open}>
           <header className="top">
             <button ref={menuRef} className="menubtn" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="side" onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>
-            <div className="tbrand"><Mark /><span>The Time Sink</span></div>
+            <div className="tbrand"><Logo id="logo-top" className="mark" /><span>The Time Sink</span></div>
             <div className="who">{who}</div>
           </header>
           <main id="view" style={{ outline: "none" }}>{children}</main>
