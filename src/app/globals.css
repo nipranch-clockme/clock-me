@@ -688,14 +688,14 @@ html[data-theme] body{background:var(--bg);color:var(--ink)}
 /* Dark: near-black slate, a calm blue accent, text at about 14:1 contrast so long days stay readable */
 :root[data-theme="dark"]{
   color-scheme:dark; --on-accent:#111;
-  --bg:#0E0E0E; --side:#141414; --card:#171717; --tile:#1F1F1F; --surface:#1F1F1F; --hover:#272727; --track:#363636;
-  --ink:#EDEDED; --muted:#A3A3A3; --line:#2A2A2A; --border:#2A2A2A; --line2:#3D3D3D; --field:#707070;
-  --accent:#F2F2F2; --accent-hi:#FFFFFF; --link:#F2F2F2; --accent-soft:#262626; --accent-ink:#F2F2F2;
+  --bg:#1E1E1E; --side:#252525; --card:#262626; --tile:#2E2E2E; --surface:#2E2E2E; --hover:#353535; --track:#444444;
+  --ink:#EDEDED; --muted:#ABABAB; --line:#3A3A3A; --border:#3A3A3A; --line2:#4A4A4A; --field:#7A7A7A;
+  --accent:#F2F2F2; --accent-hi:#FFFFFF; --link:#F2F2F2; --accent-soft:#333333; --accent-ink:#F2F2F2;
   --coral:#FF8666; --coral-ink:#FF9B80; --coral-soft:#3A2019;
-  --btn2:#2A2A2A; --btn2-hi:#353535; --seg-on:#3A3A3A; --lilac:#3A2019; --lilac-ink:#FFB39E;
+  --btn2:#383838; --btn2-hi:#424242; --seg-on:#474747; --lilac:#3A2019; --lilac-ink:#FFB39E;
   --ok:#73D18F; --ok-soft:#173623; --warn:#F5B06A; --warn-soft:#3B2914; --bad:#FF8E99; --bad-soft:#3E1C22; --bad-hi:#4C222A;
   --s1:#FF8666; --s2:#F59A3E; --s3:#8A8A8A; --s4:#7D8692; --nb:#4A4A4A; --on-s1:#1A0D08; --s5:#4CC9D6; --s6:#56C27F; --s7:#A88BEA; --s8:#E479AB;
-  --t1:#2A2A2A; --t1i:#EDEDED; --t2:#3A2019; --t2i:#FFB39E; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
+  --t1:#363636; --t1i:#EDEDED; --t2:#3A2019; --t2i:#FFB39E; --t3:#432232; --t3i:#F5B5D2; --t4:#173623; --t4i:#8FDBA6; --t5:#3B2914; --t5i:#F5B06A;
   --shadow:none; --pop:0 16px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55); --edge:rgba(0,0,0,.7);
   --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%239AA4B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
