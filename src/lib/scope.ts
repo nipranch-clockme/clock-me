@@ -9,6 +9,8 @@ export const clientColorFor = (me: Me, color: string) => (hidesClients(me) ? "s4
 /** People who have hours expected of them: usual weekly hours above 0, or at least one month above 0 in the monthly hours table. Admins and
  *  are not a resource, so the screens that work out utilisation add `role: { notIn: NOT_A_RESOURCE }` as well. */
 export const expectsHoursWhere: Prisma.UserWhereInput = { OR: [{ weeklyTarget: { gt: 0 } }, { monthlyHours: { some: { weeklyHours: { gt: 0 } } } }] };
+/** People who count on the Dashboard and in Approvals: they have set up their account, or they already have time (imported history counts before they are invited). */
+export const countsAsStartedWhere: Prisma.UserWhereInput = { OR: [{ passwordHash: { not: null } }, { entries: { some: {} } }] };
 
 /** Whose entries this person may see: own (member), own team (team/project manager), own office (location manager), everyone (admin).
  *  sees only their own entries; the Dashboard's utilisation uses utilisationUsersWhere instead. */

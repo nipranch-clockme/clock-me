@@ -85,6 +85,17 @@ const counts = () => ({
     ok(after.entries > before.entries, `${after.entries - before.entries} entries saved`);
   }
 
+  // Imported people count on the Dashboard before they are invited.
+  const names = q(`select string_agg(name, '|') from "User" where "passwordHash" is null and active and email <> 'admin@example.com'`).split("|").filter(Boolean);
+  for (const range of ["&range=lastmonth", "&range=thisyear", ""]) {
+    await p.goto(BASE + "/dashboard?tab=team" + range); await p.waitForLoadState("networkidle");
+    const html = await p.content();
+    const seen = names.filter((x) => html.includes(x));
+    console.log(`   dashboard${range || " (default)"} shows ${seen.length} of ${names.length} imported people`);
+    if (seen.length) { ok(true, "imported people show on the Dashboard"); break; }
+    if (!range) ok(false, "imported people show on the Dashboard");
+  }
+
   // Approvals has nothing to do for the imported weeks.
   await p.goto(BASE + "/approvals"); await p.waitForLoadState("networkidle");
   ok(p.errs.length === 0, "no page errors: " + p.errs.join(" | "));

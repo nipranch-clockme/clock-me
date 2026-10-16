@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { expectsHoursWhere, scopeLabel, utilisationUsersWhere } from "@/lib/scope";
+import { countsAsStartedWhere, expectsHoursWhere, scopeLabel, utilisationUsersWhere } from "@/lib/scope";
 import { addMonths, endOfMonth, longDate, rangeDates, today, toDate } from "@/lib/dates";
 import { fmtHours, pct } from "@/lib/format";
 import { completeEnd, targetMinutes } from "@/lib/productivity";
@@ -61,7 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const [a, bRaw] = rangeDates(range);
   const b = completeEnd(bRaw); // count complete days only, so hours and targets cover the same days
 
-  const users = await db.user.findMany({ where: { AND: [utilisationUsersWhere(me), { active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE } }, expectsHoursWhere] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
+  const users = await db.user.findMany({ where: { AND: [utilisationUsersWhere(me), { active: true, role: { notIn: NOT_A_RESOURCE } }, countsAsStartedWhere, expectsHoursWhere] }, include: { team: true, location: true }, orderBy: { name: "asc" } });
   const ids = users.map((u) => u.id);
   const sums = b >= a ? await db.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: ids }, date: { gte: toDate(a), lte: toDate(b) } }, _sum: { minutes: true } }) : [];
   const byUser = new Map(sums.map((s) => [s.userId, s._sum.minutes ?? 0]));

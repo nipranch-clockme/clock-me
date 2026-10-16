@@ -2,7 +2,7 @@ import { NOT_A_RESOURCE } from "@/lib/roles";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireTab } from "@/lib/auth";
-import { approverUsersWhere, escalatedSheetsWhere, ESCALATE_DAYS, expectsHoursWhere, scopeLabel, timeOffApproverWhere } from "@/lib/scope";
+import { approverUsersWhere, countsAsStartedWhere, escalatedSheetsWhere, ESCALATE_DAYS, expectsHoursWhere, scopeLabel, timeOffApproverWhere } from "@/lib/scope";
 import { getSettings } from "@/lib/settings";
 import { addDays, DAYS, dow, longDate, monday, shortDate, today, toDate, toStr, weekLabel } from "@/lib/dates";
 import { fmtHours } from "@/lib/format";
@@ -35,7 +35,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const lastWeek = addDays(monday(today()), -7);
   const [pending, people, lastWeekSheets] = await Promise.all([
     db.timesheet.findMany({ where: { status: "SUBMITTED", user: where }, include: { user: { include: { team: true, location: true } } }, orderBy: [{ weekStart: "asc" }] }),
-    db.user.findMany({ where: { AND: [where, { active: true, passwordHash: { not: null }, role: { notIn: NOT_A_RESOURCE } }, expectsHoursWhere] }, include: { location: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { AND: [where, { active: true, role: { notIn: NOT_A_RESOURCE } }, countsAsStartedWhere, expectsHoursWhere] }, include: { location: true }, orderBy: { name: "asc" } }),
     db.timesheet.findMany({ where: { weekStart: toDate(lastWeek), user: where }, select: { userId: true, status: true } }),
   ]);
   // Team/Project Managers approve their own team first. Location managers and admins see the weeks that really need them up top
