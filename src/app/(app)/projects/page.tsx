@@ -128,6 +128,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               <span className="note">{from.toLocaleString("en-US")}–{to.toLocaleString("en-US")} of {total.toLocaleString("en-US")}</span>
             </div>
           </div>
+          {pages > 1 && (
+            <nav className="ppager" aria-label="Pages of projects">
+              {current > 1 ? <Link href={pageHref(current - 1)} scroll={false} className="btn sm">‹ Previous</Link> : <span className="btn sm" aria-disabled="true">‹ Previous</span>}
+              <span className="note">Page {current} of {pages}</span>
+              {current < pages ? <Link href={pageHref(current + 1)} scroll={false} className="btn sm">Next ›</Link> : <span className="btn sm" aria-disabled="true">Next ›</span>}
+            </nav>
+          )}
           {creator && <div className="pselect"><SelectAllProjects /></div>}
           <div className="tablebox">
             <table className="ptable ctable">
@@ -153,13 +160,6 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
               </tbody>
             </table>
           </div>
-          {pages > 1 && (
-            <nav className="ppager" aria-label="Pages of projects">
-              {current > 1 ? <Link href={pageHref(current - 1)} scroll={false} className="btn sm">‹ Previous</Link> : <span className="btn sm" aria-disabled="true">‹ Previous</span>}
-              <span className="note">Page {current} of {pages}</span>
-              {current < pages ? <Link href={pageHref(current + 1)} scroll={false} className="btn sm">Next ›</Link> : <span className="btn sm" aria-disabled="true">Next ›</span>}
-            </nav>
-          )}
           </>
         )}
       </section>
