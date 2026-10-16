@@ -9,7 +9,7 @@ type Tab = { href: string; label: string; icon: string };
 const GROUPS: string[][] = [["dashboard", "timesheet", "time-off"], ["approvals", "reports"], ["clients", "projects", "people", "import-export"]];
 const ICON_FOR: Record<string, string> = { dashboard: "dash", timesheet: "sheet", "time-off": "off", approvals: "approve", reports: "reports", clients: "clients", projects: "projects", people: "people", "import-export": "io", settings: "settings" };
 
-const Svg = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
+const Svg = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />;
 
 /** The sidebar (a drawer on phones), the top bar and the page area. */
 export default function AppShell({ allowed, who, children }: { allowed: string[]; who: React.ReactNode; children: React.ReactNode }) {
