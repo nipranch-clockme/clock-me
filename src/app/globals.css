@@ -1058,24 +1058,31 @@ a.rdate-nav:hover{background:var(--hover);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){.logo.spin .hm{animation-duration:20s}.logo.spin .hh{animation-duration:240s}}
 .pageload{display:grid;place-items:center;min-height:50vh}
 .pageload .logo{width:114px;height:114px}
-/* AV Design Labs header on reports: charcoal band, white logo, coral stripe. Always dark, in both themes and on paper. */
-.avband{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#1E2126;color:#fff;padding:18px 28px;border-bottom:4px solid #FF8666;border-radius:10px 10px 0 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.avband img{height:52px;width:auto;display:block;flex:none}
-.avband-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;font-size:12px;line-height:1.4;color:#C9CDD2;min-width:0}
-.avband-r b{color:#fff;font-size:14px;font-weight:600}
+/* AV Design Labs letterhead on reports: the full-colour logo, report details on the right, a thin coral line underneath.
+   In the dark theme the logo's lettering turns white; on paper it is always the full-colour logo on white. */
+.avband{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:4px 0 14px;border-bottom:2px solid #FF8666;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.avband img{height:60px;width:auto;display:block;flex:none}
+.avband-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;font-size:12px;line-height:1.4;color:var(--muted);min-width:0}
+.avband-r b{color:var(--ink);font-size:14px;font-weight:600}
+.shbrand{align-items:center}
 .shbrand .avband-r{flex-direction:row;align-items:center;gap:10px}
-.avband-pill{border:1px solid #3C444F;border-radius:999px;padding:3px 10px;font-size:12px;color:#C9CDD2;white-space:nowrap}
-.shbrand .themebtn{color:#C9CDD2;border-color:#3C444F;background:transparent}
+.avband-pill{border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
+.avband .bm-d{display:none}
+:root[data-theme="dark"] .avband .bm-l{display:none}
+:root[data-theme="dark"] .avband .bm-d{display:block}
 .avfoot{display:flex;align-items:center;justify-content:center;gap:8px;margin:0;font-size:12px;color:var(--muted)}
 .avfoot img{height:16px;width:auto}
 .avfoot .bm-d{display:none}
 :root[data-theme="dark"] .avfoot .bm-l{display:none}
 :root[data-theme="dark"] .avfoot .bm-d{display:inline}
 .ponly{display:none!important}
-@media (max-width:600px){.avband{padding:14px 16px}.avband img{height:42px}.avband-pill{display:none}}
+@media (max-width:600px){.avband img{height:46px}.avband-pill{display:none}}
 @media print{
   .ponly{display:flex!important}
-  .avband{border-radius:0;margin-bottom:18px}
+  .avband{margin-bottom:18px}
+  .avband-r{color:#5B6470}.avband-r b{color:#1F2328}
+  :root[data-theme="dark"] .avband .bm-l{display:block}
+  :root[data-theme="dark"] .avband .bm-d{display:none}
   .avfoot{margin-top:18px}
   :root[data-theme="dark"] .avfoot .bm-l{display:inline}
   :root[data-theme="dark"] .avfoot .bm-d{display:none}
