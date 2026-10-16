@@ -64,7 +64,41 @@ const dbNames = (order, where = 'true') => sql(`select p.name from "Project" p j
     const firstArchived = flags.indexOf(true);
     ok(firstArchived === -1 || flags.slice(firstArchived).every(Boolean), 'archived projects come after the active ones');
 
-    // 7. A team member sees the column and the buttons too; a phone has no sideways scroll.
+    // 7. Paging: 50 a page, 200 and 500 from the drop-down, Previous and Next, and the sort is kept from page to page.
+    // Adds 60 projects for this check only; they are removed again straight after.
+    sql(`insert into "Project" (id,name,"clientId",access,archived,"createdAt") select 'pgtest'||g, 'pgtest-'||lpad(g::text,3,'0'), (select id from "Client" order by name limit 1), 'PUBLIC', false, now() from generate_series(1,60) g`);
+    try {
+      const total = +sql(`select count(*) from "Project" where archived=false`);
+      await admin.goto(`${BASE}/projects`); await admin.waitForLoadState('networkidle');
+      ok(await admin.locator('.ptable tbody tr').count() === 50, 'the first page shows 50 projects');
+      ok((await admin.locator('.ppager').textContent()).includes('Page 1 of 2'), 'the page says it is page 1 of 2');
+      ok((await admin.locator('.psize-row .note').textContent()).includes(`1–50 of ${total}`), `the count reads 1–50 of ${total}`);
+      ok(await admin.locator('.ppager [aria-disabled="true"]').count() === 1, 'Previous is off on the first page');
+      await admin.click('.ppager a:has-text("Next")'); await admin.waitForURL((u) => u.searchParams.get('page') === '2'); await admin.waitForLoadState('networkidle');
+      ok(await admin.locator('.ptable tbody tr').count() === total - 50, 'page 2 shows the rest of the list');
+      ok(await admin.locator('.ppager [aria-disabled="true"]').count() === 1, 'Next is off on the last page');
+      await admin.selectOption('.psize select', '200'); await admin.waitForURL((u) => u.searchParams.get('pp') === '200'); await admin.waitForLoadState('networkidle');
+      ok(await admin.locator('.ptable tbody tr').count() === total, '200 a page shows every project');
+      ok(await admin.locator('.ppager').count() === 0, 'with one page there are no page buttons');
+      await admin.selectOption('.psize select', '500'); await admin.waitForURL((u) => u.searchParams.get('pp') === '500'); await admin.waitForLoadState('networkidle');
+      ok(await admin.locator('.ptable tbody tr').count() === total, '500 a page also shows every project');
+      // The sort is kept from one page to the next.
+      await admin.goto(`${BASE}/projects?pp=50&sort=name&dir=asc`); await admin.waitForLoadState('networkidle');
+      const page1 = await names(admin);
+      await admin.click('.ppager a:has-text("Next")'); await admin.waitForURL((u) => u.searchParams.get('page') === '2' && u.searchParams.get('sort') === 'name'); await admin.waitForLoadState('networkidle');
+      const page2 = await names(admin);
+      ok(JSON.stringify([...page1, ...page2]) === JSON.stringify(dbNames('p.name asc', 'p.archived=false')), 'page 1 then page 2 is the whole list in name order');
+      // The Edit button stays inside the list box at 1280px, so it can be clicked.
+      await admin.setViewportSize({ width: 1280, height: 900 }); await admin.goto(`${BASE}/projects`); await admin.waitForLoadState('networkidle');
+      const inside = await admin.evaluate(() => { const box = document.querySelector('.tablebox').getBoundingClientRect(); const r = document.querySelector('.ptable td.act a').getBoundingClientRect(); return r.right <= box.right + 1 && r.left >= box.left - 1; });
+      ok(inside, 'at 1280px the Edit button is inside the list box');
+      await admin.locator('.ptable td.act a').first().click(); await admin.waitForURL((u) => u.searchParams.has('edit'));
+      ok(true, 'the Edit button opens a project');
+    } finally {
+      sql(`delete from "Project" where name like 'pgtest-%'`);
+    }
+
+    // 8. A team member sees the column and the buttons too; a phone has no sideways scroll.
     const mem = await login(b, member);
     await mem.goto(`${BASE}/projects`); await mem.waitForLoadState('networkidle');
     ok(new URL(mem.url()).pathname === '/projects', `${member} (team member) opens Projects`);

@@ -45,19 +45,9 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       {welcome && (
         <section className="panel full" role="status">
           <h3>Your account is ready</h3>
-          <p style={{ margin: 0 }}>Next steps: add your other offices and teams below, add clients on the <Link href="/projects">Projects</Link> page, then invite people with <strong>Invite person</strong>. Company settings like the time format and lock date are under <Link href="/settings">Settings</Link>.</p>
+          <p style={{ margin: 0 }}>Next steps: add your other offices and teams above, add clients on the <Link href="/projects">Projects</Link> page, then invite people with <strong>Invite person</strong>. Company settings like the time format and lock date are under <Link href="/settings">Settings</Link>.</p>
         </section>
       )}
-      <PeopleClient
-        meId={me.id}
-        admin={admin}
-        people={people.map((u) => ({ id: u.id, name: u.name, email: u.email, title: u.title, role: u.role, locationId: u.locationId, locationName: u.location.name, teamId: u.teamId, teamName: u.team?.name ?? "", weeklyTarget: u.weeklyTarget, employeeId: u.employeeId ?? "", joiningDate: u.joiningDate ? toStr(u.joiningDate) : "", active: u.active, pending: !u.passwordHash }))}
-        locations={myLocations.map((l) => ({ id: l.id, name: l.name }))}
-        teams={teams.map((t) => ({ id: t.id, name: t.name, locationId: t.locationId }))}
-        roles={(admin ? ROLES : ROLES.filter(([r]) => r !== "ADMIN" && r !== "LOCATION" && r !== "GUEST")).map(([v, l]) => ({ value: v, label: l }))}
-        defaultLocation={me.locationId}
-        today={today()}
-      />
       <section className="panel">
         <h3>Offices</h3>
         <div className="list">{myLocations.map((l) => <NameRow key={l.id} kind="office" id={l.id} name={l.name} canEdit={admin} meta={l._count.users === 1 ? "1 person" : `${l._count.users} people`} deleteQuestion={`Delete the ${l.name} office? Its teams and public holidays are deleted too.`} />)}</div>
@@ -68,6 +58,16 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         <div className="list">{teams.map((t) => <NameRow key={t.id} kind="team" id={t.id} name={t.name} canEdit={admin} meta={`${t.location.name} · ${t._count.users === 1 ? "1 person" : `${t._count.users} people`}`} deleteQuestion={`Delete the ${t.name} team in ${t.location.name}?`} />)}</div>
         <TeamForm locations={myLocations.map((l) => ({ id: l.id, name: l.name }))} admin={admin} />
       </section>
+      <PeopleClient
+        meId={me.id}
+        admin={admin}
+        people={people.map((u) => ({ id: u.id, name: u.name, email: u.email, title: u.title, role: u.role, locationId: u.locationId, locationName: u.location.name, teamId: u.teamId, teamName: u.team?.name ?? "", weeklyTarget: u.weeklyTarget, employeeId: u.employeeId ?? "", joiningDate: u.joiningDate ? toStr(u.joiningDate) : "", active: u.active, pending: !u.passwordHash }))}
+        locations={myLocations.map((l) => ({ id: l.id, name: l.name }))}
+        teams={teams.map((t) => ({ id: t.id, name: t.name, locationId: t.locationId }))}
+        roles={(admin ? ROLES : ROLES.filter(([r]) => r !== "ADMIN" && r !== "LOCATION" && r !== "GUEST")).map(([v, l]) => ({ value: v, label: l }))}
+        defaultLocation={me.locationId}
+        today={today()}
+      />
     </div>
     </>
   );
